@@ -26,7 +26,7 @@ export type Customer = {
 export type InvoiceItem = {
   id: string;
   productName: string;
-  quantity: number;
+  description?: string;
   unitPrice: number;
   total: number;
   isCustom?: boolean;

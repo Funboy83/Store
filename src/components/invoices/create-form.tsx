@@ -68,8 +68,8 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
 
     const newItems: InvoiceItem[] = newProducts.map(product => ({
       id: product.id,
-      productName: `${product.imei} - ${product.storage} - ${product.color}`,
-      quantity: 1,
+      productName: `${product.brand} ${product.model}`,
+      description: `${product.imei} - ${product.storage} - ${product.color}`,
       unitPrice: 0, // Default price to 0 as requested
       total: 0,
       isCustom: false,
@@ -93,7 +93,6 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     const newItem: InvoiceItem = {
       id: `custom-${Date.now()}`,
       productName: '',
-      quantity: 1,
       unitPrice: 0,
       total: 0,
       isCustom: true,
@@ -241,18 +240,23 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                   <div className="space-y-2 mt-2">
                     {items.map(item => (
                       <div key={item.id} className="grid grid-cols-[1fr_120px_120px_auto] gap-2 items-center">
-                        <Input 
-                            value={item.productName} 
-                            readOnly={!item.isCustom}
-                            onChange={e => handleItemChange(item.id, 'productName', e.target.value)}
-                            className={cn(!item.isCustom && "bg-gray-100")}
-                            placeholder="Item name"
-                        />
+                        <div className="flex flex-col">
+                            <Input 
+                                value={item.productName} 
+                                readOnly={!item.isCustom}
+                                onChange={e => handleItemChange(item.id, 'productName', e.target.value)}
+                                className={cn("font-medium", !item.isCustom && "bg-gray-100 border-0")}
+                                placeholder="Item name"
+                            />
+                             {item.description && (
+                                <p className="text-xs text-muted-foreground px-3">{item.description}</p>
+                            )}
+                        </div>
                         <Input 
                             type="number"
                             step="0.01"
                             value={item.unitPrice}
-                            onChange={e => handleItemChange(item.id, 'unitPrice', parseFloat(e.target.value))}
+                            onChange={e => handleItemChange(item.id, 'unitPrice', e.target.value)}
                             className="text-right"
                             placeholder="0.00"
                         />
@@ -346,7 +350,10 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                 <TableBody>
                   {items.map((item, index) => (
                     <TableRow key={index}>
-                      <TableCell>{item.productName}</TableCell>
+                      <TableCell>
+                        <p className="font-medium">{item.productName}</p>
+                        {item.description && <p className="text-xs text-muted-foreground">{item.description}</p>}
+                      </TableCell>
                       <TableCell className="text-right">${item.unitPrice.toFixed(2)}</TableCell>
                       <TableCell className="text-right">${item.total.toFixed(2)}</TableCell>
                     </TableRow>
@@ -392,5 +399,3 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     </>
   );
 }
-
-    
