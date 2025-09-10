@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Boxes, LayoutDashboard, FileText } from 'lucide-react';
+import { Boxes, LayoutGrid, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Logo } from '../logo';
 
 const mainNavItems = [
   {
     href: '/dashboard',
-    icon: LayoutDashboard,
+    icon: LayoutGrid,
     label: 'Dashboard',
   },
   {
@@ -19,7 +19,7 @@ const mainNavItems = [
   },
   {
     href: '/dashboard/invoices',
-    icon: FileText,
+    icon: BarChart3,
     label: 'Invoices',
   },
 ];
@@ -34,11 +34,11 @@ export function MainSidebar({ isCollapsed }: MainSidebarProps) {
   return (
     <aside
       className={cn(
-        'bg-card border-r flex flex-col transition-all duration-300 ease-in-out',
+        'bg-[var(--sidebar-bg)] text-[var(--sidebar-text)] flex flex-col transition-all duration-300 ease-in-out',
         isCollapsed ? 'w-20' : 'w-64'
       )}
     >
-      <div className="flex items-center justify-center h-20 border-b">
+      <div className="flex items-center h-20 border-b border-[var(--sidebar-border)] flex-shrink-0 px-4">
         <Logo isCollapsed={isCollapsed} />
       </div>
       <nav className="flex-1 px-4 py-4 space-y-2">
@@ -48,15 +48,15 @@ export function MainSidebar({ isCollapsed }: MainSidebarProps) {
             <Link href={item.href} key={item.href} passHref>
               <div
                 className={cn(
-                  'flex items-center p-3 rounded-lg cursor-pointer',
-                  isCollapsed ? 'justify-center' : 'justify-start',
+                  'flex items-center p-3 rounded-lg cursor-pointer transition-colors',
+                  isCollapsed ? 'justify-center' : '',
                   isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-accent'
+                    ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]'
+                    : 'hover:bg-[var(--sidebar-hover-bg)]'
                 )}
                 title={item.label}
               >
-                <item.icon className="h-6 w-6" />
+                <item.icon className="h-7 w-7 shrink-0" />
                 {!isCollapsed && <span className="ml-4 font-medium">{item.label}</span>}
               </div>
             </Link>

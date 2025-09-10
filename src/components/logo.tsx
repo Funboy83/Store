@@ -7,12 +7,12 @@ interface LogoProps {
 
 export function Logo({ isCollapsed }: LogoProps) {
   return (
-    <div className="flex items-center gap-2 font-bold text-lg text-primary">
-      <div className="bg-primary text-primary-foreground p-2 rounded-lg">
+    <div className={cn("flex items-center gap-2 font-bold text-lg", isCollapsed ? 'justify-center' : '')}>
+      <div className="bg-indigo-500 text-white p-2 rounded-lg">
         <Smartphone className="h-6 w-6" />
       </div>
       {!isCollapsed && (
-        <span className="text-xl font-headline tracking-tight text-foreground">CellSmart</span>
+        <span className="text-xl font-bold text-gray-200">CellSmart</span>
       )}
     </div>
   );
