@@ -1,43 +1,29 @@
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { SidebarTrigger } from '../ui/sidebar';
+import { Menu } from 'lucide-react';
 
-export function Header() {
+interface HeaderProps {
+  onToggleSidebar: () => void;
+}
+
+export function Header({ onToggleSidebar }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-      <div className="md:hidden">
-        <SidebarTrigger />
-      </div>
-
-      <div className="flex w-full items-center justify-end gap-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Avatar>
-                <AvatarImage src="https://picsum.photos/seed/user/40/40" />
-                <AvatarFallback>AD</AvatarFallback>
-              </Avatar>
-              <span className="sr-only">Toggle user menu</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Admin</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem>Support</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Logout</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <header className="bg-card shadow-sm h-20 flex items-center justify-between px-6 sm:px-10 flex-shrink-0">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onToggleSidebar}
+        className="text-foreground/70 hover:text-foreground"
+      >
+        <Menu className="h-7 w-7" />
+        <span className="sr-only">Toggle Sidebar</span>
+      </Button>
+      <div className="flex items-center gap-4">
+        <span className="font-semibold text-foreground/80 hidden sm:inline">Welcome, Admin!</span>
+         <Avatar>
+            <AvatarImage src="https://picsum.photos/seed/user/40/40" />
+            <AvatarFallback>AD</AvatarFallback>
+        </Avatar>
       </div>
     </header>
   );

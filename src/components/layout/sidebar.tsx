@@ -1,30 +1,9 @@
-
 'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  Boxes,
-  ChevronDown,
-  FileText,
-  HelpCircle,
-  LayoutDashboard,
-  PanelLeftClose,
-  PanelRightClose,
-  Settings,
-} from 'lucide-react';
-import React from 'react';
-
-import {
-  SidebarContent,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from '@/components/ui/sidebar';
-import { Logo } from '@/components/logo';
-import { Button } from '../ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Boxes, LayoutDashboard, FileText, Smartphone } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const mainNavItems = [
   {
@@ -44,119 +23,47 @@ const mainNavItems = [
   },
 ];
 
-const preferenceNavItems = [
-  {
-    href: '/dashboard/settings',
-    icon: Settings,
-    label: 'Settings',
-  },
-  {
-    href: '/dashboard/help',
-    icon: HelpCircle,
-    label: 'Help Center',
-  },
-];
-
-function SidebarCollapseTrigger() {
-  const { state, toggleSidebar } = useSidebar();
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="rounded-full"
-      onClick={toggleSidebar}
-    >
-      {state === 'expanded' ? <PanelLeftClose /> : <PanelRightClose />}
-    </Button>
-  );
+interface MainSidebarProps {
+  isCollapsed: boolean;
 }
 
-export function MainSidebar() {
+export function MainSidebar({ isCollapsed }: MainSidebarProps) {
   const pathname = usePathname();
-  const { state } = useSidebar();
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-4 flex items-center justify-center data-[state=expanded]:justify-start">
-        <Logo />
+    <aside
+      className={cn(
+        'bg-sidebar text-sidebar-foreground flex flex-col transition-all duration-300 ease-in-out',
+        isCollapsed ? 'w-16' : 'w-64'
+      )}
+    >
+      <div className="flex items-center justify-center h-20 border-b border-sidebar-border">
+        <Smartphone className="h-9 w-9 text-sidebar-primary" />
+        {!isCollapsed && (
+          <h1 className="text-xl font-bold ml-2 text-sidebar-foreground">CellSmart</h1>
+        )}
       </div>
-
-      <div className="p-4" data-state={state}>
-        <Button variant="outline" className="w-full justify-between data-[state=collapsed]:justify-center data-[state=collapsed]:w-auto data-[state=collapsed]:p-2">
-          <div className="flex items-center gap-2 overflow-hidden">
-            <Avatar className="h-6 w-6">
-              <AvatarImage src="https://picsum.photos/seed/user/40/40" />
-              <AvatarFallback>AD</AvatarFallback>
-            </Avatar>
-            {state === 'expanded' && <span className="font-semibold truncate">Uxerflow</span>}
-          </div>
-          {state === 'expanded' && <ChevronDown className="h-4 w-4" />}
-        </Button>
-      </div>
-
-      <SidebarContent className="flex-1 overflow-y-auto">
-        <div className="px-4 py-2">
-          {state === 'expanded' ? (
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              Main Menu
-            </h3>
-          ) : (
-             <div className="h-8" />
-          )}
-          <SidebarMenu>
-            {mainNavItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <Link href={item.href} passHref>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.href}
-                    className="w-full"
-                    tooltip={item.label}
-                  >
-                    <>
-                      <item.icon className="h-4 w-4" />
-                      {state === 'expanded' && <span>{item.label}</span>}
-                    </>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </div>
-
-        <div className="px-4 py-2">
-           {state === 'expanded' ? (
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Preference
-            </h3>
-            ) : (
-                <div className="h-8" />
-            )}
-          <SidebarMenu>
-            {preferenceNavItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <Link href={item.href} passHref>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname.startsWith(item.href)}
-                    className="w-full"
-                    tooltip={item.label}
-                  >
-                    <>
-                      <item.icon className="h-4 w-4" />
-                      {state === 'expanded' && <span>{item.label}</span>}
-                    </>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </div>
-      </SidebarContent>
-
-      <div className="p-4 border-t flex items-center justify-center data-[state=expanded]:justify-end">
-        <SidebarCollapseTrigger />
-      </div>
-    </div>
+      <nav className="flex-1 px-2 sm:px-4 py-4 space-y-2">
+        {mainNavItems.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <Link href={item.href} key={item.href} passHref>
+              <button
+                className={cn(
+                  'w-full flex items-center p-3 rounded-lg',
+                  isCollapsed ? 'justify-center' : 'justify-start',
+                  isActive
+                    ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                    : 'hover:bg-sidebar-accent'
+                )}
+              >
+                <item.icon className="h-6 w-6" />
+                {!isCollapsed && <span className="ml-4">{item.label}</span>}
+              </button>
+            </Link>
+          );
+        })}
+      </nav>
+    </aside>
   );
 }
