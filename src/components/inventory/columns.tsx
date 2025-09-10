@@ -90,10 +90,14 @@ export const columns: ColumnDef<Product>[] = [
     header: "Battery",
     cell: ({ row }) => {
         const battery = row.getValue("battery") as number;
-        const color = battery > 80 ? 'bg-green-500' : battery > 50 ? 'bg-yellow-500' : 'bg-red-500';
+        const colorStyle = battery > 80 
+            ? { backgroundColor: 'hsl(var(--chart-2))' } 
+            : battery > 50 
+            ? { backgroundColor: 'hsl(var(--chart-5))' } 
+            : { backgroundColor: 'hsl(var(--destructive))' };
         return (
             <div className="flex items-center gap-2">
-                <div className={`h-2.5 w-2.5 rounded-full ${color}`}></div>
+                <div className="h-2.5 w-2.5 rounded-full" style={colorStyle}></div>
                 {battery}%
             </div>
         )
