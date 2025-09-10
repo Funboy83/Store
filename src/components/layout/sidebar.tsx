@@ -34,11 +34,11 @@ export function MainSidebar({ isCollapsed }: MainSidebarProps) {
   return (
     <aside
       className={cn(
-        'bg-[var(--sidebar-bg)] text-[var(--sidebar-text)] flex flex-col transition-all duration-300 ease-in-out',
+        'bg-slate-900 text-gray-200 flex flex-col transition-all duration-300 ease-in-out',
         isCollapsed ? 'w-20' : 'w-64'
       )}
     >
-      <div className="flex items-center h-20 border-b border-[var(--sidebar-border)] flex-shrink-0 px-4">
+      <div className="flex items-center h-20 border-b border-slate-800 flex-shrink-0 px-4">
         <Logo isCollapsed={isCollapsed} />
       </div>
       <nav className="flex-1 px-4 py-4 space-y-2">
@@ -51,8 +51,8 @@ export function MainSidebar({ isCollapsed }: MainSidebarProps) {
                   'flex items-center p-3 rounded-lg cursor-pointer transition-colors',
                   isCollapsed ? 'justify-center' : '',
                   isActive
-                    ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]'
-                    : 'hover:bg-[var(--sidebar-hover-bg)]'
+                    ? 'bg-indigo-600 text-white'
+                    : 'hover:bg-slate-800'
                 )}
                 title={item.label}
               >
