@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import React, { useState, useMemo, useEffect, useTransition } from 'react';
@@ -75,6 +76,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         id: product.id,
         productName: `${product.brand} ${product.model}`,
         description: `${product.imei} - ${product.storage} - ${product.color}`,
+        quantity: 1,
         unitPrice: 0,
         total: 0,
         isCustom: false,
@@ -111,6 +113,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     const newItem: InvoiceItem = {
       id: `custom-${Date.now()}`,
       productName: '',
+      quantity: 1,
       unitPrice: 0,
       total: 0,
       isCustom: true,
@@ -126,10 +129,13 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     setItems(prev => prev.map(item => {
       if (item.id === itemId) {
         const updatedItem = { ...item };
-        if (field === 'unitPrice') {
-          const unitPrice = Number(value) || 0;
-          updatedItem.unitPrice = unitPrice;
-          updatedItem.total = unitPrice;
+        const newUnitPrice = field === 'unitPrice' ? Number(value) : updatedItem.unitPrice;
+        const newQuantity = field === 'quantity' ? Number(value) : updatedItem.quantity;
+        
+        if (field === 'unitPrice' || field === 'quantity') {
+          updatedItem.unitPrice = newUnitPrice;
+          updatedItem.quantity = newQuantity;
+          updatedItem.total = newUnitPrice * newQuantity;
         } else {
           (updatedItem as any)[field] = value;
         }
@@ -349,7 +355,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                   <Label>Items</Label>
                   <div className="space-y-2 mt-2">
                     {items.map(item => (
-                      <div key={item.id} className="grid grid-cols-[1fr_120px_120px_auto] gap-2 items-center">
+                      <div key={item.id} className="grid grid-cols-[1fr_80px_100px_100px_auto] gap-2 items-center">
                         <div className="flex flex-col">
                             <Input 
                                 value={item.productName} 
@@ -362,6 +368,13 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                                 <p className="text-xs text-muted-foreground px-3">{item.description}</p>
                             )}
                         </div>
+                        <Input 
+                            type="number"
+                            value={item.quantity}
+                            onChange={e => handleItemChange(item.id, 'quantity', e.target.value)}
+                            className="text-right"
+                            placeholder="1"
+                        />
                         <Input 
                             type="number"
                             step="0.01"
@@ -463,6 +476,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                 <TableHeader>
                   <TableRow>
                     <TableHead>Items</TableHead>
+                    <TableHead className="text-center">Qty</TableHead>
                     <TableHead className="text-right">Rate</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                   </TableRow>
@@ -474,13 +488,14 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                         <p className="font-medium">{item.productName}</p>
                         {item.description && <p className="text-xs text-muted-foreground">{item.description}</p>}
                       </TableCell>
+                       <TableCell className="text-center">{item.quantity}</TableCell>
                       <TableCell className="text-right">${item.unitPrice.toFixed(2)}</TableCell>
                       <TableCell className="text-right">${item.total.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                   {items.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center text-muted-foreground">No items added</TableCell>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground">No items added</TableCell>
                     </TableRow>
                   )}
                 </TableBody>

@@ -14,6 +14,7 @@ const InvoiceSummarySchema = z.object({
   items: z.array(z.object({
     productName: z.string(),
     description: z.string().optional(),
+    quantity: z.number(),
     unitPrice: z.number(),
   }))
 });
@@ -26,7 +27,7 @@ export async function getInvoiceSummary(items: InvoiceItem[]): Promise<{ summary
     }
 
     const itemsString = parsedItems.data.items
-      .map(item => `${item.productName} (${item.description || 'Custom Item'}) @ $${item.unitPrice.toFixed(2)}`)
+      .map(item => `${item.quantity} x ${item.productName} (${item.description || 'Custom Item'}) @ $${item.unitPrice.toFixed(2)}`)
       .join('\n');
     
     const result = await summarizeInvoice({ invoiceItems: itemsString });
@@ -122,5 +123,3 @@ export async function sendInvoice(invoiceData: Omit<Invoice, 'id' | 'status'>) {
         return { success: false, error: 'An unknown error occurred while sending the invoice.' };
     }
 }
-
-    

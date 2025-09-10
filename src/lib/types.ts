@@ -37,6 +37,7 @@ export type InvoiceItem = {
   id: string;
   productName: string;
   description?: string;
+  quantity: number;
   unitPrice: number;
   total: number;
   isCustom?: boolean;
