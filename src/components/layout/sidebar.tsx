@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Boxes, LayoutGrid, BarChart3 } from 'lucide-react';
+import { Boxes, LayoutGrid, BarChart3, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Logo } from '../logo';
 
@@ -21,6 +21,11 @@ const mainNavItems = [
     href: '/dashboard/invoices',
     icon: BarChart3,
     label: 'Invoices',
+  },
+  {
+    href: '/dashboard/customers',
+    icon: Users,
+    label: 'Customers',
   },
 ];
 
