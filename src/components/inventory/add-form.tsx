@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useFormState, useFormStatus } from 'react-dom';
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 function SubmitButton() {
     const { pending } = useFormStatus();
@@ -46,23 +48,51 @@ export function AddInventoryForm() {
                     <CardDescription>Fill in the details of the new product.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="imei">IMEI</Label>
+                        <Input id="imei" name="imei" placeholder="e.g. 123456789012345" />
+                        {state.errors?.imei && <p className="text-sm text-destructive">{state.errors.imei}</p>}
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="name">Product Name</Label>
-                            <Input id="name" name="name" placeholder="e.g. iPhone 15 Pro" />
-                            {state.errors?.name && <p className="text-sm text-destructive">{state.errors.name}</p>}
-                        </div>
                         <div className="space-y-2">
                             <Label htmlFor="brand">Brand</Label>
                             <Input id="brand" name="brand" placeholder="e.g. Apple" />
                             {state.errors?.brand && <p className="text-sm text-destructive">{state.errors.brand}</p>}
                         </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="model">Model</Label>
+                            <Input id="model" name="model" placeholder="e.g. iPhone 15 Pro" />
+                            {state.errors?.model && <p className="text-sm text-destructive">{state.errors.model}</p>}
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="model">Model</Label>
-                        <Input id="model" name="model" placeholder="e.g. A2849" />
-                        {state.errors?.model && <p className="text-sm text-destructive">{state.errors.model}</p>}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div className="space-y-2">
+                            <Label htmlFor="storage">Storage</Label>
+                            <Input id="storage" name="storage" placeholder="e.g. 256GB" />
+                            {state.errors?.storage && <p className="text-sm text-destructive">{state.errors.storage}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="color">Color</Label>
+                            <Input id="color" name="color" placeholder="e.g. Space Black" />
+                            {state.errors?.color && <p className="text-sm text-destructive">{state.errors.color}</p>}
+                        </div>
                     </div>
+
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="carrier">Carrier</Label>
+                            <Input id="carrier" name="carrier" placeholder="e.g. Unlocked" />
+                            {state.errors?.carrier && <p className="text-sm text-destructive">{state.errors.carrier}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="grade">Grade</Label>
+                            <Input id="grade" name="grade" placeholder="e.g. A" />
+                            {state.errors?.grade && <p className="text-sm text-destructive">{state.errors.grade}</p>}
+                        </div>
+                    </div>
+                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="price">Price</Label>
@@ -70,15 +100,10 @@ export function AddInventoryForm() {
                             {state.errors?.price && <p className="text-sm text-destructive">{state.errors.price}</p>}
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="stock">Stock Quantity</Label>
-                            <Input id="stock" name="stock" type="number" placeholder="e.g. 100" />
-                            {state.errors?.stock && <p className="text-sm text-destructive">{state.errors.stock}</p>}
+                            <Label htmlFor="battery">Battery Health (%)</Label>
+                            <Input id="battery" name="battery" type="number" placeholder="e.g. 98" />
+                            {state.errors?.battery && <p className="text-sm text-destructive">{state.errors.battery}</p>}
                         </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="imageUrl">Image URL</Label>
-                        <Input id="imageUrl" name="imageUrl" placeholder="https://..." defaultValue="https://picsum.photos/seed/newphone/400/400" />
-                        {state.errors?.imageUrl && <p className="text-sm text-destructive">{state.errors.imageUrl}</p>}
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end">

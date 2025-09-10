@@ -1,11 +1,18 @@
+
 export type Product = {
   id: string;
-  name: string;
+  imei: string;
   brand: string;
   model: string;
   price: number;
-  stock: number;
-  imageUrl: string;
+  storage: string;
+  grade: string;
+  color: string;
+  carrier: string;
+  battery: number;
+  date: string;
+  createdAt: any; 
+  updatedAt: any;
 };
 
 export type Customer = {

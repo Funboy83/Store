@@ -1,8 +1,9 @@
+
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import Image from "next/image"
 import { MoreHorizontal } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -40,31 +41,32 @@ export const columns: ColumnDef<Product>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "name",
+    accessorKey: "imei",
+    header: "IMEI",
+  },
+  {
+    accessorKey: "model",
     header: "Product",
     cell: ({ row }) => {
       const product = row.original
       return (
-        <div className="flex items-center gap-4">
-          <Image
-            src={product.imageUrl}
-            alt={product.name}
-            width={40}
-            height={40}
-            className="rounded-md object-cover"
-            data-ai-hint="smartphone"
-          />
-          <div>
-            <div className="font-medium">{product.name}</div>
-            <div className="text-sm text-muted-foreground">{product.model}</div>
-          </div>
+        <div>
+          <div className="font-medium">{product.model}</div>
+          <div className="text-sm text-muted-foreground">{product.brand}</div>
         </div>
       )
     }
   },
   {
-    accessorKey: "brand",
-    header: "Brand",
+    accessorKey: "storage",
+    header: "Storage",
+  },
+    {
+    accessorKey: "grade",
+    header: "Grade",
+    cell: ({ row }) => {
+      return <Badge variant="outline">{row.getValue("grade")}</Badge>
+    }
   },
   {
     accessorKey: "price",
@@ -80,16 +82,21 @@ export const columns: ColumnDef<Product>[] = [
     },
   },
   {
-    accessorKey: "stock",
-    header: "Stock",
+    accessorKey: "carrier",
+    header: "Carrier",
+  },
+  {
+    accessorKey: "battery",
+    header: "Battery",
     cell: ({ row }) => {
-      const stock: number = row.getValue("stock");
-      return (
-        <div className="flex items-center gap-2">
-            <div className={`h-2.5 w-2.5 rounded-full ${stock > 20 ? 'bg-green-500' : stock > 0 ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
-            {stock} units
-        </div>
-      )
+        const battery = row.getValue("battery") as number;
+        const color = battery > 80 ? 'bg-green-500' : battery > 50 ? 'bg-yellow-500' : 'bg-red-500';
+        return (
+            <div className="flex items-center gap-2">
+                <div className={`h-2.5 w-2.5 rounded-full ${color}`}></div>
+                {battery}%
+            </div>
+        )
     }
   },
   {
