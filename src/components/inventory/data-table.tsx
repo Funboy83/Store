@@ -104,7 +104,7 @@ export function DataTable<TData, TValue>({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div className="rounded-md border bg-card">
+      <div className="rounded-md border" style={{ backgroundColor: 'oklch(55.1% 0.027 264.364)' }}>
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
