@@ -14,6 +14,7 @@ import {
   getSortedRowModel,
   useReactTable,
   RowSelectionState,
+  getGlobalFacetedRowModel,
 } from "@tanstack/react-table"
 
 import {
@@ -51,6 +52,7 @@ export function DataTable<TData, TValue>({
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
+  const [globalFilter, setGlobalFilter] = React.useState('');
   
   const isControllable = rowSelection !== undefined && onRowSelectionChange !== undefined;
   const [internalRowSelection, setInternalRowSelection] = React.useState({})
@@ -66,11 +68,14 @@ export function DataTable<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: isControllable ? onRowSelectionChange : setInternalRowSelection,
+    onGlobalFilterChange: setGlobalFilter,
+    getGlobalFacetedRowModel: getGlobalFacetedRowModel(),
     state: {
       sorting,
       columnFilters,
       columnVisibility,
       rowSelection: isControllable ? rowSelection : internalRowSelection,
+      globalFilter,
     },
   })
 
@@ -78,16 +83,16 @@ export function DataTable<TData, TValue>({
     <div className="w-full h-full flex flex-col">
       <div className="flex items-center py-4">
         <Input
-          placeholder="Filter by IMEI..."
-          value={(table.getColumn("imei")?.getFilterValue() as string) ?? ""}
+          placeholder="Search all fields..."
+          value={globalFilter ?? ""}
           onChange={(event) =>
-            table.getColumn("imei")?.setFilterValue(event.target.value)
+            setGlobalFilter(event.target.value)
           }
-          className="max-w-sm bg-white"
+          className="max-w-sm bg-card"
         />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto bg-white">
+            <Button variant="outline" className="ml-auto bg-card">
               Columns <ChevronDown className="ml-2 h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -115,7 +120,7 @@ export function DataTable<TData, TValue>({
       <div className="rounded-md border bg-card flex-1 relative">
         <ScrollArea className="h-full">
             <Table>
-              <TableHeader className="sticky top-0 bg-card z-10 text-black">
+              <TableHeader className="sticky top-0 bg-card z-10">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => {
@@ -133,7 +138,7 @@ export function DataTable<TData, TValue>({
                   </TableRow>
                 ))}
               </TableHeader>
-              <TableBody className="text-black">
+              <TableBody>
                 {table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => (
                     <TableRow
@@ -193,5 +198,3 @@ export function DataTable<TData, TValue>({
     </div>
   )
 }
-
-    
