@@ -16,6 +16,8 @@ const ProductSchema = z.object({
   imageUrl: z.string().url('Must be a valid image URL'),
 });
 
+const INVENTORY_PATH = 'cellphone-inventory-system/data/inventory';
+
 export async function getInventory(): Promise<Product[]> {
   if (!isConfigured) {
     console.log('Firebase not configured, returning mock data.');
@@ -23,7 +25,7 @@ export async function getInventory(): Promise<Product[]> {
   }
 
   try {
-    const inventoryCollection = collection(db, 'inventory');
+    const inventoryCollection = collection(db, INVENTORY_PATH);
     const snapshot = await getDocs(inventoryCollection);
     if (snapshot.empty) {
         // If firebase is empty, populate with mock data
@@ -59,7 +61,7 @@ export async function addProduct(prevState: any, formData: FormData) {
   }
 
   try {
-    const inventoryCollection = collection(db, 'inventory');
+    const inventoryCollection = collection(db, INVENTORY_PATH);
     await addDoc(inventoryCollection, validatedFields.data);
     revalidatePath('/dashboard/inventory');
     return { success: true };
@@ -75,7 +77,7 @@ export async function updateProduct(id: string, data: Partial<Product>) {
         return;
     }
     try {
-        const productRef = doc(db, 'inventory', id);
+        const productRef = doc(db, INVENTORY_PATH, id);
         await updateDoc(productRef, data);
         revalidatePath('/dashboard/inventory');
     } catch (error) {
@@ -89,7 +91,7 @@ export async function deleteProduct(id: string) {
         return;
     }
     try {
-        const productRef = doc(db, 'inventory', id);
+        const productRef = doc(db, INVENTORY_PATH, id);
         await deleteDoc(productRef);
         revalidatePath('/dashboard/inventory');
     } catch (error) {
