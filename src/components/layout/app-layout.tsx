@@ -2,6 +2,11 @@
 'use client';
 
 import React from 'react';
+import {
+  Sidebar,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
 
 interface AppLayoutProps {
   sidebar: React.ReactNode;
@@ -10,11 +15,11 @@ interface AppLayoutProps {
 
 export function AppLayout({ sidebar, children }: AppLayoutProps) {
   return (
-    <div className="flex min-h-screen">
-      {sidebar}
-      <div className="flex-1 flex flex-col">
-        {children}
+    <SidebarProvider>
+      <div className="flex min-h-screen">
+        <Sidebar>{sidebar}</Sidebar>
+        <div className="flex-1 flex flex-col">{children}</div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }
