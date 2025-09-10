@@ -29,7 +29,7 @@ export function CreateInvoiceForm({ products }: CreateInvoiceFormProps) {
   const { toast } = useToast();
 
   const productOptions: ComboboxOption[] = useMemo(() => 
-    products.map(p => ({ value: p.id, label: `${p.name} - $${p.price.toFixed(2)}` })),
+    products.map(p => ({ value: p.id, label: `${p.brand} ${p.model} - $${p.price.toFixed(2)}` })),
     [products]
   );
   
@@ -44,7 +44,7 @@ export function CreateInvoiceForm({ products }: CreateInvoiceFormProps) {
     } else {
       setItems(prev => [...prev, {
         productId: product.id,
-        productName: product.name,
+        productName: `${product.brand} ${product.model}`,
         quantity: 1,
         unitPrice: product.price,
         total: product.price,
