@@ -4,8 +4,8 @@
 
 @layer base {
   :root {
-    --background: 240 10% 3.9%; /* Corresponds to slate-900 */
-    --foreground: 210 40% 98%; /* A light text color for dark backgrounds */
+    --background: 0 0% 100%; /* Changed to white */
+    --foreground: 222.2 84% 4.9%; /* Standard dark text */
     
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -22,8 +22,8 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
     
-    --accent: 220 13% 18%; /* Corresponds to slate-800 */
-    --accent-foreground: 210 40% 98%;
+    --accent: 210 40% 96.1%; /* Lighter accent for hover states */
+    --accent-foreground: 222.2 47.4% 11.2%;
     
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
