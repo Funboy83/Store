@@ -47,7 +47,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   useEffect(() => {
     async function fetchInvoiceNumber() {
       const nextNumber = await getLatestInvoiceNumber();
-      setInvoiceNumber(`UXERFLOW-INV${String(nextNumber).padStart(3, '0')}`);
+      setInvoiceNumber(String(nextNumber));
     }
     fetchInvoiceNumber();
   }, []);
@@ -452,3 +452,5 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     </>
   );
 }
+
+    

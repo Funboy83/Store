@@ -47,7 +47,7 @@ export async function getLatestInvoiceNumber(): Promise<number> {
   }
   try {
     const invoicesCollection = collection(db, INVOICES_PATH);
-    const q = query(invoicesCollection, orderBy('invoiceNumber', 'desc'), limit(1));
+    const q = query(invoicesCollection, orderBy('createdAt', 'desc'), limit(1));
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) {
@@ -55,8 +55,7 @@ export async function getLatestInvoiceNumber(): Promise<number> {
     }
 
     const latestInvoice = snapshot.docs[0].data();
-    const latestNumberStr = latestInvoice.invoiceNumber.replace('UXERFLOW-INV', '');
-    const latestNumber = parseInt(latestNumberStr, 10);
+    const latestNumber = parseInt(latestInvoice.invoiceNumber, 10);
     
     if (isNaN(latestNumber)) {
         return 1000;
@@ -123,3 +122,5 @@ export async function sendInvoice(invoiceData: Omit<Invoice, 'id' | 'status'>) {
         return { success: false, error: 'An unknown error occurred while sending the invoice.' };
     }
 }
+
+    
