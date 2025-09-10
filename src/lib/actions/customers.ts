@@ -33,6 +33,7 @@ export async function getCustomers(): Promise<Customer[]> {
       return { 
         id: doc.id,
         ...data,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
       } as Customer
     });
   } catch (error) {

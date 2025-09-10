@@ -12,8 +12,8 @@ export type Product = {
   carrier: string;
   battery: number;
   date: string;
-  createdAt: any; 
-  updatedAt: any;
+  createdAt: string; 
+  updatedAt: string;
 };
 
 export type ProductHistory = Product & {
@@ -30,6 +30,7 @@ export type Customer = {
   phone: string;
   address?: string;
   notes?: string;
+  createdAt: string;
 };
 
 export type InvoiceItem = {
@@ -69,4 +70,3 @@ export type RecentSale = {
 };
 
     
-

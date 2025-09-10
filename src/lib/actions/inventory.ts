@@ -54,8 +54,8 @@ export async function getInventory(): Promise<Product[]> {
       return { 
         id: doc.id, 
         ...data,
-        createdAt: data.createdAt?.toDate()?.toISOString() || null,
-        updatedAt: data.updatedAt?.toDate()?.toISOString() || null,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
       } as Product
     });
   } catch (error) {
