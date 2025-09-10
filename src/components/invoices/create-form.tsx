@@ -125,10 +125,13 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const handleItemChange = (itemId: string, field: keyof InvoiceItem, value: string | number) => {
     setItems(prev => prev.map(item => {
       if (item.id === itemId) {
-        const updatedItem = { ...item, [field]: value };
+        const updatedItem = { ...item };
         if (field === 'unitPrice') {
-            const unitPrice = Number(value) || 0;
-            updatedItem.total = unitPrice;
+          const unitPrice = Number(value) || 0;
+          updatedItem.unitPrice = unitPrice;
+          updatedItem.total = unitPrice;
+        } else {
+          (updatedItem as any)[field] = value;
         }
         return updatedItem;
       }
