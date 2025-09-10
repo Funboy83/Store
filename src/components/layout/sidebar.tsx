@@ -16,12 +16,11 @@ import {
 import React from 'react';
 
 import {
-  Sidebar,
   SidebarContent,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
   SidebarFooter,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/logo';
@@ -156,7 +155,7 @@ export function MainSidebar() {
         </div>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t flex justify-end">
+      <SidebarFooter className="p-4 border-t flex items-center justify-center data-[state=expanded]:justify-end">
         <SidebarCollapseTrigger />
       </SidebarFooter>
     </div>
