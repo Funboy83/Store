@@ -8,7 +8,7 @@ interface HeaderProps {
 
 export function Header({ onToggleSidebar }: HeaderProps) {
   return (
-    <header className="bg-card shadow-sm h-20 flex items-center justify-between px-6 sm:px-10 flex-shrink-0">
+    <header className="bg-card border-b h-20 flex items-center justify-between px-6 sm:px-10 flex-shrink-0">
       <Button
         variant="ghost"
         size="icon"

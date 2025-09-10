@@ -9,17 +9,17 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex min-h-screen">
-      <MainSidebar isOpen={isSidebarOpen} />
-      <main className="flex-1 flex flex-col">
-        <Header onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <div className="p-6 sm:p-10 flex-1 overflow-y-auto">
+    <div className="flex min-h-screen bg-background">
+      <MainSidebar isCollapsed={isSidebarCollapsed} />
+      <div className="flex-1 flex flex-col">
+        <Header onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
+        <main className="p-6 sm:p-10 flex-1 overflow-y-auto">
           {children}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

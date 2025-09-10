@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Boxes, LayoutDashboard, FileText, Smartphone } from 'lucide-react';
+import { Boxes, LayoutDashboard, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Logo } from '../logo';
 
 const mainNavItems = [
   {
@@ -33,33 +34,31 @@ export function MainSidebar({ isCollapsed }: MainSidebarProps) {
   return (
     <aside
       className={cn(
-        'bg-sidebar text-sidebar-foreground flex flex-col transition-all duration-300 ease-in-out',
-        isCollapsed ? 'w-16' : 'w-64'
+        'bg-card border-r flex flex-col transition-all duration-300 ease-in-out',
+        isCollapsed ? 'w-20' : 'w-64'
       )}
     >
-      <div className="flex items-center justify-center h-20 border-b border-sidebar-border">
-        <Smartphone className="h-9 w-9 text-sidebar-primary" />
-        {!isCollapsed && (
-          <h1 className="text-xl font-bold ml-2 text-sidebar-foreground">CellSmart</h1>
-        )}
+      <div className="flex items-center justify-center h-20 border-b">
+        <Logo isCollapsed={isCollapsed} />
       </div>
-      <nav className="flex-1 px-2 sm:px-4 py-4 space-y-2">
+      <nav className="flex-1 px-4 py-4 space-y-2">
         {mainNavItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = pathname.startsWith(item.href) && (item.href !== '/dashboard' || pathname === '/dashboard');
           return (
             <Link href={item.href} key={item.href} passHref>
-              <button
+              <div
                 className={cn(
-                  'w-full flex items-center p-3 rounded-lg',
+                  'flex items-center p-3 rounded-lg cursor-pointer',
                   isCollapsed ? 'justify-center' : 'justify-start',
                   isActive
-                    ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                    : 'hover:bg-sidebar-accent'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-accent'
                 )}
+                title={item.label}
               >
                 <item.icon className="h-6 w-6" />
-                {!isCollapsed && <span className="ml-4">{item.label}</span>}
-              </button>
+                {!isCollapsed && <span className="ml-4 font-medium">{item.label}</span>}
+              </div>
             </Link>
           );
         })}
