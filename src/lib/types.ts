@@ -37,6 +37,7 @@ export type Invoice = {
   items: InvoiceItem[];
   subtotal: number;
   tax: number;
+  discount?: number;
   total: number;
   issueDate: string;
   dueDate: string;

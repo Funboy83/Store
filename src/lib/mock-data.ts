@@ -1,5 +1,5 @@
 
-import type { Product, Invoice, Sale, RecentSale } from './types';
+import type { Product, Invoice, Sale, RecentSale, Customer } from './types';
 
 // This is now legacy mock data, the app will prefer Firebase.
 export const MOCK_PRODUCTS: Product[] = [
@@ -35,21 +35,38 @@ export const MOCK_PRODUCTS: Product[] = [
   },
 ];
 
+export const MOCK_CUSTOMERS: Customer[] = [
+    {
+        id: 'cust_1',
+        name: 'Acme Enterprise',
+        email: 'cme@enterprise.com',
+        address: '1901 Thornridge Cir. Shiloh, Hawaii, USA. 81063',
+    },
+    {
+        id: 'cust_2',
+        name: 'Innovate Corp',
+        email: 'contact@innovatecorp.com',
+        address: '456 Oak Ave, Metropolis, USA. 54321',
+    },
+    {
+        id: 'cust_3',
+        name: 'John Doe',
+        email: 'john.doe@email.com',
+        address: '123 Main St, Anytown, USA, 12345',
+    }
+];
+
 export const MOCK_INVOICES: Invoice[] = [
   {
     id: 'inv_1',
     invoiceNumber: 'INV-001',
-    customer: {
-      id: 'cust_1',
-      name: 'John Doe',
-      email: 'john.doe@example.com',
-      address: '123 Main St, Anytown, USA',
-    },
+    customer: MOCK_CUSTOMERS[2],
     items: [
       { productId: 'prod_2', productName: 'iPhone 14 Pro', quantity: 1, unitPrice: 999.0, total: 999.0 },
     ],
     subtotal: 999.0,
     tax: 79.92,
+    discount: 0,
     total: 1078.92,
     issueDate: '2023-10-01',
     dueDate: '2023-10-31',
@@ -58,18 +75,13 @@ export const MOCK_INVOICES: Invoice[] = [
   {
     id: 'inv_2',
     invoiceNumber: 'INV-002',
-    customer: {
-      id: 'cust_2',
-      name: 'Jane Smith',
-      email: 'jane.smith@example.com',
-      address: '456 Oak Ave, Anytown, USA',
-    },
+    customer: MOCK_CUSTOMERS[0],
     items: [
       { productId: 'prod_1', productName: 'Galaxy S23 Ultra', quantity: 1, unitPrice: 1199.99, total: 1199.99 },
-      { productId: 'prod_4', productName: 'OnePlus 11', quantity: 1, unitPrice: 699.0, total: 699.0 },
     ],
     subtotal: 1898.99,
     tax: 151.92,
+    discount: 0,
     total: 2050.91,
     issueDate: '2023-10-15',
     dueDate: '2023-11-14',

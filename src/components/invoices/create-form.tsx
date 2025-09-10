@@ -1,64 +1,70 @@
 "use client"
 
-import React, { useState, useTransition, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { X, PlusCircle, BrainCircuit } from 'lucide-react';
+import { X, Plus, CalendarIcon, ChevronDown } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { Combobox, ComboboxOption } from '@/components/ui/combobox';
-import { getInvoiceSummary } from '@/lib/actions/invoice';
-import { getInventory } from '@/lib/actions/inventory';
-import { useToast } from '@/hooks/use-toast';
-import type { Product, InvoiceItem } from '@/lib/types';
+import { Switch } from '@/components/ui/switch';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { InvoicePreview } from './preview';
-import { Skeleton } from '../ui/skeleton';
+import { InventoryPicker } from './inventory-picker';
+import { Product, Customer, InvoiceItem } from '@/lib/types';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { Logo } from '../logo';
 
-export function CreateInvoiceForm() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+interface CreateInvoiceFormProps {
+  inventory: Product[];
+  customers: Customer[];
+}
+
+export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormProps) {
+  const [showPreview, setShowPreview] = useState(true);
   const [items, setItems] = useState<InvoiceItem[]>([]);
-  const [customerName, setCustomerName] = useState('John Doe');
-  const [customerEmail, setCustomerEmail] = useState('john.doe@email.com');
-  const [showPreview, setShowPreview] = useState(false);
-  const [summary, setSummary] = useState('');
-  const [isPending, startTransition] = useTransition();
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(customers[0]);
+  const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    async function fetchProducts() {
-      setIsLoadingProducts(true);
-      const inventory = await getInventory();
-      setProducts(inventory);
-      setIsLoadingProducts(false);
-    }
-    fetchProducts();
-  }, []);
-
-  const productOptions: ComboboxOption[] = useMemo(() => 
-    products.map(p => ({ value: p.id, label: `${p.brand} ${p.model} - $${p.price.toFixed(2)}` })),
-    [products]
-  );
+  const handleSelectCustomer = (customerId: string) => {
+    setSelectedCustomer(customers.find(c => c.id === customerId));
+  };
   
-  const handleAddProduct = (productId: string) => {
-    if (!productId) return;
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
+  const handleAddItems = (selectedProducts: Product[]) => {
+    const newItems: InvoiceItem[] = selectedProducts.map(product => ({
+      productId: product.id,
+      productName: `${product.brand} ${product.model}`,
+      quantity: 1,
+      unitPrice: product.price,
+      total: product.price,
+    }));
 
-    const existingItem = items.find(item => item.productId === productId);
-    if (existingItem) {
-      handleQuantityChange(productId, existingItem.quantity + 1);
+    // Avoid adding duplicates
+    const uniqueNewItems = newItems.filter(newItem => !items.some(existingItem => existingItem.productId === newItem.productId));
+
+    setItems(prev => [...prev, ...uniqueNewItems]);
+    setIsPickerOpen(false);
+    if(uniqueNewItems.length > 0) {
+      toast({
+        title: 'Items Added',
+        description: `${uniqueNewItems.length} new item(s) have been added to the invoice.`,
+      });
     } else {
-      setItems(prev => [...prev, {
-        productId: product.id,
-        productName: `${product.brand} ${product.model}`,
-        quantity: 1,
-        unitPrice: product.price,
-        total: product.price,
-      }]);
+       toast({
+        title: 'Items Already Exist',
+        description: 'The selected items are already in the invoice.',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -74,180 +80,255 @@ export function CreateInvoiceForm() {
         : item
     ));
   };
-  
+
   const subtotal = useMemo(() => items.reduce((acc, item) => acc + item.total, 0), [items]);
-  const taxRate = 0.08;
+  const taxRate = 0; // As per image
+  const discount = 0; // As per image
   const tax = subtotal * taxRate;
-  const total = subtotal + tax;
+  const total = subtotal + tax - discount;
   
-  const handleGenerateSummary = () => {
-    if (items.length === 0) {
-      toast({
-        title: "No items",
-        description: "Please add items to the invoice before generating a summary.",
-        variant: 'destructive',
-      });
-      return;
-    }
-    startTransition(async () => {
-      const result = await getInvoiceSummary(items);
-      if (result.summary) {
-        setSummary(result.summary);
-        toast({
-          title: "Summary Generated!",
-          description: "The AI-powered summary has been created.",
-        });
-      } else if (result.error) {
-        toast({
-          title: "Error",
-          description: result.error,
-          variant: 'destructive',
-        });
-      }
-    });
-  };
-
-  if (showPreview) {
-    return (
-      <InvoicePreview 
-        invoice={{
-          id: 'temp-inv',
-          invoiceNumber: 'INV-00X',
-          customer: { id: 'temp-cust', name: customerName, email: customerEmail, address: '123 Test St' },
-          items,
-          subtotal, tax, total,
-          issueDate: new Date().toLocaleDateString(),
-          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-          status: 'Pending',
-          summary,
-        }}
-        onBack={() => setShowPreview(false)}
-      />
-    );
-  }
-
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <div className="lg:col-span-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Invoice Details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-2 gap-4 mb-6">
-              <div className="space-y-2">
-                <Label htmlFor="customerName">Customer Name</Label>
-                <Input id="customerName" value={customerName} onChange={e => setCustomerName(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="customerEmail">Customer Email</Label>
-                <Input id="customerEmail" type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} />
-              </div>
-            </div>
+    <>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold tracking-tight">New Invoice</h1>
+          <div className="flex items-center space-x-2">
+            <Switch id="show-preview" checked={showPreview} onCheckedChange={setShowPreview} />
+            <Label htmlFor="show-preview">Show Preview</Label>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline">Save as Draft</Button>
+          <Button className="bg-green-500 hover:bg-green-600 text-white">Send Invoice</Button>
+        </div>
+      </div>
 
-            <Separator className="my-4" />
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Left Column */}
+        <div className="flex flex-col gap-6">
+          {/* Invoice Details */}
+          <Card>
+            <CardHeader><CardTitle>Invoice details</CardTitle></CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label>Bill to</Label>
+                <Select onValueChange={handleSelectCustomer} defaultValue={selectedCustomer?.id}>
+                  <SelectTrigger className="h-14">
+                    <SelectValue asChild>
+                      {selectedCustomer ? (
+                         <div className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarFallback>{selectedCustomer.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{selectedCustomer.name}</p>
+                            <p className="text-sm text-muted-foreground">{selectedCustomer.email}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <span>Select a customer</span>
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map(customer => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        <div className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p>{customer.name}</p>
+                            <p className="text-sm text-muted-foreground">{customer.email}</p>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Items</h3>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="w-[120px]">Quantity</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map(item => (
-                    <TableRow key={item.productId}>
-                      <TableCell>{item.productName}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={item.quantity}
-                          onChange={e => handleQuantityChange(item.productId, parseInt(e.target.value))}
-                          className="w-24"
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="invoice-number">Invoice number</Label>
+                  <Input id="invoice-number" defaultValue="UXERFLOW-INV001" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="due-date">Due date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn("w-full justify-start text-left font-normal", !dueDate && "text-muted-foreground")}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dueDate ? format(dueDate, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar mode="single" selected={dueDate} onSelect={setDueDate} initialFocus />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Textarea id="address" defaultValue={selectedCustomer?.address} />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Invoice Items */}
+          <Card>
+            <CardHeader><CardTitle>Invoice items</CardTitle></CardHeader>
+            <CardContent className="space-y-6">
+                <div className="space-y-2">
+                    <Label>Currency</Label>
+                    <Select defaultValue="usd">
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="usd">
+                                <div className="flex items-center gap-2">
+                                    <span>🇺🇸</span> US Dollar
+                                </div>
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div>
+                  <Label>Items</Label>
+                  <div className="space-y-2 mt-2">
+                    {items.map(item => (
+                      <div key={item.productId} className="grid grid-cols-[1fr_80px_120px_120px_auto] gap-2 items-center">
+                        <Input value={item.productName} readOnly className="bg-gray-100" />
+                        <Input 
+                            type="number" 
+                            value={item.quantity}
+                            onChange={e => handleQuantityChange(item.productId, parseInt(e.target.value))}
+                            className="text-center"
                         />
-                      </TableCell>
-                      <TableCell className="text-right">${item.total.toFixed(2)}</TableCell>
-                      <TableCell>
+                        <Input value={item.unitPrice.toFixed(2)} readOnly className="bg-gray-100 text-right" />
+                        <Input value={item.total.toFixed(2)} readOnly className="bg-gray-100 text-right" />
                         <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.productId)}>
                           <X className="h-4 w-4" />
                         </Button>
-                      </TableCell>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost"><Plus className="mr-2" /> Add from inventory</Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuItem onSelect={() => setIsPickerOpen(true)}>
+                            Phone Inventory
+                        </DropdownMenuItem>
+                         <DropdownMenuItem onSelect={() => toast({ title: 'Coming Soon!', description: 'Managing accessories will be available in a future update.'})}>
+                            Accessories
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column */}
+        <div className={cn("flex-col gap-6", showPreview ? "flex" : "hidden")}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold">Preview</h2>
+          </div>
+          <Card className="p-8">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold">Invoice</h1>
+                  <p className="text-muted-foreground">UXERFLOW-INV001</p>
+                </div>
+                <div className="bg-green-100 p-3 rounded-full">
+                  <Logo isCollapsed={false} />
+                </div>
+              </div>
+              <Separator className="my-4" />
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1 col-span-2">
+                  <h3 className="font-semibold">Billed to</h3>
+                  <p className="text-sm">{selectedCustomer?.name}</p>
+                  <p className="text-sm text-muted-foreground">{selectedCustomer?.email}</p>
+                </div>
+                <div className="space-y-1 text-right">
+                  <h3 className="font-semibold">Due date</h3>
+                  <p className="text-sm">{dueDate ? format(dueDate, "dd MMMM yyyy") : 'N/A'}</p>
+                </div>
+              </div>
+               <div className="grid grid-cols-1 gap-4">
+                 <div className="space-y-1">
+                   <h3 className="font-semibold">Address</h3>
+                   <p className="text-sm text-muted-foreground">{selectedCustomer?.address}</p>
+                 </div>
+               </div>
+            </CardHeader>
+            <CardContent>
+               <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Items</TableHead>
+                    <TableHead className="text-center">QTY</TableHead>
+                    <TableHead className="text-right">Rate</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((item, index) => (
+                    <TableRow key={index}>
+                      <TableCell>{item.productName}</TableCell>
+                      <TableCell className="text-center">{item.quantity}</TableCell>
+                      <TableCell className="text-right">${item.unitPrice.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">${item.total.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
+                  {items.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground">No items added</TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
-              {isLoadingProducts ? (
-                <Skeleton className="h-10 w-full" />
-              ) : (
-                <Combobox
-                  options={productOptions}
-                  onChange={handleAddProduct}
-                  placeholder="Add a product..."
-                  searchPlaceholder="Search products..."
-                  emptyPlaceholder="No products found."
-                />
-              )}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+            <CardFooter className="flex justify-end">
+                <div className="w-1/2 space-y-2">
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span>${subtotal.toFixed(2)}</span>
+                    </div>
+                     <div className="flex justify-between">
+                        <span className="text-muted-foreground">Discount</span>
+                        <span>${discount.toFixed(2)}</span>
+                    </div>
+                     <div className="flex justify-between">
+                        <span className="text-muted-foreground">Tax</span>
+                        <span>${tax.toFixed(2)}</span>
+                    </div>
+                    <Separator />
+                     <div className="flex justify-between font-bold text-lg">
+                        <span>Total</span>
+                        <span>${total.toFixed(2)}</span>
+                    </div>
+                </div>
+            </CardFooter>
+          </Card>
+        </div>
       </div>
-
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
-              <span>${subtotal.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Tax ({(taxRate * 100).toFixed(0)}%)</span>
-              <span>${tax.toFixed(2)}</span>
-            </div>
-            <Separator />
-            <div className="flex justify-between font-bold text-lg">
-              <span>Total</span>
-              <span>${total.toFixed(2)}</span>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button className="w-full" onClick={() => setShowPreview(true)} disabled={items.length === 0}>
-                Generate Invoice
-            </Button>
-          </CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>AI Assistant</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-                placeholder="AI-generated summary will appear here..."
-                value={summary}
-                onChange={e => setSummary(e.target.value)}
-                rows={5}
-            />
-          </CardContent>
-          <CardFooter>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={handleGenerateSummary}
-              disabled={isPending || items.length === 0}
-            >
-              <BrainCircuit className="mr-2 h-4 w-4" />
-              {isPending ? 'Generating...' : 'Generate Summary'}
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
-    </div>
+      <InventoryPicker
+        isOpen={isPickerOpen}
+        onOpenChange={setIsPickerOpen}
+        inventory={inventory}
+        onAddItems={handleAddItems}
+       />
+    </>
   );
 }

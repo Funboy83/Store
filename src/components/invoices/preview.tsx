@@ -39,7 +39,7 @@ export function InvoicePreview({ invoice, onBack }: InvoicePreviewProps) {
         <Button variant="outline" size="icon" onClick={onBack}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-2xl font-bold tracking-tight">Invoice Preview</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Final Invoice</h1>
         <Button onClick={handlePrint} className="ml-auto">
           <Printer className="mr-2 h-4 w-4" />
           Print / Save PDF
@@ -49,7 +49,7 @@ export function InvoicePreview({ invoice, onBack }: InvoicePreviewProps) {
       <Card className="w-full max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 print:shadow-none print:border-0 print:p-0">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <Logo />
+            <Logo isCollapsed={false} />
             <div className="text-right">
               <h1 className="text-2xl font-bold">Invoice</h1>
               <p className="text-muted-foreground">{invoice.invoiceNumber}</p>
@@ -93,6 +93,10 @@ export function InvoicePreview({ invoice, onBack }: InvoicePreviewProps) {
               <TableRow>
                 <TableCell colSpan={3} className="text-right font-semibold">Subtotal</TableCell>
                 <TableCell className="text-right">${invoice.subtotal.toFixed(2)}</TableCell>
+              </TableRow>
+               <TableRow>
+                <TableCell colSpan={3} className="text-right font-semibold">Discount</TableCell>
+                <TableCell className="text-right">-${invoice.discount?.toFixed(2) || '0.00'}</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell colSpan={3} className="text-right font-semibold">Tax</TableCell>
