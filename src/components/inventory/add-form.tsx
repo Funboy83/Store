@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
-import { useEffect, useState, useCallback } from 'react';
+import { useActionState, useEffect, useState, useCallback } from 'react';
+import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { addProduct, checkImeiExists } from '@/lib/actions/inventory';
@@ -34,7 +34,7 @@ export function AddInventoryForm() {
     const router = useRouter();
     const { toast } = useToast();
     const initialState = { errors: {}, success: false };
-    const [state, dispatch] = useFormState(addProduct, initialState);
+    const [state, dispatch] = useActionState(addProduct, initialState);
     
     const [imei, setImei] = useState('');
     const [date, setDate] = useState<Date | undefined>(new Date());

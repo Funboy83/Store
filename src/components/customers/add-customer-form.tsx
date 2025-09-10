@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
-import { useEffect } from 'react';
+import { useActionState, useEffect } from 'react';
+import { useFormStatus } from 'react-dom';
 import { useToast } from '@/hooks/use-toast';
 import { addCustomer } from '@/lib/actions/customers';
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,7 @@ interface AddCustomerFormProps {
 export function AddCustomerForm({ isOpen, onOpenChange }: AddCustomerFormProps) {
     const { toast } = useToast();
     const initialState = { errors: {}, success: false };
-    const [state, dispatch] = useFormState(addCustomer, initialState);
+    const [state, dispatch] = useActionState(addCustomer, initialState);
 
     useEffect(() => {
         if (state.success) {
