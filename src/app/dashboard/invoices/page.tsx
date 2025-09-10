@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
-import { MOCK_INVOICES } from '@/lib/mock-data';
+import { getInvoices } from '@/lib/actions/invoice';
 import {
   Table,
   TableBody,
@@ -13,8 +13,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-export default function InvoicesPage() {
-  const invoices = MOCK_INVOICES;
+export default async function InvoicesPage() {
+  const invoices = await getInvoices();
 
   return (
     <div className="flex flex-col gap-4">
@@ -54,6 +54,11 @@ export default function InvoicesPage() {
                   <TableCell className="text-right">${invoice.total.toFixed(2)}</TableCell>
                 </TableRow>
               ))}
+              {invoices.length === 0 && (
+                <TableRow>
+                    <TableCell colSpan={5} className="text-center h-24">No invoices found.</TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

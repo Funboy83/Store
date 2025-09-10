@@ -42,6 +42,28 @@ const INVOICES_PATH = 'cellphone-inventory-system/data/invoices';
 const INVENTORY_PATH = 'cellphone-inventory-system/data/inventory';
 const INVENTORY_HISTORY_PATH = 'cellphone-inventory-system/data/inventory_history';
 
+export async function getInvoices(): Promise<Invoice[]> {
+  if (!isConfigured) {
+    return [];
+  }
+  try {
+    const invoicesCollection = collection(db, INVOICES_PATH);
+    const q = query(invoicesCollection, orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            ...data
+        } as Invoice;
+    });
+  } catch (error) {
+      console.error('Error fetching invoices:', error);
+      return [];
+  }
+}
+
+
 export async function getLatestInvoiceNumber(): Promise<number> {
   if (!isConfigured) {
     return 1000;
