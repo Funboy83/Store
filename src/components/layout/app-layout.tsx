@@ -5,7 +5,6 @@ import React from 'react';
 import {
   Sidebar,
   SidebarProvider,
-  SidebarTrigger,
 } from '@/components/ui/sidebar';
 
 interface AppLayoutProps {

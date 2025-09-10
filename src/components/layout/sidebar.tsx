@@ -17,7 +17,6 @@ import React from 'react';
 
 import {
   SidebarContent,
-  SidebarFooter,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -78,12 +77,12 @@ export function MainSidebar() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-4">
+      <div className="p-4 flex items-center justify-center data-[state=expanded]:justify-start">
         <Logo />
       </div>
 
-      <div className="p-4">
-        <Button variant="outline" className="w-full justify-between">
+      <div className="p-4" data-state={state}>
+        <Button variant="outline" className="w-full justify-between data-[state=collapsed]:justify-center data-[state=collapsed]:w-auto data-[state=collapsed]:p-2">
           <div className="flex items-center gap-2 overflow-hidden">
             <Avatar className="h-6 w-6">
               <AvatarImage src="https://picsum.photos/seed/user/40/40" />
@@ -155,9 +154,9 @@ export function MainSidebar() {
         </div>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t flex items-center justify-center data-[state=expanded]:justify-end">
+      <div className="p-4 border-t flex items-center justify-center data-[state=expanded]:justify-end">
         <SidebarCollapseTrigger />
-      </SidebarFooter>
+      </div>
     </div>
   );
 }
