@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useTransition, useMemo } from 'react';
+import React, { useState, useTransition, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,15 +11,15 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Combobox, ComboboxOption } from '@/components/ui/combobox';
 import { getInvoiceSummary } from '@/lib/actions/invoice';
+import { getInventory } from '@/lib/actions/inventory';
 import { useToast } from '@/hooks/use-toast';
 import type { Product, InvoiceItem } from '@/lib/types';
 import { InvoicePreview } from './preview';
+import { Skeleton } from '../ui/skeleton';
 
-interface CreateInvoiceFormProps {
-  products: Product[];
-}
-
-export function CreateInvoiceForm({ products }: CreateInvoiceFormProps) {
+export function CreateInvoiceForm() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [customerName, setCustomerName] = useState('John Doe');
   const [customerEmail, setCustomerEmail] = useState('john.doe@email.com');
@@ -27,6 +27,16 @@ export function CreateInvoiceForm({ products }: CreateInvoiceFormProps) {
   const [summary, setSummary] = useState('');
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+
+  useEffect(() => {
+    async function fetchProducts() {
+      setIsLoadingProducts(true);
+      const inventory = await getInventory();
+      setProducts(inventory);
+      setIsLoadingProducts(false);
+    }
+    fetchProducts();
+  }, []);
 
   const productOptions: ComboboxOption[] = useMemo(() => 
     products.map(p => ({ value: p.id, label: `${p.brand} ${p.model} - $${p.price.toFixed(2)}` })),
@@ -170,13 +180,17 @@ export function CreateInvoiceForm({ products }: CreateInvoiceFormProps) {
                   ))}
                 </TableBody>
               </Table>
-              <Combobox
-                options={productOptions}
-                onChange={handleAddProduct}
-                placeholder="Add a product..."
-                searchPlaceholder="Search products..."
-                emptyPlaceholder="No products found."
-              />
+              {isLoadingProducts ? (
+                <Skeleton className="h-10 w-full" />
+              ) : (
+                <Combobox
+                  options={productOptions}
+                  onChange={handleAddProduct}
+                  placeholder="Add a product..."
+                  searchPlaceholder="Search products..."
+                  emptyPlaceholder="No products found."
+                />
+              )}
             </div>
           </CardContent>
         </Card>

@@ -1,12 +1,9 @@
 import { CreateInvoiceForm } from "@/components/invoices/create-form";
-import { getInventory } from "@/lib/actions/inventory";
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
-export default async function CreateInvoicePage() {
-  const products = await getInventory();
-
+export default function CreateInvoicePage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-4">
@@ -17,7 +14,7 @@ export default async function CreateInvoicePage() {
         </Link>
         <h1 className="text-2xl font-bold tracking-tight">Create New Invoice</h1>
       </div>
-      <CreateInvoiceForm products={products} />
+      <CreateInvoiceForm />
     </div>
   );
 }
