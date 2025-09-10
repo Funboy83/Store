@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { X, Plus, CalendarIcon } from 'lucide-react';
+import { X, Plus, CalendarIcon, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -23,7 +23,7 @@ import { Product, Customer, InvoiceItem, Invoice } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '../logo';
-import { getLatestInvoiceNumber, sendInvoice } from '@/lib/actions/invoice';
+import { getLatestInvoiceNumber, sendInvoice, getInvoiceSummary } from '@/lib/actions/invoice';
 
 interface CreateInvoiceFormProps {
   inventory: Product[];
@@ -33,16 +33,19 @@ interface CreateInvoiceFormProps {
 export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const [isSending, startSendTransition] = useTransition();
+  const [isSummarizing, startSummaryTransition] = useTransition();
+
   const [showPreview, setShowPreview] = useState(true);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(customers[0]);
   const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
   const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [invoiceNumber, setInvoiceNumber] = useState<string>('Loading...');
+  const [invoiceNumber, setInvoiceNumber] = useState<string>('...');
   const [taxRate, setTaxRate] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [notes, setNotes] = useState('');
+  const [summary, setSummary] = useState('');
 
   useEffect(() => {
     async function fetchInvoiceNumber() {
@@ -106,7 +109,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
       total: 0,
       isCustom: true,
     };
-    setItems(prev => [...prev, newItem]);
+    setItems(prev => [...prev, ...newItems]);
   };
 
   const handleRemoveItem = (itemId: string) => {
@@ -132,6 +135,22 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const discountAmount = useMemo(() => subtotal * (discount / 100), [subtotal, discount]);
   const total = useMemo(() => subtotal + taxAmount - discountAmount, [subtotal, taxAmount, discountAmount]);
   
+  const handleGenerateSummary = () => {
+    if (items.length === 0) {
+      toast({ title: 'No Items', description: 'Please add items to the invoice before generating a summary.', variant: 'destructive' });
+      return;
+    }
+    startSummaryTransition(async () => {
+      const result = await getInvoiceSummary(items);
+      if (result.summary) {
+        setSummary(result.summary);
+        toast({ title: 'Summary Generated', description: 'The AI-powered summary has been added to the invoice.' });
+      } else {
+        toast({ title: 'Error', description: result.error || 'Failed to generate summary.', variant: 'destructive' });
+      }
+    });
+  };
+  
   const handleSendInvoice = () => {
     if (!selectedCustomer) {
       toast({ title: 'Error', description: 'Please select a customer.', variant: 'destructive' });
@@ -142,7 +161,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
       return;
     }
 
-    startTransition(async () => {
+    startSendTransition(async () => {
       const invoiceData: Omit<Invoice, 'id' | 'status'> = {
         invoiceNumber,
         customer: selectedCustomer,
@@ -153,7 +172,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         total,
         issueDate: new Date().toISOString().split('T')[0],
         dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
-        summary: notes,
+        summary: summary || notes,
       };
       
       const result = await sendInvoice(invoiceData);
@@ -172,11 +191,11 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         });
       }
     });
-  }
+  };
 
   return (
-    <>
-      <div className="flex items-center justify-between">
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between pb-4">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold tracking-tight">New Invoice</h1>
           <div className="flex items-center space-x-2">
@@ -185,14 +204,15 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">Save as Draft</Button>
-          <Button onClick={handleSendInvoice} disabled={isPending}>
-            {isPending ? 'Sending...' : 'Send Invoice'}
+          <Button variant="outline" onClick={() => toast({ title: 'Coming soon!'})}>Save as Draft</Button>
+          <Button onClick={handleSendInvoice} disabled={isSending}>
+            {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSending ? 'Sending...' : 'Send Invoice'}
           </Button>
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8 overflow-auto">
         {/* Left Column */}
         <div className="flex flex-col gap-6">
           {/* Invoice Details */}
@@ -351,7 +371,24 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                         <Input id="discount" type="number" value={discount} onChange={e => setDiscount(parseFloat(e.target.value) || 0)} placeholder="0" />
                     </div>
                 </div>
+                 <Separator />
 
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                        <Label htmlFor="summary">Summary</Label>
+                        <Button variant="outline" size="sm" onClick={handleGenerateSummary} disabled={isSummarizing}>
+                           {isSummarizing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                           Generate with AI
+                        </Button>
+                    </div>
+                    <Textarea 
+                        id="summary" 
+                        value={summary}
+                        onChange={e => setSummary(e.target.value)}
+                        placeholder="AI-generated summary of the invoice will appear here."
+                        rows={4}
+                    />
+                </div>
             </CardContent>
           </Card>
         </div>
@@ -362,36 +399,29 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
             <h2 className="text-xl font-bold">Preview</h2>
           </div>
           <Card className="p-8">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold">Invoice</h1>
-                  <p className="text-muted-foreground">{invoiceNumber}</p>
-                </div>
-                <div className="bg-green-100 p-3 rounded-full">
-                  <Logo isCollapsed={false} />
-                </div>
+            <div className="flex items-center justify-between">
+              <Logo isCollapsed={false} />
+              <div className="text-right">
+                <h1 className="text-2xl font-bold">Invoice</h1>
+                <p className="text-muted-foreground">{invoiceNumber}</p>
               </div>
-              <Separator className="my-4" />
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1 col-span-2">
-                  <h3 className="font-semibold">Billed to</h3>
-                  <p className="text-sm">{selectedCustomer?.name}</p>
-                  <p className="text-sm text-muted-foreground">{selectedCustomer?.email}</p>
-                </div>
-                <div className="space-y-1 text-right">
-                  <h3 className="font-semibold">Due date</h3>
-                  <p className="text-sm">{dueDate ? format(dueDate, "dd MMMM yyyy") : 'N/A'}</p>
-                </div>
+            </div>
+            <Separator className="my-6" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <h3 className="font-semibold">Billed to</h3>
+                <address className="not-italic text-sm text-muted-foreground">
+                  {selectedCustomer?.name}<br />
+                  {selectedCustomer?.address}<br />
+                  {selectedCustomer?.email}
+                </address>
               </div>
-               <div className="grid grid-cols-1 gap-4">
-                 <div className="space-y-1">
-                   <h3 className="font-semibold">Address</h3>
-                   <p className="text-sm text-muted-foreground">{selectedCustomer?.address}</p>
-                 </div>
-               </div>
-            </CardHeader>
-            <CardContent>
+              <div className="space-y-1 text-right">
+                <h3 className="font-semibold">Due date</h3>
+                <p className="text-sm">{dueDate ? format(dueDate, "dd MMMM yyyy") : 'N/A'}</p>
+              </div>
+            </div>
+            <div className="mt-6">
                <Table>
                 <TableHeader>
                   <TableRow>
@@ -418,9 +448,9 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                   )}
                 </TableBody>
               </Table>
-            </CardContent>
-            <CardFooter className="flex justify-end">
-                <div className="w-1/2 space-y-2">
+            </div>
+            <div className="mt-6 flex justify-end">
+                <div className="w-full max-w-xs space-y-2">
                     <div className="flex justify-between">
                         <span className="text-muted-foreground">Subtotal</span>
                         <span>${subtotal.toFixed(2)}</span>
@@ -439,7 +469,13 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                         <span>${total.toFixed(2)}</span>
                     </div>
                 </div>
-            </CardFooter>
+            </div>
+             {(summary || notes) && (
+              <div className="mt-6">
+                <h3 className="font-semibold">Summary</h3>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{summary || notes}</p>
+              </div>
+            )}
           </Card>
         </div>
       </div>
@@ -449,8 +485,6 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         inventory={inventory}
         onAddItems={handleAddItems}
        />
-    </>
+    </div>
   );
 }
-
-    
