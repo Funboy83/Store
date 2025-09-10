@@ -70,7 +70,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         title: 'Items Added',
         description: `${uniqueNewItems.length} new item(s) have been added to the invoice.`,
       });
-    } else {
+    } else if (newItems.length > 0) {
        toast({
         title: 'Items Already Exist',
         description: 'The selected items are already in the invoice.',
@@ -247,7 +247,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                         <Input 
                             type="number"
                             step="0.01"
-                            value={item.unitPrice.toFixed(2)}
+                            value={item.unitPrice}
                             readOnly={!item.isCustom}
                             onChange={e => handleItemChange(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
                             className={cn("text-right", !item.isCustom && "bg-gray-100")}
