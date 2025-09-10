@@ -115,7 +115,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
       total: 0,
       isCustom: true,
     };
-    setItems(prev => [...prev, ...newItems]);
+    setItems(prev => [...prev, newItem]);
   };
 
   const handleRemoveItem = (itemId: string) => {
@@ -523,5 +523,3 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     </div>
   );
 }
-
-    
