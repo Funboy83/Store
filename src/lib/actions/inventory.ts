@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, writeBatch, serverTimestamp, query, where, getDoc, limit } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import { MOCK_PRODUCTS } from '../mock-data';
 
@@ -22,6 +22,21 @@ const ProductSchema = z.object({
 
 const INVENTORY_PATH = 'cellphone-inventory-system/data/inventory';
 const INVENTORY_HISTORY_PATH = 'cellphone-inventory-system/data/inventory_history';
+
+export async function checkImeiExists(imei: string): Promise<boolean> {
+  if (!isConfigured || imei.length !== 15) {
+    return false;
+  }
+  try {
+    const inventoryCollection = collection(db, INVENTORY_PATH);
+    const q = query(inventoryCollection, where('imei', '==', imei), limit(1));
+    const snapshot = await getDocs(q);
+    return !snapshot.empty;
+  } catch (error) {
+    console.error('Error checking IMEI:', error);
+    return false; // Fail safe, assume not a duplicate on error
+  }
+}
 
 export async function getInventory(): Promise<Product[]> {
   if (!isConfigured) {
@@ -60,6 +75,13 @@ export async function addProduct(prevState: any, formData: FormData) {
   if (!isConfigured) {
     return { errors: { _form: ['Firebase is not configured.'] } };
   }
+
+  const { imei } = validatedFields.data;
+  const imeiExists = await checkImeiExists(imei);
+  if (imeiExists) {
+    return { errors: { imei: ['This IMEI already exists in the inventory.'] } };
+  }
+
 
   try {
     const inventoryCollection = collection(db, INVENTORY_PATH);

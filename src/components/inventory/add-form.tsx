@@ -2,15 +2,16 @@
 'use client';
 
 import { useFormState, useFormStatus } from 'react-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { addProduct } from '@/lib/actions/inventory';
+import { addProduct, checkImeiExists } from '@/lib/actions/inventory';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { AddableCombobox } from './addable-combobox';
+import { debounce } from 'lodash';
 import {
   getBrandOptions, addBrandOption,
   getStorageOptions, addStorageOption,
@@ -18,10 +19,11 @@ import {
   getCarrierOptions, addCarrierOption,
   getGradeOptions, addGradeOption
 } from '@/lib/actions/options';
+import { CheckCircle, XCircle, Loader } from 'lucide-react';
 
-function SubmitButton() {
+function SubmitButton({ disabled }: { disabled: boolean }) {
     const { pending } = useFormStatus();
-    return <Button type="submit" disabled={pending}>{pending ? 'Adding...' : 'Add Product'}</Button>;
+    return <Button type="submit" disabled={pending || disabled}>{pending ? 'Adding...' : 'Add Product'}</Button>;
 }
 
 export function AddInventoryForm() {
@@ -29,6 +31,29 @@ export function AddInventoryForm() {
     const { toast } = useToast();
     const initialState = { errors: {}, success: false };
     const [state, dispatch] = useFormState(addProduct, initialState);
+    
+    const [imei, setImei] = useState('');
+    const [isImeiChecking, setIsImeiChecking] = useState(false);
+    const [isImeiDuplicate, setIsImeiDuplicate] = useState<boolean | null>(null);
+
+    const debouncedCheck = useCallback(
+      debounce(async (currentImei: string) => {
+        if (currentImei.length < 15) {
+          setIsImeiDuplicate(null);
+          setIsImeiChecking(false);
+          return;
+        }
+        setIsImeiChecking(true);
+        const exists = await checkImeiExists(currentImei);
+        setIsImeiDuplicate(exists);
+        setIsImeiChecking(false);
+      }, 500),
+      []
+    );
+
+    useEffect(() => {
+        debouncedCheck(imei);
+    }, [imei, debouncedCheck]);
 
     useEffect(() => {
         if (state.success) {
@@ -47,6 +72,11 @@ export function AddInventoryForm() {
         }
     }, [state, router, toast]);
 
+    const handleImeiChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newImei = e.target.value.replace(/[^0-9]/g, '').slice(0, 15);
+      setImei(newImei);
+    };
+
     return (
         <form action={dispatch}>
             <Card>
@@ -57,8 +87,23 @@ export function AddInventoryForm() {
                 <CardContent className="grid gap-6">
                     <div className="space-y-2">
                         <Label htmlFor="imei">IMEI</Label>
-                        <Input id="imei" name="imei" placeholder="e.g. 123456789012345" />
+                        <div className="relative">
+                            <Input 
+                                id="imei" 
+                                name="imei" 
+                                placeholder="e.g. 123456789012345" 
+                                value={imei}
+                                onChange={handleImeiChange}
+                                maxLength={15}
+                            />
+                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                {isImeiChecking && <Loader className="h-5 w-5 text-gray-400 animate-spin" />}
+                                {isImeiDuplicate === false && imei.length === 15 && <CheckCircle className="h-5 w-5 text-green-500" />}
+                                {isImeiDuplicate === true && <XCircle className="h-5 w-5 text-destructive" />}
+                            </div>
+                        </div>
                         {state.errors?.imei && <p className="text-sm text-destructive">{state.errors.imei}</p>}
+                        {isImeiDuplicate && <p className="text-sm text-destructive">This IMEI already exists in the inventory.</p>}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -124,7 +169,7 @@ export function AddInventoryForm() {
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end">
-                    <SubmitButton />
+                    <SubmitButton disabled={!!isImeiDuplicate || imei.length !== 15} />
                 </CardFooter>
             </Card>
         </form>
