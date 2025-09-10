@@ -57,7 +57,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     const newProducts = selectedProducts.filter(p => !existingItemIds.has(p.id));
     const duplicateCount = selectedProducts.length - newProducts.length;
 
-    if (newProducts.length === 0) {
+    if (newProducts.length === 0 && selectedProducts.length > 0) {
       toast({
         title: 'Items Already in Invoice',
         description: `All ${selectedProducts.length} selected item(s) are already in the invoice.`,
@@ -68,10 +68,11 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
 
     const newItems: InvoiceItem[] = newProducts.map(product => ({
       id: product.id,
-      productName: `${product.brand} ${product.model}`,
+      productName: `${product.imei} - ${product.storage} - ${product.color}`,
       quantity: 1,
-      unitPrice: product.price,
-      total: product.price,
+      unitPrice: 0, // Default price to 0 as requested
+      total: 0,
+      isCustom: false,
     }));
 
     setItems(prev => [...prev, ...newItems]);
@@ -108,10 +109,10 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     setItems(prev => prev.map(item => {
       if (item.id === itemId) {
         const updatedItem = { ...item, [field]: value };
-        if (field === 'quantity' || field === 'unitPrice') {
-          const quantity = field === 'quantity' ? Number(value) : item.quantity;
-          const unitPrice = field === 'unitPrice' ? Number(value) : item.unitPrice;
-          updatedItem.total = quantity * unitPrice;
+        // Since quantity is always 1, total is just the unit price
+        if (field === 'unitPrice') {
+            const unitPrice = Number(value) || 0;
+            updatedItem.total = unitPrice;
         }
         return updatedItem;
       }
@@ -239,7 +240,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                   <Label>Items</Label>
                   <div className="space-y-2 mt-2">
                     {items.map(item => (
-                      <div key={item.id} className="grid grid-cols-[1fr_80px_120px_120px_auto] gap-2 items-center">
+                      <div key={item.id} className="grid grid-cols-[1fr_120px_120px_auto] gap-2 items-center">
                         <Input 
                             value={item.productName} 
                             readOnly={!item.isCustom}
@@ -248,18 +249,12 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                             placeholder="Item name"
                         />
                         <Input 
-                            type="number" 
-                            value={item.quantity}
-                            onChange={e => handleItemChange(item.id, 'quantity', parseInt(e.target.value) || 0)}
-                            className="text-center"
-                        />
-                        <Input 
                             type="number"
                             step="0.01"
-                            value={item.isCustom ? item.unitPrice : item.unitPrice.toFixed(2)}
-                            readOnly={!item.isCustom}
-                            onChange={e => handleItemChange(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                            className={cn("text-right", !item.isCustom && "bg-gray-100")}
+                            value={item.unitPrice}
+                            onChange={e => handleItemChange(item.id, 'unitPrice', parseFloat(e.target.value))}
+                            className="text-right"
+                            placeholder="0.00"
                         />
                         <Input value={item.total.toFixed(2)} readOnly className="bg-gray-100 text-right" />
                         <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)}>
@@ -344,7 +339,6 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                 <TableHeader>
                   <TableRow>
                     <TableHead>Items</TableHead>
-                    <TableHead className="text-center">QTY</TableHead>
                     <TableHead className="text-right">Rate</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                   </TableRow>
@@ -353,14 +347,13 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                   {items.map((item, index) => (
                     <TableRow key={index}>
                       <TableCell>{item.productName}</TableCell>
-                      <TableCell className="text-center">{item.quantity}</TableCell>
                       <TableCell className="text-right">${item.unitPrice.toFixed(2)}</TableCell>
                       <TableCell className="text-right">${item.total.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                   {items.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">No items added</TableCell>
+                      <TableCell colSpan={3} className="text-center text-muted-foreground">No items added</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
