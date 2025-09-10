@@ -14,7 +14,6 @@ import {
   getSortedRowModel,
   useReactTable,
   RowSelectionState,
-  getGlobalFacetedRowModel,
 } from "@tanstack/react-table"
 
 import {
@@ -69,7 +68,6 @@ export function DataTable<TData, TValue>({
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: isControllable ? onRowSelectionChange : setInternalRowSelection,
     onGlobalFilterChange: setGlobalFilter,
-    getGlobalFacetedRowModel: getGlobalFacetedRowModel(),
     state: {
       sorting,
       columnFilters,
@@ -133,6 +131,7 @@ export function DataTable<TData, TValue>({
                                 header.getContext()
                               )}
                         </TableHead>
+
                       )
                     })}
                   </TableRow>
