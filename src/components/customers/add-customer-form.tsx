@@ -8,6 +8,7 @@ import { addCustomer } from '@/lib/actions/customers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -61,9 +62,14 @@ export function AddCustomerForm({ isOpen, onOpenChange }: AddCustomerFormProps) 
                 </DialogHeader>
                 <form action={dispatch} className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="name">Customer Name</Label>
+                        <Label htmlFor="name">Customer Name (Required)</Label>
                         <Input id="name" name="name" placeholder="e.g. John Doe" />
                         {state.errors?.name && <p className="text-sm text-destructive">{state.errors.name}</p>}
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="phone">Phone Number (Required)</Label>
+                        <Input id="phone" name="phone" type="tel" placeholder="e.g. 555-123-4567" />
+                        {state.errors?.phone && <p className="text-sm text-destructive">{state.errors.phone}</p>}
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>
@@ -71,9 +77,9 @@ export function AddCustomerForm({ isOpen, onOpenChange }: AddCustomerFormProps) 
                         {state.errors?.email && <p className="text-sm text-destructive">{state.errors.email}</p>}
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="phone">Phone Number</Label>
-                        <Input id="phone" name="phone" type="tel" placeholder="e.g. 555-123-4567" />
-                        {state.errors?.phone && <p className="text-sm text-destructive">{state.errors.phone}</p>}
+                        <Label htmlFor="notes">Notes</Label>
+                        <Textarea id="notes" name="notes" placeholder="Any relevant notes about the customer..." />
+                        {state.errors?.notes && <p className="text-sm text-destructive">{state.errors.notes}</p>}
                     </div>
                     <DialogFooter>
                         <DialogClose asChild>

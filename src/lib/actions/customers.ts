@@ -12,8 +12,9 @@ const CUSTOMERS_PATH = 'cellphone-inventory-system/data/customers';
 
 const CustomerSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  email: z.string().email({ message: "Invalid email address." }),
   phone: z.string().min(10, { message: "Phone number must be at least 10 digits." }),
+  email: z.string().email({ message: "Invalid email address." }).optional().or(z.literal('')),
+  notes: z.string().optional(),
 });
 
 export async function getCustomers(): Promise<Customer[]> {

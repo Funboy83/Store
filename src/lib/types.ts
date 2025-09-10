@@ -29,6 +29,7 @@ export type Customer = {
   email: string;
   phone: string;
   address?: string;
+  notes?: string;
 };
 
 export type InvoiceItem = {
