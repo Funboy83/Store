@@ -57,10 +57,16 @@ export const columns: ColumnDef<Product>[] = [
     accessorKey: "date",
     header: "Date Added",
     cell: ({ row }) => {
-      const date = new Date(row.getValue("date"))
-      // add a day to the date to fix off-by-one error
-      date.setDate(date.getDate() + 1)
-      return <span>{date.toLocaleDateString()}</span>
+      const dateString = row.getValue("date") as string;
+      // Dates from firestore are 'YYYY-MM-DD'. We need to parse them as UTC to prevent timezone shifts.
+      const date = new Date(`${dateString}T00:00:00Z`);
+      const formattedDate = date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+          timeZone: 'UTC'
+      });
+      return <span>{formattedDate}</span>
     },
   },
   {
