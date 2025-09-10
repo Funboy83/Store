@@ -16,6 +16,25 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Product } from "@/lib/types"
+import { deleteProduct } from "@/lib/actions/inventory"
+import { useToast } from "@/hooks/use-toast"
+
+async function handleDelete(product: Product) {
+    const { toast } = useToast();
+    const result = await deleteProduct(product);
+    if (result.success) {
+        toast({
+            title: "Product Deleted",
+            description: "The product has been moved to the inventory history.",
+        });
+    } else {
+        toast({
+            title: "Error",
+            description: result.error,
+            variant: "destructive",
+        });
+    }
+}
 
 export const columns: ColumnDef<Product>[] = [
   {
@@ -125,7 +144,12 @@ export const columns: ColumnDef<Product>[] = [
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem>Edit Product</DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive">Delete Product</DropdownMenuItem>
+            <DropdownMenuItem 
+                onClick={() => handleDelete(product)}
+                className="text-destructive"
+            >
+                Delete Product
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )

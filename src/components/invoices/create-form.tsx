@@ -1,7 +1,8 @@
 
 "use client"
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,11 +19,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { InventoryPicker } from './inventory-picker';
-import { Product, Customer, InvoiceItem } from '@/lib/types';
+import { Product, Customer, InvoiceItem, Invoice } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '../logo';
-import { getLatestInvoiceNumber } from '@/lib/actions/invoice';
+import { getLatestInvoiceNumber, sendInvoice } from '@/lib/actions/invoice';
 
 interface CreateInvoiceFormProps {
   inventory: Product[];
@@ -30,6 +31,9 @@ interface CreateInvoiceFormProps {
 }
 
 export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormProps) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isPending, startTransition] = useTransition();
   const [showPreview, setShowPreview] = useState(true);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(customers[0]);
@@ -38,7 +42,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const [invoiceNumber, setInvoiceNumber] = useState<string>('Loading...');
   const [taxRate, setTaxRate] = useState(0);
   const [discount, setDiscount] = useState(0);
-  const { toast } = useToast();
+  const [notes, setNotes] = useState('');
 
   useEffect(() => {
     async function fetchInvoiceNumber() {
@@ -128,6 +132,48 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const discountAmount = useMemo(() => subtotal * (discount / 100), [subtotal, discount]);
   const total = useMemo(() => subtotal + taxAmount - discountAmount, [subtotal, taxAmount, discountAmount]);
   
+  const handleSendInvoice = () => {
+    if (!selectedCustomer) {
+      toast({ title: 'Error', description: 'Please select a customer.', variant: 'destructive' });
+      return;
+    }
+    if (items.length === 0) {
+      toast({ title: 'Error', description: 'Please add at least one item to the invoice.', variant: 'destructive' });
+      return;
+    }
+
+    startTransition(async () => {
+      const invoiceData: Omit<Invoice, 'id' | 'status'> = {
+        invoiceNumber,
+        customer: selectedCustomer,
+        items,
+        subtotal,
+        tax: taxAmount,
+        discount: discountAmount,
+        total,
+        issueDate: new Date().toISOString().split('T')[0],
+        dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
+        summary: notes,
+      };
+      
+      const result = await sendInvoice(invoiceData);
+
+      if (result.success) {
+        toast({
+          title: 'Invoice Sent!',
+          description: `Invoice ${invoiceNumber} has been created.`,
+        });
+        router.push('/dashboard/invoices');
+      } else {
+        toast({
+          title: 'Error',
+          description: result.error,
+          variant: 'destructive',
+        });
+      }
+    });
+  }
+
   return (
     <>
       <div className="flex items-center justify-between">
@@ -140,7 +186,9 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline">Save as Draft</Button>
-          <Button className="bg-green-500 hover:bg-green-600 text-white">Send Invoice</Button>
+          <Button onClick={handleSendInvoice} disabled={isPending}>
+            {isPending ? 'Sending...' : 'Send Invoice'}
+          </Button>
         </div>
       </div>
 
@@ -404,5 +452,3 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     </>
   );
 }
-
-    

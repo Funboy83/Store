@@ -16,6 +16,13 @@ export type Product = {
   updatedAt: any;
 };
 
+export type ProductHistory = Product & {
+  status: 'Sold' | 'Deleted';
+  amount: number;
+  movedAt: any;
+  customerId?: string;
+};
+
 export type Customer = {
   id: string;
   name: string;
@@ -43,7 +50,7 @@ export type Invoice = {
   total: number;
   issueDate: string;
   dueDate: string;
-  status: 'Paid' | 'Pending' | 'Overdue';
+  status: 'Paid' | 'Pending' | 'Overdue' | 'Draft';
   summary?: string;
 };
 

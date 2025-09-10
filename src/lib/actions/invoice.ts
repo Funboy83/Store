@@ -1,16 +1,19 @@
 
 'use server';
 
-import { summarizeInvoice } from '@/ai/flows/invoice-summary';
-import type { InvoiceItem } from '@/lib/types';
+import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
+import { summarizeInvoice } from '@/ai/flows/invoice-summary';
+import type { Invoice, InvoiceItem, Product } from '@/lib/types';
+import { getInventory } from './inventory';
+
 
 const InvoiceSummarySchema = z.object({
   items: z.array(z.object({
     productName: z.string(),
-    quantity: z.number(),
+    description: z.string().optional(),
     unitPrice: z.number(),
   }))
 });
@@ -23,7 +26,7 @@ export async function getInvoiceSummary(items: InvoiceItem[]): Promise<{ summary
     }
 
     const itemsString = parsedItems.data.items
-      .map(item => `${item.quantity} x ${item.productName} @ $${item.unitPrice.toFixed(2)}`)
+      .map(item => `${item.productName} (${item.description || 'Custom Item'}) @ $${item.unitPrice.toFixed(2)}`)
       .join('\n');
     
     const result = await summarizeInvoice({ invoiceItems: itemsString });
@@ -35,6 +38,8 @@ export async function getInvoiceSummary(items: InvoiceItem[]): Promise<{ summary
 }
 
 const INVOICES_PATH = 'cellphone-inventory-system/data/invoices';
+const INVENTORY_PATH = 'cellphone-inventory-system/data/inventory';
+const INVENTORY_HISTORY_PATH = 'cellphone-inventory-system/data/inventory_history';
 
 export async function getLatestInvoiceNumber(): Promise<number> {
   if (!isConfigured) {
@@ -62,4 +67,59 @@ export async function getLatestInvoiceNumber(): Promise<number> {
     console.error('Error fetching latest invoice number:', error);
     return 1000;
   }
+}
+
+export async function sendInvoice(invoiceData: Omit<Invoice, 'id' | 'status'>) {
+    if (!isConfigured) {
+        return { success: false, error: 'Firebase is not configured.' };
+    }
+
+    try {
+        const batch = writeBatch(db);
+        const currentInventory = await getInventory();
+
+        // 1. Add invoice to the invoices collection
+        const invoiceRef = doc(collection(db, INVOICES_PATH));
+        batch.set(invoiceRef, {
+            ...invoiceData,
+            status: 'Pending', // Or whatever default status
+            createdAt: serverTimestamp(),
+        });
+
+        // 2. Move sold items from inventory to inventory_history
+        for (const item of invoiceData.items) {
+            if (!item.isCustom) {
+                const product = currentInventory.find(p => p.id === item.id);
+                if (product) {
+                    const historyRef = doc(collection(db, INVENTORY_HISTORY_PATH));
+                    const productHistory = {
+                        ...product,
+                        status: 'Sold',
+                        amount: item.total,
+                        movedAt: serverTimestamp(),
+                        customerId: invoiceData.customer.id,
+                    };
+                    batch.set(historyRef, productHistory);
+
+                    const inventoryItemRef = doc(db, INVENTORY_PATH, item.id);
+                    batch.delete(inventoryItemRef);
+                }
+            }
+        }
+        
+        await batch.commit();
+
+        revalidatePath('/dashboard/invoices');
+        revalidatePath('/dashboard/inventory');
+        revalidatePath('/dashboard/inventory/history');
+        
+        return { success: true, invoiceId: invoiceRef.id };
+
+    } catch (error) {
+        console.error('Error sending invoice and updating inventory:', error);
+        if (error instanceof Error) {
+            return { success: false, error: `Failed to send invoice: ${error.message}` };
+        }
+        return { success: false, error: 'An unknown error occurred while sending the invoice.' };
+    }
 }

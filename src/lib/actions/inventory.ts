@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import { MOCK_PRODUCTS } from '../mock-data';
 
@@ -21,6 +21,7 @@ const ProductSchema = z.object({
 });
 
 const INVENTORY_PATH = 'cellphone-inventory-system/data/inventory';
+const INVENTORY_HISTORY_PATH = 'cellphone-inventory-system/data/inventory_history';
 
 export async function getInventory(): Promise<Product[]> {
   if (!isConfigured) {
@@ -37,14 +38,12 @@ export async function getInventory(): Promise<Product[]> {
       return { 
         id: doc.id, 
         ...data,
-        // Convert Firestore Timestamps to serializable strings
         createdAt: data.createdAt?.toDate()?.toISOString() || null,
         updatedAt: data.updatedAt?.toDate()?.toISOString() || null,
       } as Product
     });
   } catch (error) {
     console.error('Error fetching inventory:', error);
-    // Fallback to mock data on error
     return MOCK_PRODUCTS;
   }
 }
@@ -59,7 +58,6 @@ export async function addProduct(prevState: any, formData: FormData) {
   }
   
   if (!isConfigured) {
-    console.log('Firebase not configured, cannot add product.');
     return { errors: { _form: ['Firebase is not configured.'] } };
   }
 
@@ -94,16 +92,33 @@ export async function updateProduct(id: string, data: Partial<Product>) {
     }
 }
 
-export async function deleteProduct(id: string) {
+export async function deleteProduct(product: Product) {
     if (!isConfigured) {
         console.log("Firebase not configured, cannot delete.");
-        return;
+        return { success: false, error: 'Firebase not configured.' };
     }
     try {
-        const productRef = doc(db, INVENTORY_PATH, id);
-        await deleteDoc(productRef);
+        const batch = writeBatch(db);
+        
+        const historyRef = doc(collection(db, INVENTORY_HISTORY_PATH));
+        const productHistory = {
+            ...product,
+            status: 'Deleted',
+            amount: 0,
+            movedAt: serverTimestamp(),
+        };
+        batch.set(historyRef, productHistory);
+        
+        const productRef = doc(db, INVENTORY_PATH, product.id);
+        batch.delete(productRef);
+
+        await batch.commit();
+
         revalidatePath('/dashboard/inventory');
+        revalidatePath('/dashboard/inventory/history');
+        return { success: true };
     } catch (error) {
         console.error('Error deleting product:', error);
+        return { success: false, error: 'Failed to delete product.' };
     }
 }
