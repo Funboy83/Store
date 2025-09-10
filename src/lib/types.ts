@@ -27,7 +27,8 @@ export type Customer = {
   id: string;
   name: string;
   email: string;
-  address: string;
+  phone: string;
+  address?: string;
 };
 
 export type InvoiceItem = {
@@ -67,3 +68,4 @@ export type RecentSale = {
 };
 
     
+
