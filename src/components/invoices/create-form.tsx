@@ -55,11 +55,12 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const handleAddItems = (selectedProducts: Product[]) => {
     const existingItemIds = new Set(items.map(item => item.id));
     const newProducts = selectedProducts.filter(p => !existingItemIds.has(p.id));
+    const duplicateCount = selectedProducts.length - newProducts.length;
 
     if (newProducts.length === 0) {
       toast({
-        title: 'Items Already Exist',
-        description: 'All selected items are already in the invoice.',
+        title: 'Items Already in Invoice',
+        description: `All ${selectedProducts.length} selected item(s) are already in the invoice.`,
         variant: 'destructive'
       });
       return;
@@ -75,9 +76,15 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
 
     setItems(prev => [...prev, ...newItems]);
     setIsPickerOpen(false);
+    
+    let toastDescription = `${newItems.length} new item(s) have been added.`;
+    if (duplicateCount > 0) {
+      toastDescription += ` ${duplicateCount} item(s) were already in the invoice and were not added again.`
+    }
+
     toast({
       title: 'Items Added',
-      description: `${newItems.length} new item(s) have been added to the invoice.`,
+      description: toastDescription,
     });
   };
 
