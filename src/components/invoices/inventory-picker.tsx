@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -32,8 +33,8 @@ export function InventoryPicker({
   const { toast } = useToast();
 
   const handleAdd = () => {
-    const selectedIds = Object.keys(rowSelection);
-    if (selectedIds.length === 0) {
+    const selectedIndices = Object.keys(rowSelection).map(Number);
+    if (selectedIndices.length === 0) {
       toast({
         title: 'No Selection',
         description: 'Please select at least one product to add.',
@@ -41,7 +42,7 @@ export function InventoryPicker({
       });
       return;
     }
-    const selectedProducts = inventory.filter(product => selectedIds.includes(product.id));
+    const selectedProducts = selectedIndices.map(index => inventory[index]);
     onAddItems(selectedProducts);
     setRowSelection({});
   };
