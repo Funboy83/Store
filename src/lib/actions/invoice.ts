@@ -54,7 +54,8 @@ export async function getInvoices(): Promise<Invoice[]> {
         const data = doc.data();
         return {
             id: doc.id,
-            ...data
+            ...data,
+            createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
         } as Invoice;
     });
   } catch (error) {
