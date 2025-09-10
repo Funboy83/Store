@@ -24,7 +24,7 @@ import { Product, Customer, InvoiceItem, Invoice } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '../logo';
-import { getLatestInvoiceNumber, sendInvoice, getInvoiceSummary } from '@/lib/actions/invoice';
+import { getLatestInvoiceNumber, sendInvoice } from '@/lib/actions/invoice';
 import { AddCustomerForm } from '../customers/add-customer-form';
 
 interface CreateInvoiceFormProps {
@@ -36,7 +36,6 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const router = useRouter();
   const { toast } = useToast();
   const [isSending, startSendTransition] = useTransition();
-  const [isSummarizing, startSummaryTransition] = useTransition();
 
   const [showPreview, setShowPreview] = useState(true);
   const [items, setItems] = useState<InvoiceItem[]>([]);
@@ -52,7 +51,6 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const [taxRate, setTaxRate] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [notes, setNotes] = useState('');
-  const [summary, setSummary] = useState('');
 
   useEffect(() => {
     async function fetchInvoiceNumber() {
@@ -133,9 +131,9 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         const newQuantity = field === 'quantity' ? Number(value) : updatedItem.quantity;
         
         if (field === 'unitPrice' || field === 'quantity') {
-          updatedItem.unitPrice = newUnitPrice;
+          updatedItem.unitPrice = Number(newUnitPrice);
           updatedItem.quantity = newQuantity;
-          updatedItem.total = newUnitPrice * newQuantity;
+          updatedItem.total = Number(newUnitPrice) * newQuantity;
         } else {
           (updatedItem as any)[field] = value;
         }
@@ -149,22 +147,6 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const taxAmount = useMemo(() => subtotal * (taxRate / 100), [subtotal, taxRate]);
   const discountAmount = useMemo(() => subtotal * (discount / 100), [subtotal, discount]);
   const total = useMemo(() => subtotal + taxAmount - discountAmount, [subtotal, taxAmount, discountAmount]);
-  
-  const handleGenerateSummary = () => {
-    if (items.length === 0) {
-      toast({ title: 'No Items', description: 'Please add items to the invoice before generating a summary.', variant: 'destructive' });
-      return;
-    }
-    startSummaryTransition(async () => {
-      const result = await getInvoiceSummary(items);
-      if (result.summary) {
-        setSummary(result.summary);
-        toast({ title: 'Summary Generated', description: 'The AI-powered summary has been added to the invoice.' });
-      } else {
-        toast({ title: 'Error', description: result.error || 'Failed to generate summary.', variant: 'destructive' });
-      }
-    });
-  };
   
   const handleSendInvoice = () => {
     const finalCustomer = isWalkInCustomer 
@@ -191,7 +173,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         total,
         issueDate: new Date().toISOString().split('T')[0],
         dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
-        summary: summary || notes,
+        summary: notes,
       };
       
       const result = await sendInvoice(invoiceData);
@@ -324,11 +306,6 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                   </Popover>
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Textarea id="address" defaultValue={selectedCustomer?.address} />
-              </div>
             </CardContent>
           </Card>
 
@@ -424,18 +401,12 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                 <Separator />
 
                 <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                        <Label htmlFor="summary">Summary</Label>
-                        <Button variant="outline" size="sm" onClick={handleGenerateSummary} disabled={isSummarizing}>
-                          {isSummarizing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          Generate with AI
-                        </Button>
-                    </div>
+                    <Label htmlFor="notes">Notes</Label>
                     <Textarea 
-                        id="summary" 
-                        value={summary}
-                        onChange={e => setSummary(e.target.value)}
-                        placeholder="AI-generated summary of the invoice will appear here."
+                        id="notes" 
+                        value={notes}
+                        onChange={e => setNotes(e.target.value)}
+                        placeholder="Add any relevant notes for the invoice..."
                         rows={4}
                     />
                 </div>
@@ -522,10 +493,10 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                     </div>
                 </div>
             </div>
-            {(summary || notes) && (
+            {notes && (
               <div className="mt-6">
-                <h3 className="font-semibold">Summary</h3>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{summary || notes}</p>
+                <h3 className="font-semibold">Notes</h3>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{notes}</p>
               </div>
             )}
           </Card>
