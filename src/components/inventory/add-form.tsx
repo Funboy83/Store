@@ -2,7 +2,7 @@
 'use client';
 
 import { useFormState, useFormStatus } from 'react-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { addProduct } from '@/lib/actions/inventory';
@@ -10,7 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AddableCombobox } from './addable-combobox';
+import {
+  getBrandOptions, addBrandOption,
+  getStorageOptions, addStorageOption,
+  getColorOptions, addColorOption,
+  getCarrierOptions, addCarrierOption,
+  getGradeOptions, addGradeOption
+} from '@/lib/actions/options';
 
 function SubmitButton() {
     const { pending } = useFormStatus();
@@ -55,11 +62,13 @@ export function AddInventoryForm() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="brand">Brand</Label>
-                            <Input id="brand" name="brand" placeholder="e.g. Apple" />
-                            {state.errors?.brand && <p className="text-sm text-destructive">{state.errors.brand}</p>}
-                        </div>
+                        <AddableCombobox
+                            formControlName="brand"
+                            label="Brand"
+                            fetchOptions={getBrandOptions}
+                            addOption={addBrandOption}
+                            error={state.errors?.brand}
+                        />
                         <div className="space-y-2">
                             <Label htmlFor="model">Model</Label>
                             <Input id="model" name="model" placeholder="e.g. iPhone 15 Pro" />
@@ -68,29 +77,37 @@ export function AddInventoryForm() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <div className="space-y-2">
-                            <Label htmlFor="storage">Storage</Label>
-                            <Input id="storage" name="storage" placeholder="e.g. 256GB" />
-                            {state.errors?.storage && <p className="text-sm text-destructive">{state.errors.storage}</p>}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="color">Color</Label>
-                            <Input id="color" name="color" placeholder="e.g. Space Black" />
-                            {state.errors?.color && <p className="text-sm text-destructive">{state.errors.color}</p>}
-                        </div>
+                         <AddableCombobox
+                            formControlName="storage"
+                            label="Storage"
+                            fetchOptions={getStorageOptions}
+                            addOption={addStorageOption}
+                            error={state.errors?.storage}
+                        />
+                        <AddableCombobox
+                            formControlName="color"
+                            label="Color"
+                            fetchOptions={getColorOptions}
+                            addOption={addColorOption}
+                            error={state.errors?.color}
+                        />
                     </div>
 
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="carrier">Carrier</Label>
-                            <Input id="carrier" name="carrier" placeholder="e.g. Unlocked" />
-                            {state.errors?.carrier && <p className="text-sm text-destructive">{state.errors.carrier}</p>}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="grade">Grade</Label>
-                            <Input id="grade" name="grade" placeholder="e.g. A" />
-                            {state.errors?.grade && <p className="text-sm text-destructive">{state.errors.grade}</p>}
-                        </div>
+                        <AddableCombobox
+                            formControlName="carrier"
+                            label="Carrier"
+                            fetchOptions={getCarrierOptions}
+                            addOption={addCarrierOption}
+                            error={state.errors?.carrier}
+                        />
+                        <AddableCombobox
+                            formControlName="grade"
+                            label="Grade"
+                            fetchOptions={getGradeOptions}
+                            addOption={addGradeOption}
+                            error={state.errors?.grade}
+                        />
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

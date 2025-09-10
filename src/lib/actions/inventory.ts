@@ -14,7 +14,7 @@ const ProductSchema = z.object({
   model: z.string().min(2, 'Model must be at least 2 characters'),
   storage: z.string().min(2, 'Storage is required'),
   grade: z.string().min(1, 'Grade is required'),
-  color: z.string().optional(),
+  color: z.string().min(2, 'Color is required'),
   carrier: z.string().min(3, 'Carrier is required'),
   price: z.coerce.number().positive('Price must be a positive number'),
   battery: z.coerce.number().int().min(0).max(100, 'Battery must be between 0 and 100'),
