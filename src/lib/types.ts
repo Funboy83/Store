@@ -1,4 +1,5 @@
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -23,11 +24,12 @@ export type Customer = {
 };
 
 export type InvoiceItem = {
-  productId: string;
+  id: string;
   productName: string;
   quantity: number;
   unitPrice: number;
   total: number;
+  isCustom?: boolean;
 };
 
 export type Invoice = {

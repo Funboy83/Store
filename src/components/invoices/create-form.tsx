@@ -1,12 +1,13 @@
+
 "use client"
 
-import React, { useState, useMemo, useTransition } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { X, Plus, CalendarIcon, ChevronDown } from 'lucide-react';
+import { X, Plus, CalendarIcon } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -16,12 +17,12 @@ import { format } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { InvoicePreview } from './preview';
 import { InventoryPicker } from './inventory-picker';
 import { Product, Customer, InvoiceItem } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '../logo';
+import { getLatestInvoiceNumber } from '@/lib/actions/invoice';
 
 interface CreateInvoiceFormProps {
   inventory: Product[];
@@ -34,7 +35,18 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(customers[0]);
   const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [invoiceNumber, setInvoiceNumber] = useState<string>('Loading...');
+  const [taxRate, setTaxRate] = useState(0);
+  const [discount, setDiscount] = useState(0);
   const { toast } = useToast();
+
+  useEffect(() => {
+    async function fetchInvoiceNumber() {
+      const nextNumber = await getLatestInvoiceNumber();
+      setInvoiceNumber(`UXERFLOW-INV${String(nextNumber).padStart(3, '0')}`);
+    }
+    fetchInvoiceNumber();
+  }, []);
 
   const handleSelectCustomer = (customerId: string) => {
     setSelectedCustomer(customers.find(c => c.id === customerId));
@@ -42,15 +54,14 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   
   const handleAddItems = (selectedProducts: Product[]) => {
     const newItems: InvoiceItem[] = selectedProducts.map(product => ({
-      productId: product.id,
+      id: product.id,
       productName: `${product.brand} ${product.model}`,
       quantity: 1,
       unitPrice: product.price,
       total: product.price,
     }));
 
-    // Avoid adding duplicates
-    const uniqueNewItems = newItems.filter(newItem => !items.some(existingItem => existingItem.productId === newItem.productId));
+    const uniqueNewItems = newItems.filter(newItem => !items.some(existingItem => existingItem.id === newItem.id));
 
     setItems(prev => [...prev, ...uniqueNewItems]);
     setIsPickerOpen(false);
@@ -68,24 +79,41 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     }
   };
 
-  const handleRemoveItem = (productId: string) => {
-    setItems(prev => prev.filter(item => item.productId !== productId));
+  const handleAddCustomItem = () => {
+    const newItem: InvoiceItem = {
+      id: `custom-${Date.now()}`,
+      productName: '',
+      quantity: 1,
+      unitPrice: 0,
+      total: 0,
+      isCustom: true,
+    };
+    setItems(prev => [...prev, newItem]);
   };
 
-  const handleQuantityChange = (productId: string, quantity: number) => {
-    const newQuantity = Math.max(0, quantity);
-    setItems(prev => prev.map(item =>
-      item.productId === productId
-        ? { ...item, quantity: newQuantity, total: item.unitPrice * newQuantity }
-        : item
-    ));
+  const handleRemoveItem = (itemId: string) => {
+    setItems(prev => prev.filter(item => item.id !== itemId));
+  };
+
+  const handleItemChange = (itemId: string, field: keyof InvoiceItem, value: any) => {
+    setItems(prev => prev.map(item => {
+      if (item.id === itemId) {
+        const updatedItem = { ...item, [field]: value };
+        if (field === 'quantity' || field === 'unitPrice') {
+          const quantity = field === 'quantity' ? Number(value) : item.quantity;
+          const unitPrice = field === 'unitPrice' ? Number(value) : item.unitPrice;
+          updatedItem.total = quantity * unitPrice;
+        }
+        return updatedItem;
+      }
+      return item;
+    }));
   };
 
   const subtotal = useMemo(() => items.reduce((acc, item) => acc + item.total, 0), [items]);
-  const taxRate = 0; // As per image
-  const discount = 0; // As per image
-  const tax = subtotal * taxRate;
-  const total = subtotal + tax - discount;
+  const taxAmount = useMemo(() => subtotal * (taxRate / 100), [subtotal, taxRate]);
+  const discountAmount = useMemo(() => subtotal * (discount / 100), [subtotal, discount]);
+  const total = useMemo(() => subtotal + taxAmount - discountAmount, [subtotal, taxAmount, discountAmount]);
   
   return (
     <>
@@ -151,7 +179,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="invoice-number">Invoice number</Label>
-                  <Input id="invoice-number" defaultValue="UXERFLOW-INV001" />
+                  <Input id="invoice-number" value={invoiceNumber} readOnly />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="due-date">Due date</Label>
@@ -202,17 +230,30 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                   <Label>Items</Label>
                   <div className="space-y-2 mt-2">
                     {items.map(item => (
-                      <div key={item.productId} className="grid grid-cols-[1fr_80px_120px_120px_auto] gap-2 items-center">
-                        <Input value={item.productName} readOnly className="bg-gray-100" />
+                      <div key={item.id} className="grid grid-cols-[1fr_80px_120px_120px_auto] gap-2 items-center">
+                        <Input 
+                            value={item.productName} 
+                            readOnly={!item.isCustom}
+                            onChange={e => handleItemChange(item.id, 'productName', e.target.value)}
+                            className={cn(!item.isCustom && "bg-gray-100")}
+                            placeholder="Item name"
+                        />
                         <Input 
                             type="number" 
                             value={item.quantity}
-                            onChange={e => handleQuantityChange(item.productId, parseInt(e.target.value))}
+                            onChange={e => handleItemChange(item.id, 'quantity', parseInt(e.target.value) || 0)}
                             className="text-center"
                         />
-                        <Input value={item.unitPrice.toFixed(2)} readOnly className="bg-gray-100 text-right" />
+                        <Input 
+                            type="number"
+                            step="0.01"
+                            value={item.unitPrice.toFixed(2)}
+                            readOnly={!item.isCustom}
+                            onChange={e => handleItemChange(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                            className={cn("text-right", !item.isCustom && "bg-gray-100")}
+                        />
                         <Input value={item.total.toFixed(2)} readOnly className="bg-gray-100 text-right" />
-                        <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.productId)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)}>
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
@@ -220,19 +261,36 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                   </div>
                 </div>
 
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost"><Plus className="mr-2" /> Add from inventory</Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuItem onSelect={() => setIsPickerOpen(true)}>
-                            Phone Inventory
-                        </DropdownMenuItem>
-                         <DropdownMenuItem onSelect={() => toast({ title: 'Coming Soon!', description: 'Managing accessories will be available in a future update.'})}>
-                            Accessories
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={handleAddCustomItem}><Plus className="mr-2 h-4 w-4" /> Add custom item</Button>
+                  <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                          <Button variant="ghost"><Plus className="mr-2" /> Add from inventory</Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                          <DropdownMenuItem onSelect={() => setIsPickerOpen(true)}>
+                              Phone Inventory
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => toast({ title: 'Coming Soon!', description: 'Managing accessories will be available in a future update.'})}>
+                              Accessories
+                          </DropdownMenuItem>
+                      </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <Separator />
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="tax">Tax (%)</Label>
+                        <Input id="tax" type="number" value={taxRate} onChange={e => setTaxRate(parseFloat(e.target.value) || 0)} placeholder="0" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="discount">Discount (%)</Label>
+                        <Input id="discount" type="number" value={discount} onChange={e => setDiscount(parseFloat(e.target.value) || 0)} placeholder="0" />
+                    </div>
+                </div>
+
             </CardContent>
           </Card>
         </div>
@@ -247,7 +305,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-2xl font-bold">Invoice</h1>
-                  <p className="text-muted-foreground">UXERFLOW-INV001</p>
+                  <p className="text-muted-foreground">{invoiceNumber}</p>
                 </div>
                 <div className="bg-green-100 p-3 rounded-full">
                   <Logo isCollapsed={false} />
@@ -306,12 +364,12 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                         <span>${subtotal.toFixed(2)}</span>
                     </div>
                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Discount</span>
-                        <span>${discount.toFixed(2)}</span>
+                        <span className="text-muted-foreground">Discount ({discount}%)</span>
+                        <span>-${discountAmount.toFixed(2)}</span>
                     </div>
                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Tax</span>
-                        <span>${tax.toFixed(2)}</span>
+                        <span className="text-muted-foreground">Tax ({taxRate}%)</span>
+                        <span>+${taxAmount.toFixed(2)}</span>
                     </div>
                     <Separator />
                      <div className="flex justify-between font-bold text-lg">
