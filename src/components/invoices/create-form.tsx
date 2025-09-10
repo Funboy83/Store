@@ -53,7 +53,19 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   };
   
   const handleAddItems = (selectedProducts: Product[]) => {
-    const newItems: InvoiceItem[] = selectedProducts.map(product => ({
+    const existingItemIds = new Set(items.map(item => item.id));
+    const newProducts = selectedProducts.filter(p => !existingItemIds.has(p.id));
+
+    if (newProducts.length === 0) {
+      toast({
+        title: 'Items Already Exist',
+        description: 'All selected items are already in the invoice.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const newItems: InvoiceItem[] = newProducts.map(product => ({
       id: product.id,
       productName: `${product.brand} ${product.model}`,
       quantity: 1,
@@ -61,22 +73,12 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
       total: product.price,
     }));
 
-    const uniqueNewItems = newItems.filter(newItem => !items.some(existingItem => existingItem.id === newItem.id));
-
-    setItems(prev => [...prev, ...uniqueNewItems]);
+    setItems(prev => [...prev, ...newItems]);
     setIsPickerOpen(false);
-    if(uniqueNewItems.length > 0) {
-      toast({
-        title: 'Items Added',
-        description: `${uniqueNewItems.length} new item(s) have been added to the invoice.`,
-      });
-    } else if (newItems.length > 0) {
-       toast({
-        title: 'Items Already Exist',
-        description: 'The selected items are already in the invoice.',
-        variant: 'destructive'
-      });
-    }
+    toast({
+      title: 'Items Added',
+      description: `${newItems.length} new item(s) have been added to the invoice.`,
+    });
   };
 
   const handleAddCustomItem = () => {
@@ -247,7 +249,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                         <Input 
                             type="number"
                             step="0.01"
-                            value={item.unitPrice}
+                            value={item.isCustom ? item.unitPrice : item.unitPrice.toFixed(2)}
                             readOnly={!item.isCustom}
                             onChange={e => handleItemChange(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
                             className={cn("text-right", !item.isCustom && "bg-gray-100")}
@@ -390,3 +392,5 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     </>
   );
 }
+
+    
