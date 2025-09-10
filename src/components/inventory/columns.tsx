@@ -54,6 +54,16 @@ export const columns: ColumnDef<Product>[] = [
     enableHiding: false,
   },
   {
+    accessorKey: "date",
+    header: "Date Added",
+    cell: ({ row }) => {
+      const date = new Date(row.getValue("date"))
+      // add a day to the date to fix off-by-one error
+      date.setDate(date.getDate() + 1)
+      return <span>{date.toLocaleDateString()}</span>
+    },
+  },
+  {
     accessorKey: "imei",
     header: "IMEI",
   },

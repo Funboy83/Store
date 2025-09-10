@@ -18,6 +18,7 @@ const ProductSchema = z.object({
   carrier: z.string().min(3, 'Carrier is required'),
   price: z.coerce.number().positive('Price must be a positive number'),
   battery: z.coerce.number().int().min(0).max(100, 'Battery must be between 0 and 100'),
+  date: z.string().min(1, 'Date is required'),
 });
 
 const INVENTORY_PATH = 'cellphone-inventory-system/data/inventory';
@@ -87,7 +88,6 @@ export async function addProduct(prevState: any, formData: FormData) {
     const inventoryCollection = collection(db, INVENTORY_PATH);
     const newProduct = {
       ...validatedFields.data,
-      date: new Date().toISOString().split('T')[0],
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }
