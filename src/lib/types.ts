@@ -21,6 +21,7 @@ export type ProductHistory = Product & {
   amount: number;
   movedAt: any;
   customerId?: string;
+  customerName?: string;
 };
 
 export type Customer = {

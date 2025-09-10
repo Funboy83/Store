@@ -120,6 +120,7 @@ export async function sendInvoice(invoiceData: Omit<Invoice, 'id' | 'status'>) {
                         amount: item.total,
                         movedAt: serverTimestamp(),
                         customerId: invoiceData.customer.id,
+                        customerName: invoiceData.customer.name, // Add customer name here
                     };
                     batch.set(historyRef, productHistory);
 

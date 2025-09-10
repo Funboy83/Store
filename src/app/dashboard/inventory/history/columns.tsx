@@ -54,8 +54,8 @@ export const columns: ColumnDef<ProductHistory>[] = [
     },
   },
   {
-    accessorKey: "customerId",
-    header: "Customer ID",
+    accessorKey: "customerName",
+    header: "Customer",
   },
   {
     accessorKey: "storage",
