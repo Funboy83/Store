@@ -1,3 +1,58 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "phone1",
+      "description": "A modern smartphone, the Samsung Galaxy S23 Ultra.",
+      "imageUrl": "https://picsum.photos/seed/phone1/400/400",
+      "imageHint": "smartphone"
+    },
+    {
+      "id": "phone2",
+      "description": "The Apple iPhone 14 Pro, showcasing its camera system.",
+      "imageUrl": "https://picsum.photos/seed/phone2/400/400",
+      "imageHint": "phone"
+    },
+    {
+      "id": "phone3",
+      "description": "The Google Pixel 7 Pro with its distinctive camera bar.",
+      "imageUrl": "https://picsum.photos/seed/phone3/400/400",
+      "imageHint": "smartphone"
+    },
+    {
+      "id": "phone4",
+      "description": "The OnePlus 11 in a sleek finish.",
+      "imageUrl": "https://picsum.photos/seed/phone4/400/400",
+      "imageHint": "cellphone"
+    },
+    {
+      "id": "phone5",
+      "description": "The Sony Xperia 1 IV with its tall display.",
+      "imageUrl": "https://picsum.photos/seed/phone5/400/400",
+      "imageHint": "smartphone"
+    },
+    {
+      "id": "phone6",
+      "description": "The standard Apple iPhone 14 model.",
+      "imageUrl": "https://picsum.photos/seed/phone6/400/400",
+      "imageHint": "phone"
+    },
+    {
+      "id": "phone7",
+      "description": "The Samsung Galaxy Z Fold 4, a foldable smartphone.",
+      "imageUrl": "https://picsum.photos/seed/phone7/400/400",
+      "imageHint": "foldable phone"
+    },
+    {
+      "id": "user",
+      "description": "A placeholder for a user's avatar.",
+      "imageUrl": "https://picsum.photos/seed/user/40/40",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "newphone",
+      "description": "A placeholder image for a newly added phone.",
+      "imageUrl": "https://picsum.photos/seed/newphone/400/400",
+      "imageHint": "smartphone"
+    }
+  ]
 }
