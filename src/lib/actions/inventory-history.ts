@@ -20,12 +20,14 @@ export async function getInventoryHistory(): Promise<ProductHistory[]> {
     
     return snapshot.docs.map(doc => {
       const data = doc.data();
+      const movedAt = data.movedAt?.toDate ? data.movedAt.toDate() : (data.movedAt ? new Date(data.movedAt) : new Date());
+      
       return { 
         id: doc.id, 
         ...data,
-        createdAt: data.createdAt?.toDate()?.toISOString() || null,
-        updatedAt: data.updatedAt?.toDate()?.toISOString() || null,
-        movedAt: data.movedAt?.toDate()?.toISOString() || null,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || null,
+        movedAt: movedAt.toISOString(),
       } as ProductHistory
     });
   } catch (error) {
