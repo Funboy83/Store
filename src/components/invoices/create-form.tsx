@@ -57,36 +57,41 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     const newProducts = selectedProducts.filter(p => !existingItemIds.has(p.id));
     const duplicateCount = selectedProducts.length - newProducts.length;
 
+    if (newProducts.length > 0) {
+      const newItems: InvoiceItem[] = newProducts.map(product => ({
+        id: product.id,
+        productName: `${product.brand} ${product.model}`,
+        description: `${product.imei} - ${product.storage} - ${product.color}`,
+        unitPrice: 0,
+        total: 0,
+        isCustom: false,
+      }));
+      setItems(prev => [...prev, ...newItems]);
+    }
+    
+    setIsPickerOpen(false);
+    
+    let toastDescription = '';
+    if (newProducts.length > 0) {
+      toastDescription += `${newProducts.length} new item(s) have been added.`;
+    }
+    if (duplicateCount > 0) {
+      toastDescription += ` ${duplicateCount} item(s) were already in the invoice and were not added again.`
+    }
+    
+    if (toastDescription) {
+      toast({
+        title: 'Items Processed',
+        description: toastDescription,
+      });
+    }
+
     if (newProducts.length === 0 && selectedProducts.length > 0) {
       toast({
         title: 'Items Already in Invoice',
         description: `All ${selectedProducts.length} selected item(s) are already in the invoice.`,
-        variant: 'destructive'
       });
-      return;
     }
-
-    const newItems: InvoiceItem[] = newProducts.map(product => ({
-      id: product.id,
-      productName: `${product.brand} ${product.model}`,
-      description: `${product.imei} - ${product.storage} - ${product.color}`,
-      unitPrice: 0, // Default price to 0 as requested
-      total: 0,
-      isCustom: false,
-    }));
-
-    setItems(prev => [...prev, ...newItems]);
-    setIsPickerOpen(false);
-    
-    let toastDescription = `${newItems.length} new item(s) have been added.`;
-    if (duplicateCount > 0) {
-      toastDescription += ` ${duplicateCount} item(s) were already in the invoice and were not added again.`
-    }
-
-    toast({
-      title: 'Items Added',
-      description: toastDescription,
-    });
   };
 
   const handleAddCustomItem = () => {
@@ -104,11 +109,10 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     setItems(prev => prev.filter(item => item.id !== itemId));
   };
 
-  const handleItemChange = (itemId: string, field: keyof InvoiceItem, value: any) => {
+  const handleItemChange = (itemId: string, field: keyof InvoiceItem, value: string | number) => {
     setItems(prev => prev.map(item => {
       if (item.id === itemId) {
         const updatedItem = { ...item, [field]: value };
-        // Since quantity is always 1, total is just the unit price
         if (field === 'unitPrice') {
             const unitPrice = Number(value) || 0;
             updatedItem.total = unitPrice;
@@ -195,6 +199,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
+                        id="due-date"
                         variant={"outline"}
                         className={cn("w-full justify-start text-left font-normal", !dueDate && "text-muted-foreground")}
                       >
@@ -273,7 +278,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                   <Button variant="outline" onClick={handleAddCustomItem}><Plus className="mr-2 h-4 w-4" /> Add custom item</Button>
                   <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                          <Button variant="ghost"><Plus className="mr-2" /> Add from inventory</Button>
+                          <Button variant="ghost"><Plus className="mr-2 h-4 w-4" /> Add from inventory</Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
                           <DropdownMenuItem onSelect={() => setIsPickerOpen(true)}>
@@ -348,8 +353,8 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item, index) => (
-                    <TableRow key={index}>
+                  {items.map((item) => (
+                    <TableRow key={item.id}>
                       <TableCell>
                         <p className="font-medium">{item.productName}</p>
                         {item.description && <p className="text-xs text-muted-foreground">{item.description}</p>}
@@ -399,3 +404,5 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     </>
   );
 }
+
+    

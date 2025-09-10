@@ -83,11 +83,11 @@ export function DataTable<TData, TValue>({
           onChange={(event) =>
             table.getColumn("imei")?.setFilterValue(event.target.value)
           }
-          className="max-w-sm"
+          className="max-w-sm bg-white"
         />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
+            <Button variant="outline" className="ml-auto bg-white">
               Columns <ChevronDown className="ml-2 h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -115,7 +115,7 @@ export function DataTable<TData, TValue>({
       <div className="rounded-md border bg-card flex-1 relative">
         <ScrollArea className="h-full">
             <Table>
-              <TableHeader className="sticky top-0 bg-card z-10">
+              <TableHeader className="sticky top-0 bg-card z-10 text-black">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => {
@@ -133,7 +133,7 @@ export function DataTable<TData, TValue>({
                   </TableRow>
                 ))}
               </TableHeader>
-              <TableBody>
+              <TableBody className="text-black">
                 {table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => (
                     <TableRow
@@ -193,3 +193,5 @@ export function DataTable<TData, TValue>({
     </div>
   )
 }
+
+    
