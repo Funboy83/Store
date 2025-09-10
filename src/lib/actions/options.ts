@@ -8,7 +8,16 @@ import { collection, getDocs, addDoc, serverTimestamp, query, orderBy } from 'fi
 const OPTIONS_BASE_PATH = 'cellphone-inventory-system/data';
 
 async function getOptions(optionType: string): Promise<string[]> {
-    if (!isConfigured) return [];
+    if (!isConfigured) {
+        const mockOptions: {[key: string]: string[]} = {
+            'options_brand': ['Apple', 'Samsung', 'Google'],
+            'options_storage': ['128GB', '256GB', '512GB'],
+            'options_color': ['Black', 'White', 'Blue'],
+            'options_carrier': ['Unlocked', 'Verizon', 'T-Mobile'],
+            'options_grade': ['A', 'B', 'C'],
+        }
+        return mockOptions[optionType] || [];
+    }
     try {
         const optionsCollection = collection(db, `${OPTIONS_BASE_PATH}/${optionType}`);
         const q = query(optionsCollection, orderBy('value'));
@@ -42,17 +51,17 @@ async function addOption(optionType: string, value: string): Promise<{ success: 
     }
 }
 
-export const getBrandOptions = () => getOptions('options_brand');
-export const addBrandOption = (value: string) => addOption('options_brand', value);
+export const getBrandOptions = async () => getOptions('options_brand');
+export const addBrandOption = async (value: string) => addOption('options_brand', value);
 
-export const getStorageOptions = () => getOptions('options_storage');
-export const addStorageOption = (value: string) => addOption('options_storage', value);
+export const getStorageOptions = async () => getOptions('options_storage');
+export const addStorageOption = async (value: string) => addOption('options_storage', value);
 
-export const getColorOptions = () => getOptions('options_color');
-export const addColorOption = (value: string) => addOption('options_color', value);
+export const getColorOptions = async () => getOptions('options_color');
+export const addColorOption = async (value: string) => addOption('options_color', value);
 
-export const getCarrierOptions = () => getOptions('options_carrier');
-export const addCarrierOption = (value: string) => addOption('options_carrier', value);
+export const getCarrierOptions = async () => getOptions('options_carrier');
+export const addCarrierOption = async (value: string) => addOption('options_carrier', value);
 
-export const getGradeOptions = () => getOptions('options_grade');
-export const addGradeOption = (value: string) => addOption('options_grade', value);
+export const getGradeOptions = async () => getOptions('options_grade');
+export const addGradeOption = async (value: string) => addOption('options_grade', value);
