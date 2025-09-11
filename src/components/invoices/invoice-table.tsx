@@ -22,19 +22,19 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Invoice } from '@/lib/types';
+import type { InvoiceDetail } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 interface InvoiceTableProps {
-    invoices: Invoice[];
+    invoices: InvoiceDetail[];
     title?: string;
-    onArchive?: (invoice: Invoice) => Promise<void>;
+    onArchive?: (invoice: InvoiceDetail) => void;
 }
 
-export function InvoiceTable({ invoices, title = "Invoice History", onArchive }: InvoiceTableProps) {
+export function InvoiceTable({ invoices, title = "Invoices", onArchive }: InvoiceTableProps) {
   const { toast } = useToast();
 
-  const handleArchiveClick = (invoice: Invoice) => {
+  const handleArchiveClick = (invoice: InvoiceDetail) => {
     if (onArchive) {
         onArchive(invoice);
     } else {
@@ -52,6 +52,7 @@ export function InvoiceTable({ invoices, title = "Invoice History", onArchive }:
             <TableHeader>
               <TableRow>
                 <TableHead>Invoice</TableHead>
+                <TableHead>Customer</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
@@ -61,12 +62,13 @@ export function InvoiceTable({ invoices, title = "Invoice History", onArchive }:
             <TableBody>
               {invoices.length === 0 ? (
                 <TableRow>
-                    <TableCell colSpan={onArchive ? 5 : 4} className="text-center h-24">No invoices found.</TableCell>
+                    <TableCell colSpan={onArchive ? 6 : 5} className="text-center h-24">No invoices found.</TableCell>
                 </TableRow>
               ) : (
                 invoices.map((invoice) => (
                   <TableRow key={invoice.id}>
                     <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+                    <TableCell>{invoice.customer.name}</TableCell>
                     <TableCell>
                       <Badge variant={invoice.status === 'Paid' ? 'default' : 'secondary'}>{invoice.status}</Badge>
                     </TableCell>

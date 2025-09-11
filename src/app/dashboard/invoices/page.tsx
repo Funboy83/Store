@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, History } from 'lucide-react';
 import { getInvoices, archiveInvoice } from '@/lib/actions/invoice';
 import {
   AlertDialog,
@@ -66,12 +66,18 @@ export default function InvoicesPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Invoices</h1>
-        <Link href="/dashboard/invoices/create" passHref>
-          <Button>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Create Invoice
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => toast({ title: 'Coming Soon!', description: 'Invoice history will be available in a future update.'})}>
+              <History className="mr-2 h-4 w-4" />
+              History
+            </Button>
+          <Link href="/dashboard/invoices/create" passHref>
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Create Invoice
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {loading ? (
