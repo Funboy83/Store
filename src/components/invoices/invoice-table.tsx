@@ -54,7 +54,7 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
     return 'N/A';
   }
 
-  const getStatusVariant = (status: Invoice['status']) => {
+  const getStatusVariant = (status?: Invoice['status']) => {
     switch (status) {
       case 'Paid':
         return 'default';
@@ -65,6 +65,7 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
       case 'Overdue':
         return 'destructive';
       default:
+        // For old invoices that might not have a status, default to 'Paid' or a neutral color
         return 'outline';
     }
   }
@@ -97,7 +98,7 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
                     <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                     <TableCell>{getCustomerName(invoice)}</TableCell>
                     <TableCell>
-                      <Badge variant={getStatusVariant(invoice.status)}>{invoice.status}</Badge>
+                      <Badge variant={getStatusVariant(invoice.status)}>{invoice.status || 'Paid'}</Badge>
                     </TableCell>
                     <TableCell>{invoice.issueDate}</TableCell>
                     <TableCell className="text-right">${invoice.total.toFixed(2)}</TableCell>
@@ -105,7 +106,7 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
                         <TableCell className="text-right">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                <Button variant="ghost" className="h-8 w-8 p-0" disabled={invoice.status === 'Voided'}>
                                 <span className="sr-only">Open menu</span>
                                 <MoreHorizontal className="h-4 w-4" />
                                 </Button>

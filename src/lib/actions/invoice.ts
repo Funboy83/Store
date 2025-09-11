@@ -55,7 +55,8 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
     const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
     const customersCollectionRef = collection(dataDocRef, CUSTOMERS_COLLECTION);
 
-    const q = query(invoicesCollectionRef, where('status', '!=', 'Voided'), orderBy('status'), orderBy('createdAt', 'desc'));
+    // Fetch invoices ordered by creation date
+    const q = query(invoicesCollectionRef, orderBy('createdAt', 'desc'));
     
     const [invoiceSnapshot, customersSnapshot] = await Promise.all([
         getDocs(q),
@@ -81,6 +82,12 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
 
     for (const invoiceDoc of invoiceSnapshot.docs) {
       const invoiceData = invoiceDoc.data() as Invoice;
+
+      // Filter out voided invoices in the code to handle old data without a status field
+      if (invoiceData.status === 'Voided') {
+        continue;
+      }
+
       const createdAt = invoiceData.createdAt?.toDate ? invoiceData.createdAt.toDate().toISOString() : new Date().toISOString();
       
       const itemsCollectionRef = collection(invoiceDoc.ref, 'invoice_items');
@@ -107,6 +114,19 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
         });
       }
     }
+    
+    // Sort by status in code
+    const statusOrder = ['Unpaid', 'Partial', 'Paid', 'Draft', 'Overdue'];
+    invoiceDetails.sort((a, b) => {
+        const statusA = a.status || 'Paid'; // Default old invoices to 'Paid' for sorting
+        const statusB = b.status || 'Paid';
+        const indexA = statusOrder.indexOf(statusA);
+        const indexB = statusOrder.indexOf(statusB);
+        if (indexA !== indexB) {
+            return indexA - indexB;
+        }
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
     return invoiceDetails;
   } catch (error) {
@@ -208,14 +228,15 @@ export async function sendInvoice({ invoiceData, items, customer, totalPaid }: S
               if (inventoryItemSnap.exists()) {
                   const product = { id: inventoryItemSnap.id, ...inventoryItemSnap.data() } as Product;
                   const historyRef = doc(collection(dataDocRef, INVENTORY_HISTORY_COLLECTION));
+                  const finalCustomerName = invoiceData.customerName || customer.name;
                   const productHistory = {
                       ...product,
                       status: 'Sold' as const,
                       amount: item.total,
                       movedAt: serverTimestamp(),
                       customerId: finalInvoiceData.customerId,
-                      customerName: finalInvoiceData.customerName,
-invoiceId: invoiceRef.id,
+                      customerName: finalCustomerName,
+                      invoiceId: invoiceRef.id,
                   };
                   batch.set(historyRef, productHistory);
                   batch.delete(inventoryItemRef);
