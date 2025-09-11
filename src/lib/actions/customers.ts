@@ -3,7 +3,6 @@
 
 import { db, isConfigured } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, addDoc, serverTimestamp, doc, where, getDoc } from 'firebase/firestore';
-import { MOCK_CUSTOMERS } from '../mock-data';
 import type { Customer, Invoice, InvoiceDetail } from '../types';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
@@ -22,8 +21,7 @@ const CustomerSchema = z.object({
 
 export async function getCustomers(): Promise<Customer[]> {
   if (!isConfigured) {
-    console.log('Firebase not configured, returning mock customers.');
-    return Promise.resolve(MOCK_CUSTOMERS.map(c => ({...c, totalInvoices: 0, totalSpent: 0, phone: '', notes: '', createdAt: new Date().toISOString() })));
+    return [];
   }
 
   try {
@@ -73,8 +71,7 @@ export async function getCustomers(): Promise<Customer[]> {
     });
   } catch (error) {
     console.error('Error fetching customers:', error);
-    // Fallback to mock data on error
-    return MOCK_CUSTOMERS.map(c => ({...c, totalInvoices: 0, totalSpent: 0, phone: '', notes: '', createdAt: new Date().toISOString() }));
+    return [];
   }
 }
 
@@ -99,6 +96,7 @@ export async function addCustomer(prevState: any, formData: FormData) {
       createdAt: serverTimestamp(),
     });
     revalidatePath('/dashboard/customers');
+    revalidatePath('/dashboard/invoices/create');
     return { success: true };
   } catch (error) {
     console.error('Error adding customer:', error);
@@ -131,7 +129,7 @@ export async function getCustomerDetails(id: string): Promise<{ customer: Custom
     } as Customer;
 
     const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
-    const invoicesQuery = query(invoicesCollectionRef, where('customerId', '==', id), orderBy('createdAt', 'desc'));
+    const invoicesQuery = query(invoicesCollectionRef, where('customerId', '==', id));
     const invoicesSnapshot = await getDocs(invoicesQuery);
 
     let totalSpent = 0;
@@ -144,6 +142,9 @@ export async function getCustomerDetails(id: string): Promise<{ customer: Custom
         createdAt: invoiceData.createdAt?.toDate ? invoiceData.createdAt.toDate().toISOString() : new Date().toISOString(),
       } as Invoice;
     });
+
+    // Sort in code instead of in the query to avoid needing a composite index
+    invoices.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     customer.totalInvoices = invoices.length;
     customer.totalSpent = totalSpent;
