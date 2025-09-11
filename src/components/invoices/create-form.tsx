@@ -194,7 +194,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         ? `Walk-In - ${walkInCustomerName.trim()}`
         : selectedCustomer.name;
 
-      const invoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status' | 'customerId'> = {
+      const invoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status'> = {
         invoiceNumber,
         customerName: finalCustomerName,
         subtotal,
@@ -209,7 +209,8 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
       const result = await sendInvoice({ 
           invoiceData, 
           items, 
-          customer: selectedCustomer
+          customer: selectedCustomer,
+          totalPaid
       });
 
       if (result.success) {
@@ -271,7 +272,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                     <Select onValueChange={handleSelectCustomer} value={selectedCustomer?.id} disabled={isWalkIn}>
                     <SelectTrigger className="h-14">
                         <SelectValue asChild>
-                        {selectedCustomer ? (
+                        {selectedCustomer && !isWalkIn ? (
                             <div className="flex items-center gap-3">
                             <Avatar>
                                 <AvatarFallback>{selectedCustomer.name.charAt(0)}</AvatarFallback>

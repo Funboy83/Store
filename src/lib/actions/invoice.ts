@@ -146,9 +146,10 @@ interface SendInvoiceData {
   invoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status'>;
   items: InvoiceItem[];
   customer?: Customer;
+  totalPaid: number;
 }
 
-export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceData) {
+export async function sendInvoice({ invoiceData, items, customer, totalPaid }: SendInvoiceData) {
     if (!isConfigured) {
         return { success: false, error: 'Firebase is not configured.' };
     }
@@ -162,10 +163,12 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
         const dataDocRef = doc(db, DATA_PATH);
         
         const invoiceRef = doc(collection(dataDocRef, INVOICES_COLLECTION));
+
+        const isPaid = invoiceData.total > 0 && Math.abs(invoiceData.total - totalPaid) < 0.001;
         
         const finalInvoiceData: any = {
             ...invoiceData,
-            status: 'Pending',
+            status: isPaid ? 'Paid' : 'Pending',
             customerId: customer.id,
             createdAt: serverTimestamp(),
         };
@@ -178,6 +181,9 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
           const itemData: any = { ...item };
           if (!item.isCustom) {
             itemData.inventoryId = item.id;
+          } else {
+            // Ensure we don't try to save an undefined inventoryId for custom items.
+            delete itemData.inventoryId;
           }
           batch.set(itemRef, itemData);
 
