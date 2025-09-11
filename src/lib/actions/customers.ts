@@ -7,6 +7,7 @@ import { MOCK_CUSTOMERS } from '../mock-data';
 import type { Customer } from '../types';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { getInvoices } from './invoice';
 
 const DATA_PATH = 'cellphone-inventory-system/data';
 const CUSTOMERS_COLLECTION = 'customers';
@@ -21,18 +22,35 @@ const CustomerSchema = z.object({
 export async function getCustomers(): Promise<Customer[]> {
   if (!isConfigured) {
     console.log('Firebase not configured, returning mock customers.');
-    return Promise.resolve(MOCK_CUSTOMERS);
+    return Promise.resolve(MOCK_CUSTOMERS.map(c => ({...c, totalInvoices: 0, totalSpent: 0, phone: '', notes: '', createdAt: new Date().toISOString() })));
   }
 
   try {
     const dataDocRef = doc(db, DATA_PATH);
     const customersCollectionRef = collection(dataDocRef, CUSTOMERS_COLLECTION);
     const q = query(customersCollectionRef, orderBy('name'));
-    const snapshot = await getDocs(q);
     
-    return snapshot.docs.map(doc => {
+    const [customersSnapshot, invoices] = await Promise.all([
+      getDocs(q),
+      getInvoices()
+    ]);
+    
+    const customerInvoiceData: Record<string, { totalInvoices: number, totalSpent: number }> = {};
+    for (const invoice of invoices) {
+      if (invoice.customerId === 'walk-in') continue;
+
+      if (!customerInvoiceData[invoice.customerId]) {
+        customerInvoiceData[invoice.customerId] = { totalInvoices: 0, totalSpent: 0 };
+      }
+      customerInvoiceData[invoice.customerId].totalInvoices += 1;
+      customerInvoiceData[invoice.customerId].totalSpent += invoice.total;
+    }
+
+    return customersSnapshot.docs.map(doc => {
       const data = doc.data();
       const createdAt = data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString();
+      const stats = customerInvoiceData[doc.id] || { totalInvoices: 0, totalSpent: 0 };
+      
       return { 
         id: doc.id,
         name: data.name,
@@ -41,12 +59,14 @@ export async function getCustomers(): Promise<Customer[]> {
         address: data.address,
         notes: data.notes,
         createdAt: createdAt,
+        totalInvoices: stats.totalInvoices,
+        totalSpent: stats.totalSpent,
       } as Customer
     });
   } catch (error) {
     console.error('Error fetching customers:', error);
     // Fallback to mock data on error
-    return MOCK_CUSTOMERS;
+    return MOCK_CUSTOMERS.map(c => ({...c, totalInvoices: 0, totalSpent: 0, phone: '', notes: '', createdAt: new Date().toISOString() }));
   }
 }
 

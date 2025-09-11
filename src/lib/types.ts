@@ -2,6 +2,7 @@
 
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -35,6 +36,8 @@ export type Customer = {
   address?: string;
   notes?: string;
   createdAt: string;
+  totalInvoices: number;
+  totalSpent: number;
 };
 
 export type InvoiceItem = {
