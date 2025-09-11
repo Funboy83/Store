@@ -4,13 +4,13 @@
 import { db, isConfigured } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, addDoc, serverTimestamp, doc } from 'firebase/firestore';
 import { MOCK_CUSTOMERS } from '../mock-data';
-import type { Customer } from '../types';
+import type { Customer, Invoice } from '../types';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { getInvoices } from './invoice';
 
 const DATA_PATH = 'cellphone-inventory-system/data';
 const CUSTOMERS_COLLECTION = 'customers';
+const INVOICES_COLLECTION = 'invoices';
 
 const CustomerSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -28,24 +28,31 @@ export async function getCustomers(): Promise<Customer[]> {
   try {
     const dataDocRef = doc(db, DATA_PATH);
     const customersCollectionRef = collection(dataDocRef, CUSTOMERS_COLLECTION);
-    const q = query(customersCollectionRef, orderBy('name'));
+    const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
     
-    const [customersSnapshot, invoices] = await Promise.all([
-      getDocs(q),
-      getInvoices()
+    const customersQuery = query(customersCollectionRef, orderBy('name'));
+    
+    // Fetch both customers and invoices in parallel
+    const [customersSnapshot, invoicesSnapshot] = await Promise.all([
+      getDocs(customersQuery),
+      getDocs(invoicesCollectionRef)
     ]);
     
     const customerInvoiceData: Record<string, { totalInvoices: number, totalSpent: number }> = {};
-    for (const invoice of invoices) {
-      if (invoice.customerId === 'walk-in') continue;
+
+    // Process invoices to calculate stats
+    invoicesSnapshot.docs.forEach(doc => {
+      const invoice = doc.data() as Invoice;
+      if (invoice.customerId === 'walk-in' || !invoice.customerId) return;
 
       if (!customerInvoiceData[invoice.customerId]) {
         customerInvoiceData[invoice.customerId] = { totalInvoices: 0, totalSpent: 0 };
       }
       customerInvoiceData[invoice.customerId].totalInvoices += 1;
       customerInvoiceData[invoice.customerId].totalSpent += invoice.total;
-    }
+    });
 
+    // Map stats to customers
     return customersSnapshot.docs.map(doc => {
       const data = doc.data();
       const createdAt = data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString();
