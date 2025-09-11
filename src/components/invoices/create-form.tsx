@@ -83,7 +83,8 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         setSelectedCustomer(displayCustomers[0]);
       }
     }
-  }, [isWalkIn, customers, displayCustomers, selectedCustomer?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isWalkIn, customers, displayCustomers]);
 
 
   const handleSelectCustomer = (customerId: string) => {
@@ -190,8 +191,8 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
 
     startSendTransition(async () => {
       const finalCustomerName = isWalkIn && walkInCustomerName.trim() !== ''
-        ? `Walk-in - ${walkInCustomerName}`
-        : selectedCustomer?.name;
+        ? `Walk-In - ${walkInCustomerName.trim()}`
+        : selectedCustomer.name;
 
       const invoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status' | 'customerId'> = {
         invoiceNumber,
@@ -228,7 +229,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   };
 
   const displayedCustomer = isWalkIn ? {
-      name: walkInCustomerName ? `Walk-in - ${walkInCustomerName}`: 'Walk-in Customer',
+      name: walkInCustomerName ? `Walk-In - ${walkInCustomerName}`: 'Walk-In Customer',
       address: '',
       email: ''
   } : selectedCustomer;
@@ -265,53 +266,55 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                         <Label htmlFor="walk-in-switch">Walk-in Customer</Label>
                       </div>
                   </div>
-                  {isWalkIn ? (
+                  
+                  <div className="flex items-center gap-2">
+                    <Select onValueChange={handleSelectCustomer} value={selectedCustomer?.id} disabled={isWalkIn}>
+                    <SelectTrigger className="h-14">
+                        <SelectValue asChild>
+                        {selectedCustomer ? (
+                            <div className="flex items-center gap-3">
+                            <Avatar>
+                                <AvatarFallback>{selectedCustomer.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <p className="font-medium">{selectedCustomer.name}</p>
+                                <p className="text-sm text-muted-foreground">{selectedCustomer.email}</p>
+                            </div>
+                            </div>
+                        ) : (
+                            <span>Select a customer</span>
+                        )}
+                        </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                        {displayCustomers.map(customer => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                            <div className="flex items-center gap-3">
+                            <Avatar>
+                                <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <p>{customer.name}</p>
+                                <p className="text-sm text-muted-foreground">{customer.email}</p>
+                            </div>
+                            </div>
+                        </SelectItem>
+                        ))}
+                    </SelectContent>
+                    </Select>
+                    <Button variant="outline" size="icon" onClick={() => setIsAddCustomerOpen(true)} disabled={isWalkIn}>
+                        <UserPlus className="h-5 w-5" />
+                        <span className="sr-only">Add New Customer</span>
+                    </Button>
+                  </div>
+                  
+                  {isWalkIn && (
                     <Input 
                       placeholder="Enter customer name for receipt (optional)"
                       value={walkInCustomerName}
                       onChange={(e) => setWalkInCustomerName(e.target.value)}
+                      className="mt-2"
                     />
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Select onValueChange={handleSelectCustomer} value={selectedCustomer?.id} disabled={isWalkIn}>
-                      <SelectTrigger className="h-14">
-                          <SelectValue asChild>
-                          {selectedCustomer ? (
-                              <div className="flex items-center gap-3">
-                              <Avatar>
-                                  <AvatarFallback>{selectedCustomer.name.charAt(0)}</AvatarFallback>
-                              </Avatar>
-                              <div>
-                                  <p className="font-medium">{selectedCustomer.name}</p>
-                                  <p className="text-sm text-muted-foreground">{selectedCustomer.email}</p>
-                              </div>
-                              </div>
-                          ) : (
-                              <span>Select a customer</span>
-                          )}
-                          </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                          {displayCustomers.map(customer => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                              <div className="flex items-center gap-3">
-                              <Avatar>
-                                  <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
-                              </Avatar>
-                              <div>
-                                  <p>{customer.name}</p>
-                                  <p className="text-sm text-muted-foreground">{customer.email}</p>
-                              </div>
-                              </div>
-                          </SelectItem>
-                          ))}
-                      </SelectContent>
-                      </Select>
-                      <Button variant="outline" size="icon" onClick={() => setIsAddCustomerOpen(true)}>
-                          <UserPlus className="h-5 w-5" />
-                          <span className="sr-only">Add New Customer</span>
-                      </Button>
-                    </div>
                   )}
               </div>
 
@@ -571,5 +574,3 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     </div>
   );
 }
-
-    
