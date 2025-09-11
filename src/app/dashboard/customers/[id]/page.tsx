@@ -40,12 +40,12 @@ export default async function CustomerDetailsPage({ params }: { params: { id: st
           </Avatar>
           <div className="flex-1">
             <CardTitle className="text-3xl">{customer.name}</CardTitle>
-            <CardDescription className="mt-1">
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="mt-1 text-sm text-muted-foreground">
+              <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1.5"><Mail className="h-4 w-4" /> {customer.email}</span>
                 <span className="flex items-center gap-1.5"><Phone className="h-4 w-4" /> {customer.phone}</span>
               </div>
-            </CardDescription>
+            </div>
           </div>
           <div className="text-right">
               <p className="text-sm text-muted-foreground">Total Spent</p>
