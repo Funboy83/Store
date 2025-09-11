@@ -44,6 +44,7 @@ const INVOICES_COLLECTION = 'invoices';
 const INVENTORY_COLLECTION = 'inventory';
 const INVENTORY_HISTORY_COLLECTION = 'inventory_history';
 const INVOICES_HISTORY_COLLECTION = 'invoices_history';
+const CUSTOMERS_COLLECTION = 'customers';
 
 
 export async function getInvoices(): Promise<InvoiceDetail[]> {
@@ -53,15 +54,32 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
   try {
     const dataDocRef = doc(db, DATA_PATH);
     const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
-    const q = query(invoicesCollectionRef, orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
+    const customersCollectionRef = collection(dataDocRef, CUSTOMERS_COLLECTION);
 
-    const customers = await getCustomers();
-    const customerMap = new Map(customers.map(c => [c.id, c]));
+    const q = query(invoicesCollectionRef, orderBy('createdAt', 'desc'));
+    
+    const [invoiceSnapshot, customersSnapshot] = await Promise.all([
+        getDocs(q),
+        getDocs(customersCollectionRef),
+    ]);
+
+    const customerMap = new Map<string, Customer>();
+    customersSnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      customerMap.set(doc.id, {
+        id: doc.id,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
+        totalInvoices: 0, // Not needed for this view, default to 0
+        totalSpent: 0,    // Not needed for this view, default to 0
+      } as Customer);
+    });
 
     const invoiceDetails: InvoiceDetail[] = [];
 
-    for (const invoiceDoc of snapshot.docs) {
+    for (const invoiceDoc of invoiceSnapshot.docs) {
       const invoiceData = invoiceDoc.data();
       const createdAt = invoiceData.createdAt?.toDate ? invoiceData.createdAt.toDate().toISOString() : new Date().toISOString();
       const invoiceBase = { id: invoiceDoc.id, ...invoiceData, createdAt } as Invoice;
@@ -75,7 +93,10 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
         id: invoiceBase.customerId,
         name: invoiceBase.customerId === 'walk-in' ? (invoiceData.customerName || 'Walk-in Customer') : 'Unknown Customer',
         email: '',
-        phone: ''
+        phone: '',
+        createdAt: new Date().toISOString(),
+        totalInvoices: 0,
+        totalSpent: 0,
       } as Customer;
       
       invoiceDetails.push({
@@ -270,3 +291,5 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
     return { success: false, error: 'An unknown error occurred while archiving the invoice.' };
   }
 }
+
+    
