@@ -4,10 +4,11 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp, writeBatch, doc, getDoc, collectionGroup } from 'firebase/firestore';
 import { summarizeInvoice } from '@/ai/flows/invoice-summary';
-import type { Invoice, InvoiceItem, Product } from '@/lib/types';
+import type { Invoice, InvoiceItem, Product, Customer, InvoiceDetail } from '@/lib/types';
 import { getInventory } from './inventory';
+import { getCustomers } from './customers';
 
 
 const InvoiceSummarySchema = z.object({
@@ -38,40 +39,63 @@ export async function getInvoiceSummary(items: InvoiceItem[]): Promise<{ summary
   }
 }
 
-const INVOICES_PATH = 'cellphone-inventory-system/data/invoices';
-const INVENTORY_PATH = 'cellphone-inventory-system/data/inventory';
-const INVENTORY_HISTORY_PATH = 'cellphone-inventory-system/data/inventory_history';
+const DATA_PATH = 'cellphone-inventory-system/data';
+const INVOICES_COLLECTION = 'invoices';
+const INVENTORY_COLLECTION = 'inventory';
+const INVENTORY_HISTORY_COLLECTION = 'inventory_history';
 
-export async function getInvoices(): Promise<Invoice[]> {
+
+export async function getInvoices(): Promise<InvoiceDetail[]> {
   if (!isConfigured) {
     return [];
   }
   try {
-    const invoicesCollection = collection(db, INVOICES_PATH);
-    const q = query(invoicesCollection, orderBy('createdAt', 'desc'));
+    const dataDocRef = doc(db, DATA_PATH);
+    const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
+    const q = query(invoicesCollectionRef, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-            id: doc.id,
-            ...data,
-            createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
-        } as Invoice;
-    });
+
+    const customers = await getCustomers();
+    const customerMap = new Map(customers.map(c => [c.id, c]));
+
+    const invoiceDetails: InvoiceDetail[] = [];
+
+    for (const invoiceDoc of snapshot.docs) {
+      const invoiceData = { id: invoiceDoc.id, ...invoiceDoc.data() } as Invoice;
+      
+      const itemsCollectionRef = collection(invoiceDoc.ref, 'invoice_items');
+      const itemsSnapshot = await getDocs(itemsCollectionRef);
+      const items = itemsSnapshot.docs.map(itemDoc => ({ id: itemDoc.id, ...itemDoc.data() } as InvoiceItem));
+
+      const customer = customerMap.get(invoiceData.customerId) || {
+        id: invoiceData.customerId,
+        name: invoiceData.customerId === 'walk-in' ? 'Walk-in Customer' : 'Unknown Customer',
+        email: '',
+        phone: ''
+      } as Customer;
+      
+      invoiceDetails.push({
+        ...invoiceData,
+        customer,
+        items,
+      });
+    }
+
+    return invoiceDetails;
   } catch (error) {
       console.error('Error fetching invoices:', error);
       return [];
   }
 }
 
-
 export async function getLatestInvoiceNumber(): Promise<number> {
   if (!isConfigured) {
     return 1000;
   }
   try {
-    const invoicesCollection = collection(db, INVOICES_PATH);
-    const q = query(invoicesCollection, orderBy('createdAt', 'desc'), limit(1));
+    const dataDocRef = doc(db, DATA_PATH);
+    const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
+    const q = query(invoicesCollectionRef, orderBy('createdAt', 'desc'), limit(1));
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) {
@@ -92,40 +116,53 @@ export async function getLatestInvoiceNumber(): Promise<number> {
   }
 }
 
-export async function sendInvoice(invoiceData: Omit<Invoice, 'id' | 'status'>) {
+interface SendInvoiceData {
+  invoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status'>;
+  items: InvoiceItem[];
+  customer: Customer;
+}
+
+export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceData) {
     if (!isConfigured) {
         return { success: false, error: 'Firebase is not configured.' };
     }
 
     try {
         const batch = writeBatch(db);
+        const dataDocRef = doc(db, DATA_PATH);
         const currentInventory = await getInventory();
 
-        // 1. Add invoice to the invoices collection
-        const invoiceRef = doc(collection(db, INVOICES_PATH));
+        // 1. Add primary invoice document
+        const invoiceRef = doc(collection(dataDocRef, INVOICES_COLLECTION));
         batch.set(invoiceRef, {
             ...invoiceData,
-            status: 'Pending', // Or whatever default status
+            status: 'Pending',
             createdAt: serverTimestamp(),
         });
 
-        // 2. Move sold items from inventory to inventory_history
-        for (const item of invoiceData.items) {
+        // 2. Add each item to the 'invoice_items' subcollection
+        for (const item of items) {
+          const itemRef = doc(collection(invoiceRef, 'invoice_items'));
+          batch.set(itemRef, item);
+        }
+
+        // 3. Move sold items from inventory to inventory_history
+        for (const item of items) {
             if (!item.isCustom) {
                 const product = currentInventory.find(p => p.id === item.id);
                 if (product) {
-                    const historyRef = doc(collection(db, INVENTORY_HISTORY_PATH));
+                    const historyRef = doc(collection(dataDocRef, INVENTORY_HISTORY_COLLECTION));
                     const productHistory = {
                         ...product,
                         status: 'Sold',
                         amount: item.total,
                         movedAt: serverTimestamp(),
-                        customerId: invoiceData.customer.id,
-                        customerName: invoiceData.customer.name, // Add customer name here
+                        customerId: customer.id,
+                        customerName: customer.name,
                     };
                     batch.set(historyRef, productHistory);
 
-                    const inventoryItemRef = doc(db, INVENTORY_PATH, item.id);
+                    const inventoryItemRef = doc(collection(dataDocRef, INVENTORY_COLLECTION), item.id);
                     batch.delete(inventoryItemRef);
                 }
             }

@@ -19,12 +19,12 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import type { Invoice } from "@/lib/types"
+import type { InvoiceDetail } from "@/lib/types"
 import { ArrowLeft, Printer } from "lucide-react"
 import { Logo } from "../logo"
 
 interface InvoicePreviewProps {
-  invoice: Invoice;
+  invoice: InvoiceDetail;
   onBack: () => void;
 }
 

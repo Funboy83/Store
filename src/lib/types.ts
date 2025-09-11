@@ -47,8 +47,7 @@ export type InvoiceItem = {
 export type Invoice = {
   id: string;
   invoiceNumber: string;
-  customer: Customer;
-  items: InvoiceItem[];
+  customerId: string;
   subtotal: number;
   tax: number;
   discount?: number;
@@ -57,7 +56,14 @@ export type Invoice = {
   dueDate: string;
   status: 'Paid' | 'Pending' | 'Overdue' | 'Draft';
   summary?: string;
+  createdAt: any;
 };
+
+export type InvoiceDetail = Omit<Invoice, 'customerId'> & {
+  customer: Customer;
+  items: InvoiceItem[];
+};
+
 
 export type Sale = {
   month: string;
@@ -70,5 +76,3 @@ export type RecentSale = {
   customerEmail: string;
   amount: number;
 };
-
-    

@@ -21,16 +21,18 @@ const ProductSchema = z.object({
   date: z.string().min(1, 'Date is required'),
 });
 
-const INVENTORY_PATH = 'cellphone-inventory-system/data/inventory';
-const INVENTORY_HISTORY_PATH = 'cellphone-inventory-system/data/inventory_history';
+const DATA_PATH = 'cellphone-inventory-system/data';
+const INVENTORY_COLLECTION = 'inventory';
+const INVENTORY_HISTORY_COLLECTION = 'inventory_history';
 
 export async function checkImeiExists(imei: string): Promise<boolean> {
   if (!isConfigured || imei.length !== 15) {
     return false;
   }
   try {
-    const inventoryCollection = collection(db, INVENTORY_PATH);
-    const q = query(inventoryCollection, where('imei', '==', imei), limit(1));
+    const dataDocRef = doc(db, DATA_PATH);
+    const inventoryCollectionRef = collection(dataDocRef, INVENTORY_COLLECTION);
+    const q = query(inventoryCollectionRef, where('imei', '==', imei), limit(1));
     const snapshot = await getDocs(q);
     return !snapshot.empty;
   } catch (error) {
@@ -46,8 +48,9 @@ export async function getInventory(): Promise<Product[]> {
   }
 
   try {
-    const inventoryCollection = collection(db, INVENTORY_PATH);
-    const snapshot = await getDocs(inventoryCollection);
+    const dataDocRef = doc(db, DATA_PATH);
+    const inventoryCollectionRef = collection(dataDocRef, INVENTORY_COLLECTION);
+    const snapshot = await getDocs(inventoryCollectionRef);
     
     return snapshot.docs.map(doc => {
       const data = doc.data();
@@ -85,13 +88,14 @@ export async function addProduct(prevState: any, formData: FormData) {
 
 
   try {
-    const inventoryCollection = collection(db, INVENTORY_PATH);
+    const dataDocRef = doc(db, DATA_PATH);
+    const inventoryCollectionRef = collection(dataDocRef, INVENTORY_COLLECTION);
     const newProduct = {
       ...validatedFields.data,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }
-    await addDoc(inventoryCollection, newProduct);
+    await addDoc(inventoryCollectionRef, newProduct);
     revalidatePath('/dashboard/inventory');
     return { success: true };
   } catch (error) {
@@ -106,7 +110,8 @@ export async function updateProduct(id: string, data: Partial<Product>) {
         return;
     }
     try {
-        const productRef = doc(db, INVENTORY_PATH, id);
+        const dataDocRef = doc(db, DATA_PATH);
+        const productRef = doc(collection(dataDocRef, INVENTORY_COLLECTION), id);
         await updateDoc(productRef, { ...data, updatedAt: serverTimestamp() });
         revalidatePath('/dashboard/inventory');
     } catch (error) {
@@ -121,8 +126,9 @@ export async function deleteProduct(product: Product) {
     }
     try {
         const batch = writeBatch(db);
+        const dataDocRef = doc(db, DATA_PATH);
         
-        const historyRef = doc(collection(db, INVENTORY_HISTORY_PATH));
+        const historyRef = doc(collection(dataDocRef, INVENTORY_HISTORY_COLLECTION));
         const productHistory = {
             ...product,
             status: 'Deleted',
@@ -131,7 +137,7 @@ export async function deleteProduct(product: Product) {
         };
         batch.set(historyRef, productHistory);
         
-        const productRef = doc(db, INVENTORY_PATH, product.id);
+        const productRef = doc(collection(dataDocRef, INVENTORY_COLLECTION), product.id);
         batch.delete(productRef);
 
         await batch.commit();

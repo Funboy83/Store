@@ -2,11 +2,12 @@
 'use server';
 
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc } from 'firebase/firestore';
 import type { ProductHistory, Customer } from '../types';
 import { getCustomers } from './customers';
 
-const INVENTORY_HISTORY_PATH = 'cellphone-inventory-system/data/inventory_history';
+const DATA_PATH = 'cellphone-inventory-system/data';
+const INVENTORY_HISTORY_COLLECTION = 'inventory_history';
 
 export async function getInventoryHistory(): Promise<ProductHistory[]> {
   if (!isConfigured) {
@@ -15,8 +16,11 @@ export async function getInventoryHistory(): Promise<ProductHistory[]> {
   }
 
   try {
+    const dataDocRef = doc(db, DATA_PATH);
+    const historyCollectionRef = collection(dataDocRef, INVENTORY_HISTORY_COLLECTION);
+    
     const [historySnapshot, customers] = await Promise.all([
-      getDocs(query(collection(db, INVENTORY_HISTORY_PATH), orderBy('movedAt', 'desc'))),
+      getDocs(query(historyCollectionRef, orderBy('movedAt', 'desc'))),
       getCustomers()
     ]);
     

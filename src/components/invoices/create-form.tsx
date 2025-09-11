@@ -82,8 +82,8 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         productName: `${product.brand} ${product.model}`,
         description: `${product.imei} - ${product.storage} - ${product.color}`,
         quantity: 1,
-        unitPrice: 0,
-        total: 0,
+        unitPrice: product.price,
+        total: product.price,
         isCustom: false,
       }));
       setItems(prev => [...prev, ...newItems]);
@@ -136,10 +136,8 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
       if (item.id === itemId) {
         const updatedItem = { ...item };
         
-        if (field === 'unitPrice') {
-            updatedItem.unitPrice = Number(value);
-        } else if (field === 'quantity') {
-            updatedItem.quantity = Number(value);
+        if (field === 'unitPrice' || field === 'quantity') {
+            (updatedItem as any)[field] = Number(value);
         } else {
           (updatedItem as any)[field] = value;
         }
@@ -163,7 +161,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   
   const handleSendInvoice = () => {
     const finalCustomer = isWalkInCustomer 
-      ? { id: 'walk-in', name: walkInCustomerName, email: '', phone: '' }
+      ? { id: 'walk-in', name: walkInCustomerName || 'Walk-in Customer', email: '', phone: '' }
       : selectedCustomer;
 
     if (!finalCustomer || !finalCustomer.name) {
@@ -176,10 +174,9 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     }
 
     startSendTransition(async () => {
-      const invoiceData: Omit<Invoice, 'id' | 'status'> = {
+      const invoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status'> = {
         invoiceNumber,
-        customer: finalCustomer,
-        items,
+        customerId: finalCustomer.id,
         subtotal,
         tax: taxAmount,
         discount: discountAmount,
@@ -189,7 +186,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         summary: notes,
       };
       
-      const result = await sendInvoice(invoiceData);
+      const result = await sendInvoice({ invoiceData, items, customer: finalCustomer });
 
       if (result.success) {
         toast({
@@ -208,7 +205,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   };
 
   const displayedCustomer = isWalkInCustomer
-    ? { name: walkInCustomerName, email: 'Walk-in Customer', address: '' }
+    ? { name: walkInCustomerName || 'Walk-in Customer', email: '', address: '' }
     : selectedCustomer;
 
   return (
@@ -554,6 +551,3 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     </div>
   );
 }
-
-    
-    

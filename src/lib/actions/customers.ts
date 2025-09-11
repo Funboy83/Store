@@ -2,13 +2,14 @@
 'use server';
 
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, addDoc, serverTimestamp, doc } from 'firebase/firestore';
 import { MOCK_CUSTOMERS } from '../mock-data';
 import type { Customer } from '../types';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 
-const CUSTOMERS_PATH = 'cellphone-inventory-system/data/customers';
+const DATA_PATH = 'cellphone-inventory-system/data';
+const CUSTOMERS_COLLECTION = 'customers';
 
 const CustomerSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -24,8 +25,9 @@ export async function getCustomers(): Promise<Customer[]> {
   }
 
   try {
-    const customersCollection = collection(db, CUSTOMERS_PATH);
-    const q = query(customersCollection, orderBy('name'));
+    const dataDocRef = doc(db, DATA_PATH);
+    const customersCollectionRef = collection(dataDocRef, CUSTOMERS_COLLECTION);
+    const q = query(customersCollectionRef, orderBy('name'));
     const snapshot = await getDocs(q);
     
     return snapshot.docs.map(doc => {
@@ -57,8 +59,9 @@ export async function addCustomer(prevState: any, formData: FormData) {
   }
 
   try {
-    const customersCollection = collection(db, CUSTOMERS_PATH);
-    await addDoc(customersCollection, {
+    const dataDocRef = doc(db, DATA_PATH);
+    const customersCollectionRef = collection(dataDocRef, CUSTOMERS_COLLECTION);
+    await addDoc(customersCollectionRef, {
       ...validatedFields.data,
       createdAt: serverTimestamp(),
     });
