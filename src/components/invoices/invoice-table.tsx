@@ -22,11 +22,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { InvoiceDetail } from '@/lib/types';
+import type { InvoiceDetail, Invoice } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 interface InvoiceTableProps {
-    invoices: InvoiceDetail[];
+    invoices: (Invoice | InvoiceDetail)[];
     title?: string;
     onArchive?: (invoice: InvoiceDetail) => void;
 }
@@ -41,6 +41,16 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
         toast({ title: "Archive function not provided."});
     }
   };
+
+  const getCustomerName = (invoice: Invoice | InvoiceDetail) => {
+    if ('customer' in invoice && invoice.customer) {
+      return invoice.customer.name;
+    }
+    if ('customerName' in invoice && invoice.customerName) {
+      return invoice.customerName;
+    }
+    return 'N/A';
+  }
 
   return (
       <Card>
@@ -68,7 +78,7 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
                 invoices.map((invoice) => (
                   <TableRow key={invoice.id}>
                     <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
-                    <TableCell>{invoice.customer.name}</TableCell>
+                    <TableCell>{getCustomerName(invoice)}</TableCell>
                     <TableCell>
                       <Badge variant={invoice.status === 'Paid' ? 'default' : 'secondary'}>{invoice.status}</Badge>
                     </TableCell>
@@ -91,7 +101,7 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem 
                                 className="text-destructive"
-                                onSelect={() => handleArchiveClick(invoice)}>
+                                onSelect={() => handleArchiveClick(invoice as InvoiceDetail)}>
                                 Archive Invoice
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
