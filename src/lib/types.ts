@@ -1,4 +1,5 @@
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -67,6 +68,7 @@ export type Invoice = {
 export type InvoiceDetail = Omit<Invoice, 'customerId' | 'customerName'> & {
   customer: Customer;
   items: InvoiceItem[];
+  isEdited?: boolean;
 };
 
 export type InvoiceHistory = Omit<Invoice, 'status' | 'createdAt'> & {

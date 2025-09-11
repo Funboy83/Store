@@ -1,5 +1,6 @@
 
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -86,6 +87,10 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
       const itemsSnapshot = await getDocs(itemsCollectionRef);
       const items = itemsSnapshot.docs.map(itemDoc => ({ id: itemDoc.id, ...itemDoc.data() } as InvoiceItem));
 
+      const historyCollectionRef = collection(invoiceDoc.ref, 'edit_history');
+      const historySnapshot = await getDocs(historyCollectionRef);
+      const isEdited = historySnapshot.size > 1;
+
       let customer: Customer | undefined;
       if (invoiceData.customerId === WALK_IN_CUSTOMER_ID) {
         customer = customerMap.get(WALK_IN_CUSTOMER_ID);
@@ -102,6 +107,7 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
           ...invoiceBase,
           customer,
           items,
+          isEdited
         });
       }
     }

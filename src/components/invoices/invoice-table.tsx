@@ -54,7 +54,7 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
     return 'N/A';
   }
 
-  const getStatusVariant = (status?: Invoice['status']) => {
+  const getPaymentStatusVariant = (status?: Invoice['status']) => {
     switch (status) {
       case 'Paid':
         return 'default';
@@ -80,6 +80,7 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
               <TableRow>
                 <TableHead>Invoice</TableHead>
                 <TableHead>Customer</TableHead>
+                <TableHead>Payment Status</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
@@ -89,7 +90,7 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
             <TableBody>
               {invoices.length === 0 ? (
                 <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24">No invoices found.</TableCell>
+                    <TableCell colSpan={7} className="text-center h-24">No invoices found.</TableCell>
                 </TableRow>
               ) : (
                 invoices.map((invoice) => (
@@ -97,7 +98,13 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
                     <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                     <TableCell>{getCustomerName(invoice)}</TableCell>
                     <TableCell>
-                      <Badge variant={getStatusVariant(invoice.status)}>{invoice.status || 'Paid'}</Badge>
+                      <Badge variant={getPaymentStatusVariant(invoice.status)}>{invoice.status || 'Paid'}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {invoice.status !== 'Voided' && <Badge variant="default" className="bg-green-600 hover:bg-green-700">Active</Badge>}
+                        {'isEdited' in invoice && invoice.isEdited && <Badge variant="secondary">Edited</Badge>}
+                      </div>
                     </TableCell>
                     <TableCell>{invoice.issueDate}</TableCell>
                     <TableCell className="text-right">${invoice.total.toFixed(2)}</TableCell>
