@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { db, isConfigured } from '@/lib/firebase';
@@ -46,3 +47,6 @@ export async function getInventoryHistory(): Promise<ProductHistory[]> {
     return [];
   }
 }
+
+
+    

@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -72,8 +73,8 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
         email: data.email,
         phone: data.phone,
         createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
-        totalInvoices: 0, // Not needed for this view, default to 0
-        totalSpent: 0,    // Not needed for this view, default to 0
+        totalInvoices: 0,
+        totalSpent: 0,
       } as Customer);
     });
 
@@ -166,7 +167,7 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
         };
 
         if (customer.id === 'walk-in') {
-            finalInvoiceData.customerName = customer.name || 'Walk-in Customer';
+            finalInvoiceData.customerName = `Walk-${customer.name || 'in'}`;
         }
 
         batch.set(invoiceRef, finalInvoiceData);
@@ -175,15 +176,15 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
         for (const item of items) {
           const itemRef = doc(collection(invoiceRef, 'invoice_items'));
           
-          let inventoryId: string | undefined = undefined;
+          const itemData: any = { ...item };
           if (!item.isCustom) {
-            inventoryId = item.id;
+            itemData.inventoryId = item.id;
           }
-          batch.set(itemRef, { ...item, inventoryId });
+          batch.set(itemRef, itemData);
 
           // 3. Move sold items from inventory to inventory_history
-          if (inventoryId) {
-              const inventoryItemRef = doc(collection(dataDocRef, INVENTORY_COLLECTION), inventoryId);
+          if (!item.isCustom) {
+              const inventoryItemRef = doc(collection(dataDocRef, INVENTORY_COLLECTION), item.id);
               const inventoryItemSnap = await getDoc(inventoryItemRef);
 
               if (inventoryItemSnap.exists()) {
@@ -195,7 +196,7 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
                       amount: item.total,
                       movedAt: serverTimestamp(),
                       customerId: customer.id,
-                      customerName: customer.name || 'Walk-in Customer',
+                      customerName: customer.id === 'walk-in' ? `Walk-${customer.name || 'in'}` : customer.name,
                       invoiceId: invoiceRef.id,
                   };
                   batch.set(historyRef, productHistory);
@@ -291,5 +292,7 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
     return { success: false, error: 'An unknown error occurred while archiving the invoice.' };
   }
 }
+
+    
 
     
