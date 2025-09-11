@@ -287,6 +287,15 @@ export async function sendInvoice({ invoiceData, items, customer, totalPaid }: S
           }
         }
         
+        const historyRef = doc(collection(invoiceRef, 'edit_history'));
+        batch.set(historyRef, {
+            timestamp: serverTimestamp(),
+            user: 'admin_user', // Hardcoded user
+            changes: {
+                initialCreation: { from: null, to: 'Invoice Created' }
+            }
+        });
+        
         await batch.commit();
 
         revalidatePath('/dashboard/invoices');
@@ -308,7 +317,7 @@ export async function sendInvoice({ invoiceData, items, customer, totalPaid }: S
 
 interface UpdateInvoicePayload {
   originalInvoice: InvoiceDetail;
-  updatedInvoice: Omit<Invoice, 'id' | 'createdAt'>;
+  updatedInvoice: Omit<Invoice, 'id' | 'createdAt' | 'status'>;
   updatedItems: InvoiceItem[];
 }
 
@@ -373,6 +382,8 @@ export async function updateInvoice({ originalInvoice, updatedInvoice, updatedIt
 
     revalidatePath(`/dashboard/invoices`);
     revalidatePath(`/dashboard/invoices/${originalInvoice.id}/edit`);
+    revalidatePath(`/dashboard/invoices/${originalInvoice.id}`);
+
 
     return { success: true };
   } catch (error) {

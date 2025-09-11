@@ -23,8 +23,6 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { updateInvoice } from '@/lib/actions/invoice';
 import { AddCustomerForm } from '../customers/add-customer-form';
-import { Checkbox } from '../ui/checkbox';
-import { InvoicePreview } from './preview';
 
 interface EditInvoiceFormProps {
   invoice: InvoiceDetail;
@@ -38,7 +36,6 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
   const router = useRouter();
   const { toast } = useToast();
   const [isUpdating, startUpdateTransition] = useTransition();
-  const [showPreview, setShowPreview] = useState(false);
 
   // Store the initial state of the invoice to compare against on save
   const [initialInvoice] = useState(invoice);
@@ -58,12 +55,6 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
   const [taxRate, setTaxRate] = useState((invoice.tax / invoice.subtotal) * 100 || 0);
   const [discount, setDiscount] = useState((invoice.discount / invoice.subtotal) * 100 || 0);
   const [notes, setNotes] = useState(invoice.summary || '');
-
-  // Payment state would need to be fetched/calculated based on related transactions
-  const [isCashPayment, setIsCashPayment] = useState(false);
-  const [isCardPayment, setIsCardPayment] = useState(false);
-  const [cashAmount, setCashAmount] = useState(0);
-  const [cardAmount, setCardAmount] = useState(0);
 
   const displayCustomers = useMemo(() => {
     return customers.filter(c => c.id !== WALK_IN_CUSTOMER_ID);
@@ -141,9 +132,6 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
   const discountAmount = useMemo(() => subtotal * (discount / 100), [subtotal, discount]);
   const total = useMemo(() => subtotal + taxAmount - discountAmount, [subtotal, taxAmount, discountAmount]);
 
-  const totalPaid = useMemo(() => (isCashPayment ? cashAmount : 0) + (isCardPayment ? cardAmount : 0), [isCashPayment, cashAmount, isCardPayment, cardAmount]);
-  const amountDue = useMemo(() => total - totalPaid, [total, totalPaid]);
-  
   const handleUpdateInvoice = () => {
     if (!selectedCustomer) {
       toast({ title: 'Error', description: 'A customer must be selected.', variant: 'destructive' });
@@ -155,7 +143,7 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
         ? `Walk-In - ${walkInCustomerName.trim()}`
         : selectedCustomer.name;
 
-      const updatedInvoiceData: Omit<Invoice, 'id' | 'createdAt'> = {
+      const updatedInvoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status'> = {
         invoiceNumber,
         customerId: selectedCustomer.id,
         customerName: finalCustomerName,
@@ -165,7 +153,7 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
         total,
         issueDate: initialInvoice.issueDate,
         dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
-        status: initialInvoice.status,
+        summary: notes
       };
 
       const result = await updateInvoice({
@@ -179,7 +167,7 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
           title: 'Invoice Updated!',
           description: `Invoice ${invoiceNumber} has been successfully updated.`,
         });
-        router.push('/dashboard/invoices');
+        router.push(`/dashboard/invoices/${invoice.id}`);
       } else {
         toast({
           title: 'Error',
@@ -190,63 +178,10 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
     });
   };
 
-  const displayedCustomer = isWalkIn && selectedCustomer ? {
-      ...selectedCustomer,
-      name: walkInCustomerName.trim() !== '' ? `Walk-In - ${walkInCustomerName.trim()}` : 'Walk-In Customer',
-      email: '',
-      address: ''
-  } : selectedCustomer;
-
-  const previewInvoice: InvoiceDetail | null = displayedCustomer ? {
-    id: invoice.id,
-    invoiceNumber,
-    customer: displayedCustomer,
-    items,
-    subtotal,
-    tax: taxAmount,
-    discount: discountAmount,
-    total,
-    issueDate: invoice.issueDate,
-    dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
-    status: invoice.status,
-    summary: notes,
-    createdAt: invoice.createdAt,
-  } : null;
-
-  if (showPreview && previewInvoice) {
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-4 print:hidden">
-          <Button variant="outline" onClick={() => setShowPreview(false)}>Back to Edit</Button>
-          <h1 className="text-2xl font-bold tracking-tight">Final Invoice</h1>
-          <div className="ml-auto flex items-center gap-2">
-            <Link href={`/dashboard/invoices/${invoice.id}/history`} passHref>
-              <Button variant="outline">
-                <History className="mr-2 h-4 w-4" />
-                View History
-              </Button>
-            </Link>
-            <Button onClick={handleUpdateInvoice} disabled={isUpdating}>
-              {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isUpdating ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </div>
-        </div>
-        <InvoicePreview invoice={previewInvoice} onBack={() => setShowPreview(false)} />
-      </div>
-    );
-  }
-
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between pb-4">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard/invoices" passHref>
-            <Button variant="outline" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <h1 className="text-2xl font-bold tracking-tight">Edit Invoice {invoice.invoiceNumber}</h1>
         </div>
         <div className="flex items-center gap-2">
            <Link href={`/dashboard/invoices/${invoice.id}/history`} passHref>
@@ -255,7 +190,10 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
                 View History
             </Button>
           </Link>
-          <Button onClick={() => setShowPreview(true)}>Preview Changes</Button>
+          <Button onClick={handleUpdateInvoice} disabled={isUpdating}>
+            {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isUpdating ? 'Saving...' : 'Save Changes'}
+          </Button>
         </div>
       </div>
 
@@ -414,47 +352,6 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
                 </div>
             </CardContent>
           </Card>
-           
-          <Card>
-            <CardHeader><CardTitle>Payment</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-                <div className="flex items-center gap-4">
-                    <Checkbox id="cash-payment" checked={isCashPayment} onCheckedChange={(checked) => setIsCashPayment(!!checked)} />
-                    <Label htmlFor="cash-payment" className="flex-1">Cash</Label>
-                    <Input 
-                        type="number"
-                        placeholder="0.00"
-                        value={cashAmount}
-                        onChange={(e) => setCashAmount(parseFloat(e.target.value) || 0)}
-                        disabled={!isCashPayment}
-                        className="max-w-[120px]"
-                    />
-                </div>
-                <div className="flex items-center gap-4">
-                    <Checkbox id="card-payment" checked={isCardPayment} onCheckedChange={(checked) => setIsCardPayment(!!checked)} />
-                    <Label htmlFor="card-payment" className="flex-1">Credit Card</Label>
-                    <Input 
-                        type="number"
-                        placeholder="0.00"
-                        value={cardAmount}
-                        onChange={(e) => setCardAmount(parseFloat(e.target.value) || 0)}
-                        disabled={!isCardPayment}
-                        className="max-w-[120px]"
-                    />
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                    <div className="flex justify-between font-medium">
-                        <Label>Total Paid</Label>
-                        <span>${totalPaid.toFixed(2)}</span>
-                    </div>
-                    <div className={cn("flex justify-between font-bold text-lg", amountDue > 0 ? "text-destructive" : "text-green-600")}>
-                        <Label>{amountDue >= 0 ? 'Amount Due' : 'Change'}</Label>
-                        <span>${Math.abs(amountDue).toFixed(2)}</span>
-                    </div>
-                </div>
-            </CardContent>
-          </Card>
 
           <Card>
             <CardHeader><CardTitle>Notes</CardTitle></CardHeader>
@@ -481,5 +378,3 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
     </div>
   );
 }
-
-    
