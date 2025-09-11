@@ -1,5 +1,6 @@
 
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -88,21 +89,15 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
       const itemsSnapshot = await getDocs(itemsCollectionRef);
       const items = itemsSnapshot.docs.map(itemDoc => ({ id: itemDoc.id, ...itemDoc.data() } as InvoiceItem));
 
-      const customer = customerMap.get(invoiceBase.customerId) || {
-        id: invoiceBase.customerId,
-        name: invoiceBase.customerId === 'walk-in' ? (invoiceData.customerName || 'Walk-in Customer') : 'Unknown Customer',
-        email: '',
-        phone: '',
-        createdAt: new Date().toISOString(),
-        totalInvoices: 0,
-        totalSpent: 0,
-      } as Customer;
-      
-      invoiceDetails.push({
-        ...invoiceBase,
-        customer,
-        items,
-      });
+      const customer = customerMap.get(invoiceBase.customerId);
+
+      if (customer) {
+        invoiceDetails.push({
+          ...invoiceBase,
+          customer,
+          items,
+        });
+      }
     }
 
     return invoiceDetails;
@@ -164,10 +159,6 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
             createdAt: serverTimestamp(),
         };
 
-        if (customer.id === 'walk-in') {
-            finalInvoiceData.customerName = customer.name || 'Walk-in Customer';
-        }
-
         batch.set(invoiceRef, finalInvoiceData);
 
         // 2. Process items
@@ -194,7 +185,7 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
                       amount: item.total,
                       movedAt: serverTimestamp(),
                       customerId: customer.id,
-                      customerName: customer.id === 'walk-in' ? (customer.name || 'Walk-in Customer') : customer.name,
+                      customerName: customer.name,
                       invoiceId: invoiceRef.id,
                   };
                   batch.set(historyRef, productHistory);
@@ -238,9 +229,7 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
       customerId: customer.id,
       status: 'Voided',
     }
-    if (customer.id === 'walk-in') {
-      historyInvoiceData.customerName = customer.name;
-    }
+    
     batch.set(historyInvoiceRef, {
       ...historyInvoiceData,
       archivedAt: serverTimestamp(),

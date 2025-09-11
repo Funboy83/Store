@@ -1,5 +1,6 @@
 
 
+
 'use server';
 
 import { db, isConfigured } from '@/lib/firebase';
@@ -39,7 +40,7 @@ export async function getInventoryHistory(): Promise<ProductHistory[]> {
         createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
         updatedAt: data.updatedAt?.toDate?.()?.toISOString() || null,
         movedAt: movedAt.toISOString(),
-        customerName: customer ? customer.name : (data.customerId === 'walk-in' ? data.customerName : 'N/A'),
+        customerName: customer ? customer.name : 'N/A',
       } as ProductHistory
     });
   } catch (error) {

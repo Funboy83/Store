@@ -1,6 +1,7 @@
 
 
 
+
 "use client"
 
 import React, { useState, useMemo, useEffect, useTransition } from 'react';
@@ -42,9 +43,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const [showPreview, setShowPreview] = useState(true);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   
-  const [isWalkInCustomer, setIsWalkInCustomer] = useState(false);
-  const [walkInCustomerName, setWalkInCustomerName] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(customers[0]);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(customers.find(c => c.name.toLowerCase() === 'walk-in') || customers[0]);
   
   const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -161,12 +160,8 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
 
   
   const handleSendInvoice = () => {
-    const finalCustomer = isWalkInCustomer 
-      ? { id: 'walk-in', name: walkInCustomerName || 'Walk-in Customer', email: '', phone: '' }
-      : selectedCustomer;
-
-    if (!finalCustomer || !finalCustomer.name) {
-      toast({ title: 'Error', description: 'Please select or enter a customer.', variant: 'destructive' });
+    if (!selectedCustomer) {
+      toast({ title: 'Error', description: 'Please select a customer.', variant: 'destructive' });
       return;
     }
     if (items.length === 0) {
@@ -177,7 +172,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     startSendTransition(async () => {
       const invoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status'> = {
         invoiceNumber,
-        customerId: finalCustomer.id,
+        customerId: selectedCustomer.id,
         subtotal,
         tax: taxAmount,
         discount: discountAmount,
@@ -187,7 +182,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         summary: notes,
       };
       
-      const result = await sendInvoice({ invoiceData, items, customer: finalCustomer });
+      const result = await sendInvoice({ invoiceData, items, customer: selectedCustomer });
 
       if (result.success) {
         toast({
@@ -204,10 +199,6 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
       }
     });
   };
-
-  const displayedCustomer = isWalkInCustomer
-    ? { name: walkInCustomerName || 'Walk-in Customer', email: '', address: '' }
-    : selectedCustomer;
 
   return (
     <div className="h-full flex flex-col">
@@ -238,59 +229,47 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
               <div className="space-y-2">
                   <div className="flex items-center justify-between">
                       <Label>Bill to</Label>
-                      <div className="flex items-center space-x-2">
-                          <Switch id="walk-in-switch" checked={isWalkInCustomer} onCheckedChange={setIsWalkInCustomer} />
-                          <Label htmlFor="walk-in-switch">Walk-in Customer</Label>
-                      </div>
                   </div>
-                  {isWalkInCustomer ? (
-                      <Input 
-                          placeholder="Enter customer name" 
-                          value={walkInCustomerName} 
-                          onChange={(e) => setWalkInCustomerName(e.target.value)} 
-                      />
-                  ) : (
-                      <div className="flex items-center gap-2">
-                          <Select onValueChange={handleSelectCustomer} defaultValue={selectedCustomer?.id}>
-                          <SelectTrigger className="h-14">
-                              <SelectValue asChild>
-                              {selectedCustomer ? (
-                                  <div className="flex items-center gap-3">
-                                  <Avatar>
-                                      <AvatarFallback>{selectedCustomer.name.charAt(0)}</AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                      <p className="font-medium">{selectedCustomer.name}</p>
-                                      <p className="text-sm text-muted-foreground">{selectedCustomer.email}</p>
-                                  </div>
-                                  </div>
-                              ) : (
-                                  <span>Select a customer</span>
-                              )}
-                              </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                              {customers.map(customer => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                  <div className="flex items-center gap-3">
-                                  <Avatar>
-                                      <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                      <p>{customer.name}</p>
-                                      <p className="text-sm text-muted-foreground">{customer.email}</p>
-                                  </div>
-                                  </div>
-                              </SelectItem>
-                              ))}
-                          </SelectContent>
-                          </Select>
-                          <Button variant="outline" size="icon" onClick={() => setIsAddCustomerOpen(true)}>
-                              <UserPlus className="h-5 w-5" />
-                              <span className="sr-only">Add New Customer</span>
-                          </Button>
-                      </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                      <Select onValueChange={handleSelectCustomer} defaultValue={selectedCustomer?.id}>
+                      <SelectTrigger className="h-14">
+                          <SelectValue asChild>
+                          {selectedCustomer ? (
+                              <div className="flex items-center gap-3">
+                              <Avatar>
+                                  <AvatarFallback>{selectedCustomer.name.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                  <p className="font-medium">{selectedCustomer.name}</p>
+                                  <p className="text-sm text-muted-foreground">{selectedCustomer.email}</p>
+                              </div>
+                              </div>
+                          ) : (
+                              <span>Select a customer</span>
+                          )}
+                          </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                          {customers.map(customer => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                              <div className="flex items-center gap-3">
+                              <Avatar>
+                                  <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                  <p>{customer.name}</p>
+                                  <p className="text-sm text-muted-foreground">{customer.email}</p>
+                              </div>
+                              </div>
+                          </SelectItem>
+                          ))}
+                      </SelectContent>
+                      </Select>
+                      <Button variant="outline" size="icon" onClick={() => setIsAddCustomerOpen(true)}>
+                          <UserPlus className="h-5 w-5" />
+                          <span className="sr-only">Add New Customer</span>
+                      </Button>
+                  </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -472,9 +451,9 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
               <div className="space-y-1">
                 <h3 className="font-semibold">Billed to</h3>
                 <address className="not-italic text-sm text-muted-foreground">
-                  {displayedCustomer?.name}<br />
-                  {displayedCustomer?.address}<br />
-                  {displayedCustomer?.email}
+                  {selectedCustomer?.name}<br />
+                  {selectedCustomer?.address}<br />
+                  {selectedCustomer?.email}
                 </address>
               </div>
               <div className="space-y-1 text-right">
