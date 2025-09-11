@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -43,6 +44,7 @@ const INVENTORY_COLLECTION = 'inventory';
 const INVENTORY_HISTORY_COLLECTION = 'inventory_history';
 const INVOICES_HISTORY_COLLECTION = 'invoices_history';
 const CUSTOMERS_COLLECTION = 'customers';
+const WALK_IN_CUSTOMER_ID = 'Aj0l1O2kJcvlF3J0uVMX';
 
 
 export async function getInvoices(): Promise<InvoiceDetail[]> {
@@ -62,10 +64,10 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
     ]);
 
     const customerMap = new Map<string, Customer>();
-    customersSnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      customerMap.set(doc.id, {
-        id: doc.id,
+    customersSnapshot.docs.forEach(docSnap => {
+      const data = docSnap.data();
+      customerMap.set(docSnap.id, {
+        id: docSnap.id,
         name: data.name,
         email: data.email,
         phone: data.phone,
@@ -81,12 +83,19 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
       const invoiceData = invoiceDoc.data() as Invoice;
       const createdAt = invoiceData.createdAt?.toDate ? invoiceData.createdAt.toDate().toISOString() : new Date().toISOString();
       
-
       const itemsCollectionRef = collection(invoiceDoc.ref, 'invoice_items');
       const itemsSnapshot = await getDocs(itemsCollectionRef);
       const items = itemsSnapshot.docs.map(itemDoc => ({ id: itemDoc.id, ...itemDoc.data() } as InvoiceItem));
 
-      const customer = customerMap.get(invoiceData.customerId);
+      let customer: Customer | undefined;
+      if (invoiceData.customerId === WALK_IN_CUSTOMER_ID) {
+        customer = customerMap.get(WALK_IN_CUSTOMER_ID);
+        if (customer) {
+            customer = { ...customer, name: invoiceData.customerName || 'Walk-In Customer' };
+        }
+      } else {
+        customer = customerMap.get(invoiceData.customerId);
+      }
       
       if (customer) {
         const invoiceBase = { id: invoiceDoc.id, ...invoiceData, createdAt } as Invoice;
@@ -185,7 +194,7 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
                       amount: item.total,
                       movedAt: serverTimestamp(),
                       customerId: finalInvoiceData.customerId,
-                      customerName: finalInvoiceData.customerName || customer?.name,
+                      customerName: finalInvoiceData.customerName,
                       invoiceId: invoiceRef.id,
                   };
                   batch.set(historyRef, productHistory);
@@ -277,5 +286,3 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
     return { success: false, error: 'An unknown error occurred while archiving the invoice.' };
   }
 }
-
-    
