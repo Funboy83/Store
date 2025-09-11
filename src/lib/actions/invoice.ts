@@ -9,8 +9,6 @@ import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp, wr
 import { summarizeInvoice } from '@/ai/flows/invoice-summary';
 import type { Invoice, InvoiceItem, Product, Customer, InvoiceDetail, InvoiceHistory } from '@/lib/types';
 import { getInventory } from './inventory';
-import { getCustomers } from './customers';
-
 
 const InvoiceSummarySchema = z.object({
   items: z.array(z.object({
@@ -167,7 +165,7 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
         };
 
         if (customer.id === 'walk-in') {
-            finalInvoiceData.customerName = `Walk-${customer.name || 'in'}`;
+            finalInvoiceData.customerName = customer.name || 'Walk-in Customer';
         }
 
         batch.set(invoiceRef, finalInvoiceData);
@@ -196,7 +194,7 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
                       amount: item.total,
                       movedAt: serverTimestamp(),
                       customerId: customer.id,
-                      customerName: customer.id === 'walk-in' ? `Walk-${customer.name || 'in'}` : customer.name,
+                      customerName: customer.id === 'walk-in' ? (customer.name || 'Walk-in Customer') : customer.name,
                       invoiceId: invoiceRef.id,
                   };
                   batch.set(historyRef, productHistory);
@@ -292,7 +290,3 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
     return { success: false, error: 'An unknown error occurred while archiving the invoice.' };
   }
 }
-
-    
-
-    
