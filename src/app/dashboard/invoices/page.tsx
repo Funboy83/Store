@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, History } from 'lucide-react';
@@ -28,11 +29,15 @@ export default function InvoicesPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDetail | null>(null);
   const { toast } = useToast();
 
-  useAsyncEffect(async () => {
+  const fetchAndSetInvoices = async () => {
     setLoading(true);
     const fetchedInvoices = await getInvoices();
     setInvoices(fetchedInvoices);
     setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchAndSetInvoices();
   }, []);
 
   const handleArchiveRequest = (invoice: InvoiceDetail) => {
@@ -47,10 +52,11 @@ export default function InvoicesPage() {
 
     if (result.success) {
       toast({
-        title: 'Invoice Archived',
-        description: `Invoice ${selectedInvoice.invoiceNumber} has been moved to history and inventory was restocked.`,
+        title: 'Invoice Voided',
+        description: `Invoice ${selectedInvoice.invoiceNumber} has been voided and inventory was restocked.`,
       });
-      setInvoices(prev => prev.filter(inv => inv.id !== selectedInvoice.id));
+      // Refetch invoices to update the list
+      await fetchAndSetInvoices();
     } else {
       toast({
         title: 'Error',
@@ -89,15 +95,15 @@ export default function InvoicesPage() {
       <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to archive this invoice?</AlertDialogTitle>
+            <AlertDialogTitle>Are you sure you want to void this invoice?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action will move the invoice to history and restock the sold items back into active inventory. This cannot be undone.
+              This will mark the invoice as 'Voided'. This action will also restock the sold items back into active inventory and reverse any customer debt associated with this invoice. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmArchive}>
-              Yes, Archive Invoice
+              Yes, Void Invoice
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

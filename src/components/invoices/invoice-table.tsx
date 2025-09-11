@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -118,7 +119,7 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
                                 <DropdownMenuItem 
                                 className="text-destructive"
                                 onSelect={() => handleArchiveClick(invoice as InvoiceDetail)}>
-                                Archive Invoice
+                                Void Invoice
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                             </DropdownMenu>

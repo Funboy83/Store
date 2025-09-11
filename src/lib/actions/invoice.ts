@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -41,7 +42,6 @@ const DATA_PATH = 'cellphone-inventory-system/data';
 const INVOICES_COLLECTION = 'invoices';
 const INVENTORY_COLLECTION = 'inventory';
 const INVENTORY_HISTORY_COLLECTION = 'inventory_history';
-const INVOICES_HISTORY_COLLECTION = 'invoices_history';
 const CUSTOMERS_COLLECTION = 'customers';
 const WALK_IN_CUSTOMER_ID = 'Aj0l1O2kJcvlF3J0uVMX';
 
@@ -55,7 +55,7 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
     const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
     const customersCollectionRef = collection(dataDocRef, CUSTOMERS_COLLECTION);
 
-    const q = query(invoicesCollectionRef, orderBy('createdAt', 'desc'));
+    const q = query(invoicesCollectionRef, where('status', '!=', 'Voided'), orderBy('status'), orderBy('createdAt', 'desc'));
     
     const [invoiceSnapshot, customersSnapshot] = await Promise.all([
         getDocs(q),
@@ -121,7 +121,7 @@ export async function getLatestInvoiceNumber(): Promise<number> {
   }
   try {
     const dataDocRef = doc(db, DATA_PATH);
-    const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
+    const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLlection);
     const q = query(invoicesCollectionRef, orderBy('createdAt', 'desc'), limit(1));
     const snapshot = await getDocs(q);
 
@@ -215,7 +215,7 @@ export async function sendInvoice({ invoiceData, items, customer, totalPaid }: S
                       movedAt: serverTimestamp(),
                       customerId: finalInvoiceData.customerId,
                       customerName: finalInvoiceData.customerName,
-                      invoiceId: invoiceRef.id,
+invoiceId: invoiceRef.id,
                   };
                   batch.set(historyRef, productHistory);
                   batch.delete(inventoryItemRef);
@@ -251,26 +251,23 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
   try {
     const batch = writeBatch(db);
     const dataDocRef = doc(db, DATA_PATH);
+    const originalInvoiceRef = doc(dataDocRef, `${INVOICES_COLLECTION}/${invoice.id}`);
+    
+    // 1. Mark invoice as Voided
+    batch.update(originalInvoiceRef, { status: 'Voided' });
 
-    const historyInvoiceRef = doc(dataDocRef, `${INVOICES_HISTORY_COLLECTION}/${invoice.id}`);
-    const { items, customer, ...invoiceBase } = invoice;
-    const historyInvoiceData: Omit<InvoiceHistory, 'archivedAt'> & {customerName?: string} = {
-      ...invoiceBase,
-      customerId: customer.id,
-      customerName: customer.name,
-      status: 'Voided',
+    // 2. Reverse customer debt if applicable
+    const amountDue = invoice.total - (invoice.discount || 0); // Assuming total paid was 0 when voiding
+    if (invoice.customer.id !== WALK_IN_CUSTOMER_ID && invoice.status !== 'Paid') {
+       const totalPaid = invoice.total - amountDue;
+       const debtToReverse = invoice.total - totalPaid;
+       if(debtToReverse > 0) {
+        const customerRef = doc(dataDocRef, `${CUSTOMERS_COLLECTION}/${invoice.customer.id}`);
+        batch.update(customerRef, { debt: increment(-debtToReverse) });
+       }
     }
     
-    batch.set(historyInvoiceRef, {
-      ...historyInvoiceData,
-      archivedAt: serverTimestamp(),
-    });
-
-    for (const item of items) {
-      const historyItemRef = doc(historyInvoiceRef, `invoice_items/${item.id}`);
-      batch.set(historyItemRef, item);
-    }
-
+    // 3. Find sold items in history and move them back to inventory
     const inventoryHistoryRef = collection(dataDocRef, INVENTORY_HISTORY_COLLECTION);
     const q = query(inventoryHistoryRef, where('invoiceId', '==', invoice.id));
     const historyItemsSnap = await getDocs(q);
@@ -280,24 +277,24 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
       
       const { status, amount, movedAt, customerId, customerName, invoiceId, ...originalProduct } = historyItem;
 
-      const inventoryRef = doc(dataDocRef, `${INVENTORY_COLLECTION}/${originalProduct.id}`);
-      batch.set(inventoryRef, originalProduct); 
-      batch.delete(docSnap.ref);
+      // Ensure all fields are there for the product before re-adding
+      if (originalProduct.id && originalProduct.brand && originalProduct.model) {
+        const inventoryRef = doc(dataDocRef, `${INVENTORY_COLLECTION}/${originalProduct.id}`);
+        batch.set(inventoryRef, originalProduct); 
+      }
+      
+      // Mark the history item as Voided instead of deleting
+      batch.update(docSnap.ref, { status: 'Voided' });
     }
-    
-    const originalInvoiceRef = doc(dataDocRef, `${INVOICES_COLLECTION}/${invoice.id}`);
-    const originalItemsRef = collection(originalInvoiceRef, 'invoice_items');
-    const originalItemsSnap = await getDocs(originalItemsRef);
-    for (const itemDoc of originalItemsSnap.docs) {
-      batch.delete(itemDoc.ref);
-    }
-    batch.delete(originalInvoiceRef);
 
     await batch.commit();
 
     revalidatePath('/dashboard/invoices');
     revalidatePath('/dashboard/inventory');
     revalidatePath('/dashboard/inventory/history');
+    revalidatePath(`/dashboard/customers/${invoice.customer.id}`);
+    revalidatePath('/dashboard/customers');
+
 
     return { success: true };
   } catch (error) {

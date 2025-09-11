@@ -4,6 +4,7 @@
 
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -54,7 +55,7 @@ export type InvoiceItem = {
 };
 
 export type Invoice = {
-  id: string;
+  id:string;
   invoiceNumber: string;
   customerId: string;
   customerName?: string; // For walk-in customers
@@ -64,7 +65,7 @@ export type Invoice = {
   total: number;
   issueDate: string;
   dueDate: string;
-  status: 'Paid' | 'Pending' | 'Overdue' | 'Draft' | 'Partial' | 'Unpaid';
+  status: 'Paid' | 'Partial' | 'Unpaid' | 'Voided' | 'Draft' | 'Overdue';
   summary?: string;
   createdAt: any;
 };
@@ -96,3 +97,4 @@ export type RecentSale = {
   customerEmail: string;
   amount: number;
 };
+
