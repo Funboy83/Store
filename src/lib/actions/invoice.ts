@@ -1,6 +1,5 @@
 
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -56,11 +55,8 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
     const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
     const customersCollectionRef = collection(dataDocRef, CUSTOMERS_COLLECTION);
 
-    // Fetch invoices ordered by creation date
-    const q = query(invoicesCollectionRef, orderBy('createdAt', 'desc'));
-    
     const [invoiceSnapshot, customersSnapshot] = await Promise.all([
-        getDocs(q),
+        getDocs(invoicesCollectionRef),
         getDocs(customersCollectionRef),
     ]);
 
@@ -84,7 +80,6 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
     for (const invoiceDoc of invoiceSnapshot.docs) {
       const invoiceData = invoiceDoc.data() as Invoice;
 
-      // Filter out voided invoices in the code to handle old data without a status field
       if (invoiceData.status === 'Voided') {
         continue;
       }
@@ -99,7 +94,6 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
       if (invoiceData.customerId === WALK_IN_CUSTOMER_ID) {
         customer = customerMap.get(WALK_IN_CUSTOMER_ID);
         if (customer) {
-            // Use the specific name from the invoice for walk-ins, but the underlying customer is the same
             customer = { ...customer, name: invoiceData.customerName || 'Walk-In Customer' };
         }
       } else {
@@ -116,10 +110,9 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
       }
     }
     
-    // Sort by status in code
     const statusOrder = ['Unpaid', 'Partial', 'Paid', 'Draft', 'Overdue'];
     invoiceDetails.sort((a, b) => {
-        const statusA = a.status || 'Paid'; // Default old invoices to 'Paid' for sorting
+        const statusA = a.status || 'Paid';
         const statusB = b.status || 'Paid';
         const indexA = statusOrder.indexOf(statusA);
         const indexB = statusOrder.indexOf(statusB);
@@ -193,25 +186,28 @@ export async function getLatestInvoiceNumber(): Promise<number> {
   }
   try {
     const dataDocRef = doc(db, DATA_PATH);
-    const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLlection);
-    const q = query(invoicesCollectionRef, orderBy('createdAt', 'desc'), limit(1));
-    const snapshot = await getDocs(q);
+    const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
+    const snapshot = await getDocs(invoicesCollectionRef);
 
     if (snapshot.empty) {
       return 1000;
     }
 
-    const latestInvoice = snapshot.docs[0].data();
-    const latestNumber = parseInt(latestInvoice.invoiceNumber, 10);
-    
-    if (isNaN(latestNumber)) {
-        return 1000;
-    }
+    let maxNumber = 999;
+    snapshot.docs.forEach(doc => {
+      const invoiceNumberStr = doc.data().invoiceNumber;
+      if (invoiceNumberStr) {
+        const currentNumber = parseInt(invoiceNumberStr, 10);
+        if (!isNaN(currentNumber) && currentNumber > maxNumber) {
+          maxNumber = currentNumber;
+        }
+      }
+    });
 
-    return latestNumber + 1;
+    return maxNumber + 1;
   } catch (error) {
     console.error('Error fetching latest invoice number:', error);
-    return 1000;
+    return 1000; // Fallback in case of error
   }
 }
 
@@ -257,7 +253,6 @@ export async function sendInvoice({ invoiceData, items, customer, totalPaid }: S
 
         batch.set(invoiceRef, finalInvoiceData);
 
-        // Update customer debt if they are not a walk-in customer and there's an amount due
         if (customer.id !== WALK_IN_CUSTOMER_ID && amountDue > 0) {
             const customerRef = doc(dataDocRef, `${CUSTOMERS_COLLECTION}/${customer.id}`);
             batch.update(customerRef, { debt: increment(amountDue) });
@@ -332,37 +327,31 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
     const dataDocRef = doc(db, DATA_PATH);
     const originalInvoiceRef = doc(dataDocRef, `${INVOICES_COLLECTION}/${invoice.id}`);
     
-    // 1. Mark invoice as Voided
     batch.update(originalInvoiceRef, { status: 'Voided' });
 
-    // 2. Reverse customer debt if applicable
-    const amountDue = invoice.total - (invoice.discount || 0); // Assuming total paid was 0 when voiding
-    if (invoice.customer.id !== WALK_IN_CUSTOMER_ID && invoice.status !== 'Paid') {
-       const totalPaid = invoice.total - amountDue;
-       const debtToReverse = invoice.total - totalPaid;
-       if(debtToReverse > 0) {
+    const amountDueWhenCreated = invoice.total - (invoice.discount || 0); // This is an approximation
+    const totalPaid = invoice.total - amountDueWhenCreated;
+    const debtToReverse = invoice.total - totalPaid;
+
+    if (invoice.customer.id !== WALK_IN_CUSTOMER_ID && debtToReverse > 0) {
         const customerRef = doc(dataDocRef, `${CUSTOMERS_COLLECTION}/${invoice.customer.id}`);
         batch.update(customerRef, { debt: increment(-debtToReverse) });
-       }
     }
     
-    // 3. Find sold items in history and move them back to inventory
     const inventoryHistoryRef = collection(dataDocRef, INVENTORY_HISTORY_COLLECTION);
     const q = query(inventoryHistoryRef, where('invoiceId', '==', invoice.id));
     const historyItemsSnap = await getDocs(q);
 
     for (const docSnap of historyItemsSnap.docs) {
-      const historyItem = docSnap.data();
+      const historyItem = docSnap.data() as InvoiceHistory;
       
       const { status, amount, movedAt, customerId, customerName, invoiceId, ...originalProduct } = historyItem;
 
-      // Ensure all fields are there for the product before re-adding
       if (originalProduct.id && originalProduct.brand && originalProduct.model) {
         const inventoryRef = doc(dataDocRef, `${INVENTORY_COLLECTION}/${originalProduct.id}`);
         batch.set(inventoryRef, originalProduct); 
       }
       
-      // Mark the history item as Voided instead of deleting
       batch.update(docSnap.ref, { status: 'Voided' });
     }
 
