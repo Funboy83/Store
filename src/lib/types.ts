@@ -1,5 +1,6 @@
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -17,11 +18,12 @@ export type Product = {
 };
 
 export type ProductHistory = Product & {
-  status: 'Sold' | 'Deleted';
+  status: 'Sold' | 'Deleted' | 'Voided';
   amount: number;
   movedAt: any;
   customerId?: string;
   customerName?: string;
+  invoiceId?: string;
 };
 
 export type Customer = {
@@ -42,6 +44,7 @@ export type InvoiceItem = {
   unitPrice: number;
   total: number;
   isCustom?: boolean;
+  inventoryId?: string; // Link back to the original inventory item
 };
 
 export type Invoice = {
@@ -62,6 +65,16 @@ export type Invoice = {
 export type InvoiceDetail = Omit<Invoice, 'customerId'> & {
   customer: Customer;
   items: InvoiceItem[];
+};
+
+export type InvoiceHistory = Omit<Invoice, 'status'> & {
+    status: 'Voided';
+    archivedAt: any;
+}
+
+export type InvoiceHistoryDetail = Omit<InvoiceHistory, 'customerId'> & {
+    customer: Customer;
+    items: InvoiceItem[];
 };
 
 

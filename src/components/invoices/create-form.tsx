@@ -1,5 +1,6 @@
 
 
+
 "use client"
 
 import React, { useState, useMemo, useEffect, useTransition } from 'react';
@@ -137,7 +138,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         const updatedItem = { ...item };
         
         if (field === 'unitPrice' || field === 'quantity') {
-            (updatedItem as any)[field] = Number(value);
+            (updatedItem as any)[field] = Number(value) || 0;
         } else {
           (updatedItem as any)[field] = value;
         }

@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp, writeBatch, doc, getDoc, collectionGroup } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp, writeBatch, doc, getDoc, collectionGroup, deleteDoc, where } from 'firebase/firestore';
 import { summarizeInvoice } from '@/ai/flows/invoice-summary';
 import type { Invoice, InvoiceItem, Product, Customer, InvoiceDetail } from '@/lib/types';
 import { getInventory } from './inventory';
@@ -43,6 +43,7 @@ const DATA_PATH = 'cellphone-inventory-system/data';
 const INVOICES_COLLECTION = 'invoices';
 const INVENTORY_COLLECTION = 'inventory';
 const INVENTORY_HISTORY_COLLECTION = 'inventory_history';
+const INVOICES_HISTORY_COLLECTION = 'invoices_history';
 
 
 export async function getInvoices(): Promise<InvoiceDetail[]> {
@@ -130,8 +131,7 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
     try {
         const batch = writeBatch(db);
         const dataDocRef = doc(db, DATA_PATH);
-        const currentInventory = await getInventory();
-
+        
         // 1. Add primary invoice document
         const invoiceRef = doc(collection(dataDocRef, INVOICES_COLLECTION));
         batch.set(invoiceRef, {
@@ -140,32 +140,37 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
             createdAt: serverTimestamp(),
         });
 
-        // 2. Add each item to the 'invoice_items' subcollection
+        // 2. Process items
         for (const item of items) {
           const itemRef = doc(collection(invoiceRef, 'invoice_items'));
-          batch.set(itemRef, item);
-        }
+          
+          let inventoryId: string | undefined = undefined;
+          if (!item.isCustom) {
+            inventoryId = item.id;
+          }
+          batch.set(itemRef, { ...item, inventoryId });
 
-        // 3. Move sold items from inventory to inventory_history
-        for (const item of items) {
-            if (!item.isCustom) {
-                const product = currentInventory.find(p => p.id === item.id);
-                if (product) {
-                    const historyRef = doc(collection(dataDocRef, INVENTORY_HISTORY_COLLECTION));
-                    const productHistory = {
-                        ...product,
-                        status: 'Sold',
-                        amount: item.total,
-                        movedAt: serverTimestamp(),
-                        customerId: customer.id,
-                        customerName: customer.name,
-                    };
-                    batch.set(historyRef, productHistory);
+          // 3. Move sold items from inventory to inventory_history
+          if (inventoryId) {
+              const inventoryItemRef = doc(collection(dataDocRef, INVENTORY_COLLECTION), inventoryId);
+              const inventoryItemSnap = await getDoc(inventoryItemRef);
 
-                    const inventoryItemRef = doc(collection(dataDocRef, INVENTORY_COLLECTION), item.id);
-                    batch.delete(inventoryItemRef);
-                }
-            }
+              if (inventoryItemSnap.exists()) {
+                  const product = { id: inventoryItemSnap.id, ...inventoryItemSnap.data() } as Product;
+                  const historyRef = doc(collection(dataDocRef, INVENTORY_HISTORY_COLLECTION));
+                  const productHistory = {
+                      ...product,
+                      status: 'Sold',
+                      amount: item.total,
+                      movedAt: serverTimestamp(),
+                      customerId: customer.id,
+                      customerName: customer.name,
+                      invoiceId: invoiceRef.id,
+                  };
+                  batch.set(historyRef, productHistory);
+                  batch.delete(inventoryItemRef);
+              }
+          }
         }
         
         await batch.commit();
@@ -183,4 +188,69 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
         }
         return { success: false, error: 'An unknown error occurred while sending the invoice.' };
     }
+}
+
+
+export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success: boolean, error?: string }> {
+  if (!isConfigured) {
+    return { success: false, error: 'Firebase is not configured.' };
+  }
+
+  try {
+    const batch = writeBatch(db);
+    const dataDocRef = doc(db, DATA_PATH);
+
+    // 1. Copy invoice to invoices_history
+    const historyInvoiceRef = doc(dataDocRef, `${INVOICES_HISTORY_COLLECTION}/${invoice.id}`);
+    const { items, customer, ...invoiceBase } = invoice;
+    batch.set(historyInvoiceRef, {
+      ...invoiceBase,
+      customerId: customer.id,
+      status: 'Voided',
+      archivedAt: serverTimestamp(),
+    });
+
+    // 2. Copy items to subcollection in history
+    for (const item of items) {
+      const historyItemRef = doc(historyInvoiceRef, `invoice_items/${item.id}`);
+      batch.set(historyItemRef, item);
+    }
+
+    // 3. Move items from inventory_history back to inventory
+    const inventoryHistoryRef = collection(dataDocRef, INVENTORY_HISTORY_COLLECTION);
+    const q = query(inventoryHistoryRef, where('invoiceId', '==', invoice.id));
+    const historyItemsSnap = await getDocs(q);
+
+    for (const docSnap of historyItemsSnap.docs) {
+      const historyItem = docSnap.data();
+      
+      const { status, amount, movedAt, customerId, customerName, invoiceId, ...originalProduct } = historyItem;
+
+      const inventoryRef = doc(dataDocRef, `${INVENTORY_COLLECTION}/${originalProduct.id}`);
+      batch.set(inventoryRef, originalProduct); 
+      batch.delete(docSnap.ref);
+    }
+    
+    // 4. Delete original invoice and its items
+    const originalInvoiceRef = doc(dataDocRef, `${INVOICES_COLLECTION}/${invoice.id}`);
+    for (const item of items) {
+      const originalItemRef = doc(originalInvoiceRef, `invoice_items/${item.id}`);
+      batch.delete(originalItemRef);
+    }
+    batch.delete(originalInvoiceRef);
+
+    await batch.commit();
+
+    revalidatePath('/dashboard/invoices');
+    revalidatePath('/dashboard/inventory');
+    revalidatePath('/dashboard/inventory/history');
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error archiving invoice:', error);
+    if (error instanceof Error) {
+      return { success: false, error: `Failed to archive invoice: ${error.message}` };
+    }
+    return { success: false, error: 'An unknown error occurred while archiving the invoice.' };
+  }
 }
