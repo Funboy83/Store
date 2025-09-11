@@ -1,6 +1,3 @@
-
-
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -80,18 +77,32 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
     const invoiceDetails: InvoiceDetail[] = [];
 
     for (const invoiceDoc of invoiceSnapshot.docs) {
-      const invoiceData = invoiceDoc.data();
+      const invoiceData = invoiceDoc.data() as Invoice;
       const createdAt = invoiceData.createdAt?.toDate ? invoiceData.createdAt.toDate().toISOString() : new Date().toISOString();
-      const invoiceBase = { id: invoiceDoc.id, ...invoiceData, createdAt } as Invoice;
-
       
+
       const itemsCollectionRef = collection(invoiceDoc.ref, 'invoice_items');
       const itemsSnapshot = await getDocs(itemsCollectionRef);
       const items = itemsSnapshot.docs.map(itemDoc => ({ id: itemDoc.id, ...itemDoc.data() } as InvoiceItem));
 
-      const customer = customerMap.get(invoiceBase.customerId);
+      let customer: Customer | undefined;
+      if (invoiceData.customerId === 'walk-in') {
+        customer = {
+            id: 'walk-in',
+            name: invoiceData.customerName || 'Walk-in Customer',
+            email: '',
+            phone: '',
+            createdAt: new Date().toISOString(),
+            totalInvoices: 0,
+            totalSpent: 0,
+        }
+      } else {
+        customer = customerMap.get(invoiceData.customerId);
+      }
+
 
       if (customer) {
+        const invoiceBase = { id: invoiceDoc.id, ...invoiceData, createdAt } as Invoice;
         invoiceDetails.push({
           ...invoiceBase,
           customer,
@@ -138,10 +149,11 @@ export async function getLatestInvoiceNumber(): Promise<number> {
 interface SendInvoiceData {
   invoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status'>;
   items: InvoiceItem[];
-  customer: Customer;
+  customer?: Customer;
+  walkInCustomerName?: string;
 }
 
-export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceData) {
+export async function sendInvoice({ invoiceData, items, customer, walkInCustomerName }: SendInvoiceData) {
     if (!isConfigured) {
         return { success: false, error: 'Firebase is not configured.' };
     }
@@ -150,7 +162,6 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
         const batch = writeBatch(db);
         const dataDocRef = doc(db, DATA_PATH);
         
-        // 1. Add primary invoice document
         const invoiceRef = doc(collection(dataDocRef, INVOICES_COLLECTION));
         
         const finalInvoiceData: any = {
@@ -159,9 +170,15 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
             createdAt: serverTimestamp(),
         };
 
+        if (customer) {
+            finalInvoiceData.customerId = customer.id;
+        } else {
+            finalInvoiceData.customerId = 'walk-in';
+            finalInvoiceData.customerName = walkInCustomerName ? `Walk-${walkInCustomerName}` : 'Walk-in Customer';
+        }
+
         batch.set(invoiceRef, finalInvoiceData);
 
-        // 2. Process items
         for (const item of items) {
           const itemRef = doc(collection(invoiceRef, 'invoice_items'));
           
@@ -171,7 +188,6 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
           }
           batch.set(itemRef, itemData);
 
-          // 3. Move sold items from inventory to inventory_history
           if (!item.isCustom) {
               const inventoryItemRef = doc(collection(dataDocRef, INVENTORY_COLLECTION), item.id);
               const inventoryItemSnap = await getDoc(inventoryItemRef);
@@ -184,8 +200,8 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
                       status: 'Sold' as const,
                       amount: item.total,
                       movedAt: serverTimestamp(),
-                      customerId: customer.id,
-                      customerName: customer.name,
+                      customerId: finalInvoiceData.customerId,
+                      customerName: finalInvoiceData.customerName || customer?.name,
                       invoiceId: invoiceRef.id,
                   };
                   batch.set(historyRef, productHistory);
@@ -221,7 +237,6 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
     const batch = writeBatch(db);
     const dataDocRef = doc(db, DATA_PATH);
 
-    // 1. Copy invoice to invoices_history
     const historyInvoiceRef = doc(dataDocRef, `${INVOICES_HISTORY_COLLECTION}/${invoice.id}`);
     const { items, customer, ...invoiceBase } = invoice;
     const historyInvoiceData: Omit<InvoiceHistory, 'archivedAt'> & {customerName?: string} = {
@@ -229,19 +244,21 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
       customerId: customer.id,
       status: 'Voided',
     }
+
+    if (customer.id === 'walk-in') {
+        historyInvoiceData.customerName = customer.name;
+    }
     
     batch.set(historyInvoiceRef, {
       ...historyInvoiceData,
       archivedAt: serverTimestamp(),
     });
 
-    // 2. Copy items to subcollection in history
     for (const item of items) {
       const historyItemRef = doc(historyInvoiceRef, `invoice_items/${item.id}`);
       batch.set(historyItemRef, item);
     }
 
-    // 3. Move items from inventory_history back to inventory
     const inventoryHistoryRef = collection(dataDocRef, INVENTORY_HISTORY_COLLECTION);
     const q = query(inventoryHistoryRef, where('invoiceId', '==', invoice.id));
     const historyItemsSnap = await getDocs(q);
@@ -256,11 +273,11 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
       batch.delete(docSnap.ref);
     }
     
-    // 4. Delete original invoice and its items
     const originalInvoiceRef = doc(dataDocRef, `${INVOICES_COLLECTION}/${invoice.id}`);
-    for (const item of items) {
-      const originalItemRef = doc(originalInvoiceRef, `invoice_items/${item.id}`);
-      batch.delete(originalItemRef);
+    const originalItemsRef = collection(originalInvoiceRef, 'invoice_items');
+    const originalItemsSnap = await getDocs(originalItemsRef);
+    for (const itemDoc of originalItemsSnap.docs) {
+      batch.delete(itemDoc.ref);
     }
     batch.delete(originalInvoiceRef);
 

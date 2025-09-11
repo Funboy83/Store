@@ -1,7 +1,3 @@
-
-
-
-
 "use client"
 
 import React, { useState, useMemo, useEffect, useTransition } from 'react';
@@ -43,7 +39,9 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const [showPreview, setShowPreview] = useState(true);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(customers.find(c => c.name.toLowerCase() === 'walk-in') || customers[0]);
+  const [isWalkIn, setIsWalkIn] = useState(false);
+  const [walkInCustomerName, setWalkInCustomerName] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(customers[0]);
   
   const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -53,7 +51,6 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const [discount, setDiscount] = useState(0);
   const [notes, setNotes] = useState('');
 
-  // POS Payment State
   const [isCashPayment, setIsCashPayment] = useState(false);
   const [isCardPayment, setIsCardPayment] = useState(false);
   const [cashAmount, setCashAmount] = useState(0);
@@ -160,8 +157,8 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
 
   
   const handleSendInvoice = () => {
-    if (!selectedCustomer) {
-      toast({ title: 'Error', description: 'Please select a customer.', variant: 'destructive' });
+    if (!selectedCustomer && !isWalkIn) {
+      toast({ title: 'Error', description: 'Please select a customer or mark as walk-in.', variant: 'destructive' });
       return;
     }
     if (items.length === 0) {
@@ -170,9 +167,8 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     }
 
     startSendTransition(async () => {
-      const invoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status'> = {
+      const invoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status' | 'customerId' | 'customerName'> = {
         invoiceNumber,
-        customerId: selectedCustomer.id,
         subtotal,
         tax: taxAmount,
         discount: discountAmount,
@@ -182,7 +178,12 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         summary: notes,
       };
       
-      const result = await sendInvoice({ invoiceData, items, customer: selectedCustomer });
+      const result = await sendInvoice({ 
+          invoiceData, 
+          items, 
+          customer: isWalkIn ? undefined : selectedCustomer,
+          walkInCustomerName: isWalkIn ? walkInCustomerName : undefined
+      });
 
       if (result.success) {
         toast({
@@ -199,6 +200,12 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
       }
     });
   };
+
+  const displayedCustomer = isWalkIn ? {
+      name: walkInCustomerName || 'Walk-in Customer',
+      address: '',
+      email: ''
+  } : selectedCustomer;
 
   return (
     <div className="h-full flex flex-col">
@@ -220,17 +227,26 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
       </div>
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8 overflow-auto">
-        {/* Left Column */}
         <div className="flex flex-col gap-6">
-          {/* Invoice Details */}
           <Card>
             <CardHeader><CardTitle>Invoice details</CardTitle></CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
                   <div className="flex items-center justify-between">
                       <Label>Bill to</Label>
+                      <div className="flex items-center space-x-2">
+                        <Switch id="walk-in-switch" checked={isWalkIn} onCheckedChange={setIsWalkIn} />
+                        <Label htmlFor="walk-in-switch">Walk-in Customer</Label>
+                      </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  {isWalkIn ? (
+                    <Input 
+                      placeholder="Enter customer name (optional)"
+                      value={walkInCustomerName}
+                      onChange={(e) => setWalkInCustomerName(e.target.value)}
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2">
                       <Select onValueChange={handleSelectCustomer} defaultValue={selectedCustomer?.id}>
                       <SelectTrigger className="h-14">
                           <SelectValue asChild>
@@ -269,7 +285,8 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                           <UserPlus className="h-5 w-5" />
                           <span className="sr-only">Add New Customer</span>
                       </Button>
-                  </div>
+                    </div>
+                  )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -299,7 +316,6 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
             </CardContent>
           </Card>
 
-          {/* Invoice Items */}
           <Card>
             <CardHeader><CardTitle>Invoice items</CardTitle></CardHeader>
             <CardContent className="space-y-6">
@@ -376,7 +392,6 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
             </CardContent>
           </Card>
            
-          {/* Payment Section */}
           <Card>
             <CardHeader><CardTitle>Payment</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -433,7 +448,6 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
 
         </div>
 
-        {/* Right Column */}
         <div className={cn("flex-col gap-6", showPreview ? "flex" : "hidden")}>
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold">Preview</h2>
@@ -451,9 +465,9 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
               <div className="space-y-1">
                 <h3 className="font-semibold">Billed to</h3>
                 <address className="not-italic text-sm text-muted-foreground">
-                  {selectedCustomer?.name}<br />
-                  {selectedCustomer?.address}<br />
-                  {selectedCustomer?.email}
+                  {displayedCustomer?.name}<br />
+                  {displayedCustomer?.address}<br />
+                  {displayedCustomer?.email}
                 </address>
               </div>
               <div className="space-y-1 text-right">
