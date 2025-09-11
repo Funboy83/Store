@@ -578,3 +578,5 @@ export function InvoiceForm({ invoice, inventory, customers }: InvoiceFormProps)
     </div>
   );
 }
+
+    
