@@ -19,13 +19,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { InventoryPicker } from './inventory-picker';
-import { Product, Customer, InvoiceItem, Invoice } from '@/lib/types';
+import { Product, Customer, InvoiceItem, Invoice, InvoiceDetail } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { Logo } from '../logo';
 import { getLatestInvoiceNumber, sendInvoice } from '@/lib/actions/invoice';
 import { AddCustomerForm } from '../customers/add-customer-form';
 import { Checkbox } from '../ui/checkbox';
+import { InvoicePreview } from './preview';
+import { Logo } from '../logo';
 
 interface CreateInvoiceFormProps {
   inventory: Product[];
@@ -39,7 +40,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const { toast } = useToast();
   const [isSending, startSendTransition] = useTransition();
 
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   
   const [isWalkIn, setIsWalkIn] = useState(false);
@@ -78,7 +79,6 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
       const walkInCustomer = customers.find(c => c.id === WALK_IN_CUSTOMER_ID);
       setSelectedCustomer(walkInCustomer);
     } else {
-      // If the currently selected customer is the walk-in, switch to the first available customer
       if (selectedCustomer?.id === WALK_IN_CUSTOMER_ID) {
         setSelectedCustomer(displayCustomers[0]);
       }
@@ -176,16 +176,22 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
 
   const totalPaid = useMemo(() => (isCashPayment ? cashAmount : 0) + (isCardPayment ? cardAmount : 0), [isCashPayment, cashAmount, isCardPayment, cardAmount]);
   const amountDue = useMemo(() => total - totalPaid, [total, totalPaid]);
-  const change = useMemo(() => amountDue < 0 ? Math.abs(amountDue) : 0, [amountDue]);
-
   
-  const handleSendInvoice = () => {
+  const handleFinalizeAndPreview = () => {
     if (!selectedCustomer) {
       toast({ title: 'Error', description: 'Please select a customer.', variant: 'destructive' });
       return;
     }
     if (items.length === 0) {
       toast({ title: 'Error', description: 'Please add at least one item to the invoice.', variant: 'destructive' });
+      return;
+    }
+    setShowPreview(true);
+  };
+  
+  const handleSendInvoice = () => {
+    if (!selectedCustomer) {
+      toast({ title: 'Error', description: 'Please select a customer.', variant: 'destructive' });
       return;
     }
 
@@ -197,6 +203,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
       const invoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status'> = {
         invoiceNumber,
         customerName: finalCustomerName,
+        customerId: selectedCustomer.id,
         subtotal,
         tax: taxAmount,
         discount: discountAmount,
@@ -229,33 +236,62 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     });
   };
 
-  const displayedCustomer = isWalkIn ? {
-      name: walkInCustomerName ? `Walk-In - ${walkInCustomerName}`: 'Walk-In Customer',
-      address: '',
-      email: ''
+  const displayedCustomer = isWalkIn && selectedCustomer ? {
+    ...selectedCustomer,
+    name: walkInCustomerName.trim() !== '' ? `Walk-In - ${walkInCustomerName.trim()}` : 'Walk-In Customer',
+    email: '',
+    address: ''
   } : selectedCustomer;
+
+  const previewInvoice: InvoiceDetail | null = displayedCustomer ? {
+    id: 'preview-id',
+    invoiceNumber,
+    customer: displayedCustomer,
+    items,
+    subtotal,
+    tax: taxAmount,
+    discount: discountAmount,
+    total,
+    issueDate: new Date().toISOString().split('T')[0],
+    dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
+    status: 'Draft',
+    summary: notes,
+    createdAt: new Date().toISOString(),
+  } : null;
+
+  if (showPreview && previewInvoice) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-4 print:hidden">
+            <Button variant="outline" onClick={() => setShowPreview(false)}>Back to Edit</Button>
+            <h1 className="text-2xl font-bold tracking-tight">Final Invoice</h1>
+            <Button onClick={handleSendInvoice} disabled={isSending} className="ml-auto">
+              {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSending ? 'Sending...' : 'Confirm & Send Invoice'}
+            </Button>
+        </div>
+        <InvoicePreview invoice={previewInvoice} onBack={() => setShowPreview(false)} />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between pb-4">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold tracking-tight">New Invoice</h1>
-          <div className="flex items-center space-x-2">
-            <Switch id="show-preview" checked={showPreview} onCheckedChange={setShowPreview} />
-            <Label htmlFor="show-preview">Show Preview</Label>
-          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => toast({ title: 'Coming soon!'})}>Save as Draft</Button>
-          <Button onClick={handleSendInvoice} disabled={isSending}>
-            {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isSending ? 'Sending...' : 'Send Invoice'}
+          <Button onClick={handleFinalizeAndPreview}>
+            Finalize & Preview
           </Button>
         </div>
       </div>
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8 overflow-auto">
         <div className="flex flex-col gap-6">
+          {/* Form Fields */}
           <Card>
             <CardHeader><CardTitle>Invoice details</CardTitle></CardHeader>
             <CardContent className="space-y-6">
@@ -475,94 +511,6 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
               />
             </CardContent>
           </Card>
-
-        </div>
-
-        <div className={cn("flex-col gap-6", showPreview ? "flex" : "hidden")}>
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">Preview</h2>
-          </div>
-          <Card className="p-8">
-            <div className="flex items-center justify-between">
-              <Logo isCollapsed={false} />
-              <div className="text-right">
-                <h1 className="text-2xl font-bold">Invoice</h1>
-                <p className="text-muted-foreground">{invoiceNumber}</p>
-              </div>
-            </div>
-            <Separator className="my-6" />
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <h3 className="font-semibold">Billed to</h3>
-                <address className="not-italic text-sm text-muted-foreground">
-                  {displayedCustomer?.name}<br />
-                  {displayedCustomer?.address}<br />
-                  {displayedCustomer?.email}
-                </address>
-              </div>
-              <div className="space-y-1 text-right">
-                <h3 className="font-semibold">Due date</h3>
-                <p className="text-sm">{dueDate ? format(dueDate, "dd MMMM yyyy") : 'N/A'}</p>
-              </div>
-            </div>
-            <div className="mt-6">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Items</TableHead>
-                    <TableHead className="text-center">Qty</TableHead>
-                    <TableHead className="text-right">Rate</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <p className="font-medium">{item.productName}</p>
-                        {item.description && <p className="text-xs text-muted-foreground">{item.description}</p>}
-                      </TableCell>
-                       <TableCell className="text-center">{item.quantity}</TableCell>
-                      <TableCell className="text-right">${item.unitPrice.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">${item.total.toFixed(2)}</TableCell>
-                    </TableRow>
-                  ))}
-                  {items.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">No items added</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="mt-6 flex justify-end">
-                <div className="w-full max-w-xs space-y-2">
-                    <div className="flex justify-between">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <span>${subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-muted-foreground">Discount ({discount}%)</span>
-                        <span>-${discountAmount.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-muted-foreground">Tax ({taxRate}%)</span>
-                        <span>+${taxAmount.toFixed(2)}</span>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between font-bold text-lg">
-                        <span>Total</span>
-                        <span>${total.toFixed(2)}</span>
-                    </div>
-                </div>
-            </div>
-            {notes && (
-              <div className="mt-6">
-                <h3 className="font-semibold">Notes</h3>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{notes}</p>
-              </div>
-            )}
-          </Card>
         </div>
       </div>
       <InventoryPicker
@@ -575,3 +523,5 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     </div>
   );
 }
+
+    

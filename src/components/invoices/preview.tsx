@@ -1,12 +1,11 @@
+
 "use client"
 
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 import {
   Table,
@@ -34,8 +33,8 @@ export function InvoicePreview({ invoice, onBack }: InvoicePreviewProps) {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-       <div className="flex items-center gap-4 print:hidden">
+    <>
+      <div className="flex items-center gap-4 print:hidden">
         <Button variant="outline" size="icon" onClick={onBack}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -82,7 +81,10 @@ export function InvoicePreview({ invoice, onBack }: InvoicePreviewProps) {
             <TableBody>
               {invoice.items.map((item, index) => (
                 <TableRow key={index}>
-                  <TableCell>{item.productName}</TableCell>
+                  <TableCell>
+                      <p className="font-medium">{item.productName}</p>
+                      {item.description && <p className="text-xs text-muted-foreground">{item.description}</p>}
+                  </TableCell>
                   <TableCell className="text-center">{item.quantity}</TableCell>
                   <TableCell className="text-right">${item.unitPrice.toFixed(2)}</TableCell>
                   <TableCell className="text-right">${item.total.toFixed(2)}</TableCell>
@@ -119,6 +121,8 @@ export function InvoicePreview({ invoice, onBack }: InvoicePreviewProps) {
             Thank you for your business!
         </CardFooter>
       </Card>
-    </div>
+    </>
   );
 }
+
+    
