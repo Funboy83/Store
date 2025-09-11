@@ -32,10 +32,15 @@ export async function getCustomers(): Promise<Customer[]> {
     
     return snapshot.docs.map(doc => {
       const data = doc.data();
+      const createdAt = data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString();
       return { 
         id: doc.id,
-        ...data,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        notes: data.notes,
+        createdAt: createdAt,
       } as Customer
     });
   } catch (error) {

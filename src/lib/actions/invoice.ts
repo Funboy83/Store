@@ -62,21 +62,24 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
     const invoiceDetails: InvoiceDetail[] = [];
 
     for (const invoiceDoc of snapshot.docs) {
-      const invoiceData = { id: invoiceDoc.id, ...invoiceDoc.data() } as Invoice;
+      const invoiceData = invoiceDoc.data();
+      const createdAt = invoiceData.createdAt?.toDate ? invoiceData.createdAt.toDate().toISOString() : new Date().toISOString();
+      const invoiceBase = { id: invoiceDoc.id, ...invoiceData, createdAt } as Invoice;
+
       
       const itemsCollectionRef = collection(invoiceDoc.ref, 'invoice_items');
       const itemsSnapshot = await getDocs(itemsCollectionRef);
       const items = itemsSnapshot.docs.map(itemDoc => ({ id: itemDoc.id, ...itemDoc.data() } as InvoiceItem));
 
-      const customer = customerMap.get(invoiceData.customerId) || {
-        id: invoiceData.customerId,
-        name: invoiceData.customerId === 'walk-in' ? 'Walk-in Customer' : 'Unknown Customer',
+      const customer = customerMap.get(invoiceBase.customerId) || {
+        id: invoiceBase.customerId,
+        name: invoiceBase.customerId === 'walk-in' ? 'Walk-in Customer' : 'Unknown Customer',
         email: '',
         phone: ''
       } as Customer;
       
       invoiceDetails.push({
-        ...invoiceData,
+        ...invoiceBase,
         customer,
         items,
       });
