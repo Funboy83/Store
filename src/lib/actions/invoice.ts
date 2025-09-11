@@ -1,5 +1,6 @@
 
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -135,6 +136,57 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
   }
 }
 
+export async function getInvoiceById(id: string): Promise<InvoiceDetail | null> {
+    if (!isConfigured) {
+        return null;
+    }
+    try {
+        const dataDocRef = doc(db, DATA_PATH);
+        const invoiceRef = doc(dataDocRef, `${INVOICES_COLLECTION}/${id}`);
+        const invoiceSnap = await getDoc(invoiceRef);
+
+        if (!invoiceSnap.exists()) {
+            return null;
+        }
+
+        const invoiceData = invoiceSnap.data() as Invoice;
+        const createdAt = invoiceData.createdAt?.toDate ? invoiceData.createdAt.toDate().toISOString() : new Date().toISOString();
+
+        const itemsCollectionRef = collection(invoiceSnap.ref, 'invoice_items');
+        const itemsSnapshot = await getDocs(itemsCollectionRef);
+        const items = itemsSnapshot.docs.map(itemDoc => ({ id: itemDoc.id, ...itemDoc.data() } as InvoiceItem));
+
+        const customerRef = doc(dataDocRef, `${CUSTOMERS_COLLECTION}/${invoiceData.customerId}`);
+        const customerSnap = await getDoc(customerRef);
+        
+        if (!customerSnap.exists()) {
+            throw new Error(`Customer with ID ${invoiceData.customerId} not found for invoice ${id}`);
+        }
+        const customerData = customerSnap.data();
+        const customer = { 
+            id: customerSnap.id,
+            ...customerData,
+            createdAt: customerData.createdAt?.toDate ? customerData.createdAt.toDate().toISOString() : new Date().toISOString(),
+         } as Customer;
+
+        if (invoiceData.customerId === WALK_IN_CUSTOMER_ID) {
+            customer.name = invoiceData.customerName || 'Walk-In Customer';
+        }
+
+        return {
+            id: invoiceSnap.id,
+            ...invoiceData,
+            createdAt,
+            customer,
+            items,
+        } as InvoiceDetail;
+
+    } catch (error) {
+        console.error('Error fetching invoice by ID:', error);
+        return null;
+    }
+}
+
 export async function getLatestInvoiceNumber(): Promise<number> {
   if (!isConfigured) {
     return 1000;
@@ -164,7 +216,7 @@ export async function getLatestInvoiceNumber(): Promise<number> {
 }
 
 interface SendInvoiceData {
-  invoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status'>;
+  invoiceData: Omit<Invoice, 'id' | 'createdAt'>;
   items: InvoiceItem[];
   customer?: Customer;
   totalPaid: number;
@@ -261,6 +313,12 @@ export async function sendInvoice({ invoiceData, items, customer, totalPaid }: S
         }
         return { success: false, error: 'An unknown error occurred while sending the invoice.' };
     }
+}
+
+export async function updateInvoice() {
+    // Placeholder for update logic
+    console.log("Update invoice action called");
+    return { success: true };
 }
 
 

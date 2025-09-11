@@ -113,8 +113,8 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem onSelect={() => toast({ title: 'Coming soon!'})}>
-                                View Details
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/dashboard/invoices/${invoice.id}/edit`}>Edit Invoice</Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem 

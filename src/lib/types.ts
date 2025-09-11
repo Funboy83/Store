@@ -5,6 +5,7 @@
 
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -97,4 +98,5 @@ export type RecentSale = {
   customerEmail: string;
   amount: number;
 };
+
 
