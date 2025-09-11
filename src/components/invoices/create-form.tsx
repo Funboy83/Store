@@ -270,7 +270,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
               {isSending ? 'Sending...' : 'Confirm & Send Invoice'}
             </Button>
         </div>
-        <InvoicePreview invoice={previewInvoice} onBack={() => setShowPreview(false)} />
+        <InvoicePreview invoice={previewInvoice} />
       </div>
     );
   }
