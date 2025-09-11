@@ -65,7 +65,6 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
       case 'Overdue':
         return 'destructive';
       default:
-        // For old invoices that might not have a status, default to 'Paid' or a neutral color
         return 'outline';
     }
   }
@@ -84,13 +83,13 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
-                {onArchive && <TableHead className="text-right">Actions</TableHead>}
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {invoices.length === 0 ? (
                 <TableRow>
-                    <TableCell colSpan={onArchive ? 6 : 5} className="text-center h-24">No invoices found.</TableCell>
+                    <TableCell colSpan={6} className="text-center h-24">No invoices found.</TableCell>
                 </TableRow>
               ) : (
                 invoices.map((invoice) => (
@@ -102,30 +101,35 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
                     </TableCell>
                     <TableCell>{invoice.issueDate}</TableCell>
                     <TableCell className="text-right">${invoice.total.toFixed(2)}</TableCell>
-                    {onArchive && (
-                        <TableCell className="text-right">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0" disabled={invoice.status === 'Voided'}>
-                                <span className="sr-only">Open menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/dashboard/invoices/${invoice.id}/edit`}>Edit Invoice</Link>
-                                </DropdownMenuItem>
+                    <TableCell className="text-right">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0" disabled={invoice.status === 'Voided'}>
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem asChild>
+                                <Link href={`/dashboard/invoices/${invoice.id}`}>View Invoice</Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <Link href={`/dashboard/invoices/${invoice.id}/edit`}>Edit Invoice</Link>
+                            </DropdownMenuItem>
+                            {onArchive && (
+                                <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem 
-                                className="text-destructive"
-                                onSelect={() => handleArchiveClick(invoice as InvoiceDetail)}>
-                                Void Invoice
+                                    className="text-destructive"
+                                    onSelect={() => handleArchiveClick(invoice as InvoiceDetail)}>
+                                    Void Invoice
                                 </DropdownMenuItem>
-                            </DropdownMenuContent>
-                            </DropdownMenu>
-                        </TableCell>
-                    )}
+                                </>
+                            )}
+                        </DropdownMenuContent>
+                        </DropdownMenu>
+                    </TableCell>
                   </TableRow>
                 ))
               )}

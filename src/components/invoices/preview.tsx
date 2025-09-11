@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import {
@@ -19,15 +20,14 @@ import {
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import type { InvoiceDetail } from "@/lib/types"
-import { ArrowLeft, Printer } from "lucide-react"
+import { Printer } from "lucide-react"
 import { Logo } from "../logo"
 
 interface InvoicePreviewProps {
   invoice: InvoiceDetail;
-  onBack: () => void;
 }
 
-export function InvoicePreview({ invoice, onBack }: InvoicePreviewProps) {
+export function InvoicePreview({ invoice }: InvoicePreviewProps) {
   const handlePrint = () => {
     window.print();
   };
@@ -35,11 +35,8 @@ export function InvoicePreview({ invoice, onBack }: InvoicePreviewProps) {
   return (
     <>
       <div className="flex items-center gap-4 print:hidden">
-        <Button variant="outline" size="icon" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <h1 className="text-2xl font-bold tracking-tight">Final Invoice</h1>
-        <Button onClick={handlePrint} className="ml-auto">
+        <div className="flex-1" />
+        <Button onClick={handlePrint} variant="outline">
           <Printer className="mr-2 h-4 w-4" />
           Print / Save PDF
         </Button>
@@ -47,7 +44,7 @@ export function InvoicePreview({ invoice, onBack }: InvoicePreviewProps) {
 
       <Card className="w-full max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 print:shadow-none print:border-0 print:p-0">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between">
             <Logo isCollapsed={false} />
             <div className="text-right">
               <h1 className="text-2xl font-bold">Invoice</h1>
@@ -57,14 +54,14 @@ export function InvoicePreview({ invoice, onBack }: InvoicePreviewProps) {
           <Separator className="my-4" />
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <h3 className="font-semibold">Bill To:</h3>
+              <h3 className="font-semibold text-muted-foreground">Bill To:</h3>
               <p>{invoice.customer.name}</p>
               <p>{invoice.customer.email}</p>
-              <p>{invoice.customer.address}</p>
+              {invoice.customer.address && <p>{invoice.customer.address}</p>}
             </div>
-            <div className="text-right">
-              <p><span className="font-semibold">Issue Date:</span> {invoice.issueDate}</p>
-              <p><span className="font-semibold">Due Date:</span> {invoice.dueDate}</p>
+            <div className="text-right grid gap-1">
+              <p><span className="font-semibold text-muted-foreground">Issue Date:</span> {invoice.issueDate}</p>
+              <p><span className="font-semibold text-muted-foreground">Due Date:</span> {invoice.dueDate}</p>
             </div>
           </div>
         </CardHeader>
@@ -91,38 +88,39 @@ export function InvoicePreview({ invoice, onBack }: InvoicePreviewProps) {
                 </TableRow>
               ))}
             </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell colSpan={3} className="text-right font-semibold">Subtotal</TableCell>
-                <TableCell className="text-right">${invoice.subtotal.toFixed(2)}</TableCell>
-              </TableRow>
-               <TableRow>
-                <TableCell colSpan={3} className="text-right font-semibold">Discount</TableCell>
-                <TableCell className="text-right">-${invoice.discount?.toFixed(2) || '0.00'}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell colSpan={3} className="text-right font-semibold">Tax</TableCell>
-                <TableCell className="text-right">${invoice.tax.toFixed(2)}</TableCell>
-              </TableRow>
-              <TableRow className="font-bold text-lg">
-                <TableCell colSpan={3} className="text-right">Total</TableCell>
-                <TableCell className="text-right">${invoice.total.toFixed(2)}</TableCell>
-              </TableRow>
-            </TableFooter>
           </Table>
-          {invoice.summary && (
-            <div className="mt-6">
-                <h3 className="font-semibold">Summary</h3>
-                <p className="text-sm text-muted-foreground p-4 bg-muted rounded-md">{invoice.summary}</p>
-            </div>
-          )}
         </CardContent>
-        <CardFooter className="text-center text-xs text-muted-foreground">
-            Thank you for your business!
+         <CardFooter className="flex flex-col items-end gap-4 p-6">
+            <Separator />
+             <div className="w-full max-w-xs space-y-2">
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span>${invoice.subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Discount</span>
+                    <span>-${invoice.discount?.toFixed(2) || '0.00'}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tax</span>
+                    <span>${invoice.tax.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-bold text-lg">
+                    <span>Total</span>
+                    <span>${invoice.total.toFixed(2)}</span>
+                </div>
+            </div>
+            {invoice.summary && (
+              <div className="w-full pt-4 text-left">
+                  <h3 className="font-semibold">Summary</h3>
+                  <p className="text-sm text-muted-foreground p-4 bg-muted rounded-md">{invoice.summary}</p>
+              </div>
+            )}
+             <div className="w-full pt-8 text-center text-xs text-muted-foreground">
+                Thank you for your business!
+            </div>
         </CardFooter>
       </Card>
     </>
   );
 }
-
-    
