@@ -1,12 +1,14 @@
 
 import { getCustomerDetails } from '@/lib/actions/customers';
 import { notFound } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Mail, Phone, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { InvoiceTable } from '@/components/invoices/invoice-table';
+
+const WALK_IN_CUSTOMER_ID = 'Aj0l1O2kJcvlF3J0uVMX';
 
 export default async function CustomerDetailsPage({ params }: { params: { id: string } }) {
   const data = await getCustomerDetails(params.id);
@@ -16,6 +18,7 @@ export default async function CustomerDetailsPage({ params }: { params: { id: st
   }
 
   const { customer, invoices } = data;
+  const isWalkInCustomer = customer.id === WALK_IN_CUSTOMER_ID;
 
   return (
     <div className="flex flex-col gap-6">
@@ -27,10 +30,12 @@ export default async function CustomerDetailsPage({ params }: { params: { id: st
           </Button>
         </Link>
         <h1 className="text-2xl font-bold tracking-tight">Customer Details</h1>
-        <Button variant="outline" className="ml-auto">
-          <Edit className="mr-2 h-4 w-4" />
-          Edit Customer
-        </Button>
+        {!isWalkInCustomer && (
+          <Button variant="outline" className="ml-auto">
+            <Edit className="mr-2 h-4 w-4" />
+            Edit Customer
+          </Button>
+        )}
       </div>
       
       <Card>

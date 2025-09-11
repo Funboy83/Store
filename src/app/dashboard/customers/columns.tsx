@@ -19,6 +19,8 @@ import { Customer } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
+const WALK_IN_CUSTOMER_ID = 'Aj0l1O2kJcvlF3J0uVMX';
+
 export const columns: ColumnDef<Customer>[] = [
   {
     id: "select",
@@ -89,11 +91,12 @@ export const columns: ColumnDef<Customer>[] = [
     cell: function Actions({ row }) {
       const customer = row.original
       const { toast } = useToast()
+      const isWalkInCustomer = customer.id === WALK_IN_CUSTOMER_ID;
 
       return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
+              <Button variant="ghost" className="h-8 w-8 p-0" disabled={isWalkInCustomer}>
                 <span className="sr-only">Open menu</span>
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
@@ -106,10 +109,17 @@ export const columns: ColumnDef<Customer>[] = [
                 Copy customer ID
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => toast({ title: "Coming Soon!", description: "Editing customers will be available in a future update."})}>
+              <DropdownMenuItem 
+                onSelect={() => toast({ title: "Coming Soon!", description: "Editing customers will be available in a future update."})}
+                disabled={isWalkInCustomer}
+              >
                 Edit Customer
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive" onSelect={() => toast({ title: "Coming Soon!", description: "Deleting customers will be available in a future update."})}>
+              <DropdownMenuItem 
+                className="text-destructive" 
+                onSelect={() => toast({ title: "Coming Soon!", description: "Deleting customers will be available in a future update."})}
+                disabled={isWalkInCustomer}
+              >
                 Delete Customer
               </DropdownMenuItem>
             </DropdownMenuContent>
