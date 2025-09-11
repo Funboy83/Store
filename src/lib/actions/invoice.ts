@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { db, isConfigured } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp, writeBatch, doc, getDoc, collectionGroup, deleteDoc, where, updateDoc, increment } from 'firebase/firestore';
 import { summarizeInvoice } from '@/ai/flows/invoice-summary';
-import type { Invoice, InvoiceItem, Product, Customer, InvoiceDetail, InvoiceHistory } from '@/lib/types';
+import type { Invoice, InvoiceItem, Product, Customer, InvoiceDetail, InvoiceHistory, EditHistoryEntry } from '@/lib/types';
 import { getInventory } from './inventory';
 
 const InvoiceSummarySchema = z.object({
@@ -56,7 +56,7 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
     const customersCollectionRef = collection(dataDocRef, CUSTOMERS_COLLECTION);
 
     const [invoiceSnapshot, customersSnapshot] = await Promise.all([
-        getDocs(invoicesCollectionRef),
+        getDocs(query(invoicesCollectionRef, where('status', '!=', 'Voided'))),
         getDocs(customersCollectionRef),
     ]);
 
@@ -79,10 +79,6 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
 
     for (const invoiceDoc of invoiceSnapshot.docs) {
       const invoiceData = invoiceDoc.data() as Invoice;
-
-      if (invoiceData.status === 'Voided') {
-        continue;
-      }
 
       const createdAt = invoiceData.createdAt?.toDate ? invoiceData.createdAt.toDate().toISOString() : new Date().toISOString();
       
@@ -310,10 +306,82 @@ export async function sendInvoice({ invoiceData, items, customer, totalPaid }: S
     }
 }
 
-export async function updateInvoice() {
-    // Placeholder for update logic
-    console.log("Update invoice action called");
+interface UpdateInvoicePayload {
+  originalInvoice: InvoiceDetail;
+  updatedInvoice: Omit<Invoice, 'id' | 'createdAt'>;
+  updatedItems: InvoiceItem[];
+}
+
+export async function updateInvoice({ originalInvoice, updatedInvoice, updatedItems }: UpdateInvoicePayload): Promise<{ success: boolean; error?: string }> {
+  if (!isConfigured) {
+    return { success: false, error: 'Firebase is not configured.' };
+  }
+
+  try {
+    const batch = writeBatch(db);
+    const dataDocRef = doc(db, DATA_PATH);
+    const invoiceRef = doc(dataDocRef, `${INVOICES_COLLECTION}/${originalInvoice.id}`);
+
+    // --- 1. Detect Changes and Create History Entry ---
+    const changes: EditHistoryEntry['changes'] = {};
+
+    // Simple fields
+    if (originalInvoice.customer.id !== updatedInvoice.customerId) {
+      changes.customer = { from: originalInvoice.customer.name, to: updatedInvoice.customerName };
+    }
+    if (originalInvoice.dueDate !== updatedInvoice.dueDate) {
+      changes.dueDate = { from: originalInvoice.dueDate, to: updatedInvoice.dueDate };
+    }
+    if (originalInvoice.summary !== updatedInvoice.summary) {
+      changes.summary = { from: originalInvoice.summary, to: updatedInvoice.summary };
+    }
+    if (originalInvoice.total !== updatedInvoice.total) {
+      changes.totalAmount = { from: originalInvoice.total, to: updatedInvoice.total };
+    }
+    
+    // TODO: Handle item changes more granularly (added, removed, modified quantity/price)
+
+    if (Object.keys(changes).length > 0) {
+      const historyRef = doc(collection(invoiceRef, 'edit_history'));
+      const historyEntry: Omit<EditHistoryEntry, 'id'> = {
+        timestamp: serverTimestamp(),
+        user: 'admin_user', // Hardcoded for now
+        changes: changes,
+      };
+      batch.set(historyRef, historyEntry);
+    }
+    
+    // --- 2. Update Invoice Document ---
+    batch.update(invoiceRef, updatedInvoice);
+
+    // --- 3. Update/Re-create Items Subcollection ---
+    // For simplicity, we delete old items and create new ones. A more complex diff could be done.
+    const oldItemsSnapshot = await getDocs(collection(invoiceRef, 'invoice_items'));
+    oldItemsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+
+    for (const item of updatedItems) {
+      const newItemRef = doc(collection(invoiceRef, 'invoice_items'));
+      batch.set(newItemRef, item);
+    }
+    
+    // --- 4. TODO: Handle inventory changes (restock removed items, etc.) ---
+    
+    // --- 5. TODO: Handle debt changes ---
+
+
+    await batch.commit();
+
+    revalidatePath(`/dashboard/invoices`);
+    revalidatePath(`/dashboard/invoices/${originalInvoice.id}/edit`);
+
     return { success: true };
+  } catch (error) {
+    console.error('Error updating invoice:', error);
+    if (error instanceof Error) {
+      return { success: false, error: `Failed to update invoice: ${error.message}` };
+    }
+    return { success: false, error: 'An unknown error occurred while updating the invoice.' };
+  }
 }
 
 

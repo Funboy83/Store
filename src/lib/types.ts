@@ -1,11 +1,4 @@
 
-
-
-
-
-
-
-
 export type Product = {
   id: string;
   imei: string;
@@ -99,4 +92,9 @@ export type RecentSale = {
   amount: number;
 };
 
-
+export type EditHistoryEntry = {
+  id: string;
+  timestamp: any;
+  user: string;
+  changes: Record<string, { from: any; to: any }>;
+};

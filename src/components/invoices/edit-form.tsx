@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { X, Plus, CalendarIcon, Loader2, UserPlus, ArrowLeft } from 'lucide-react';
+import { X, Plus, CalendarIcon, Loader2, UserPlus, ArrowLeft, History } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -20,7 +20,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { InventoryPicker } from './inventory-picker';
-import { Product, Customer, InvoiceItem, InvoiceDetail } from '@/lib/types';
+import { Product, Customer, InvoiceItem, InvoiceDetail, Invoice } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '../logo';
@@ -41,6 +41,9 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
   const { toast } = useToast();
   const [isUpdating, startUpdateTransition] = useTransition();
 
+  // Store the initial state of the invoice to compare against on save
+  const [initialInvoice] = useState(invoice);
+
   const [items, setItems] = useState<InvoiceItem[]>(invoice.items);
   
   const [isWalkIn, setIsWalkIn] = useState(invoice.customer.id === WALK_IN_CUSTOMER_ID);
@@ -52,7 +55,7 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
   const [dueDate, setDueDate] = useState<Date | undefined>(new Date(invoice.dueDate));
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
-  const [invoiceNumber, setInvoiceNumber] = useState<string>(invoice.invoiceNumber);
+  const [invoiceNumber] = useState<string>(invoice.invoiceNumber);
   const [taxRate, setTaxRate] = useState((invoice.tax / invoice.subtotal) * 100 || 0);
   const [discount, setDiscount] = useState((invoice.discount / invoice.subtotal) * 100 || 0);
   const [notes, setNotes] = useState(invoice.summary || '');
@@ -144,7 +147,50 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
   const change = useMemo(() => amountDue < 0 ? Math.abs(amountDue) : 0, [amountDue]);
   
   const handleUpdateInvoice = () => {
-    toast({ title: "Coming Soon", description: "Updating invoices will be enabled in a future step."});
+    if (!selectedCustomer) {
+      toast({ title: 'Error', description: 'A customer must be selected.', variant: 'destructive' });
+      return;
+    }
+
+    startUpdateTransition(async () => {
+      const finalCustomerName = isWalkIn && walkInCustomerName.trim() !== ''
+        ? `Walk-In - ${walkInCustomerName.trim()}`
+        : selectedCustomer.name;
+
+      const updatedInvoiceData: Omit<Invoice, 'id' | 'createdAt'> = {
+        invoiceNumber,
+        customerId: selectedCustomer.id,
+        customerName: finalCustomerName,
+        subtotal,
+        tax: taxAmount,
+        discount: discountAmount,
+        total,
+        issueDate: initialInvoice.issueDate, // Should not change
+        dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
+        summary: notes,
+        status: initialInvoice.status, // Status should be managed by payments
+      };
+
+      const result = await updateInvoice({
+        originalInvoice: initialInvoice,
+        updatedInvoice: updatedInvoiceData,
+        updatedItems: items,
+      });
+
+      if (result.success) {
+        toast({
+          title: 'Invoice Updated!',
+          description: `Invoice ${invoiceNumber} has been successfully updated.`,
+        });
+        router.push('/dashboard/invoices');
+      } else {
+        toast({
+          title: 'Error',
+          description: result.error || 'Failed to update the invoice.',
+          variant: 'destructive',
+        });
+      }
+    });
   };
 
   const displayedCustomer = isWalkIn ? {
@@ -165,6 +211,12 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
           <h1 className="text-2xl font-bold tracking-tight">Edit Invoice {invoice.invoiceNumber}</h1>
         </div>
         <div className="flex items-center gap-2">
+           <Link href={`/dashboard/invoices/${invoice.id}/history`} passHref>
+            <Button variant="outline">
+                <History className="mr-2 h-4 w-4" />
+                View History
+            </Button>
+          </Link>
           <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
           <Button onClick={handleUpdateInvoice} disabled={isUpdating}>
             {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
