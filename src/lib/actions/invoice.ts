@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { db, isConfigured } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp, writeBatch, doc, getDoc, collectionGroup, deleteDoc, where } from 'firebase/firestore';
 import { summarizeInvoice } from '@/ai/flows/invoice-summary';
-import type { Invoice, InvoiceItem, Product, Customer, InvoiceDetail } from '@/lib/types';
+import type { Invoice, InvoiceItem, Product, Customer, InvoiceDetail, InvoiceHistory } from '@/lib/types';
 import { getInventory } from './inventory';
 import { getCustomers } from './customers';
 
@@ -73,7 +73,7 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
 
       const customer = customerMap.get(invoiceBase.customerId) || {
         id: invoiceBase.customerId,
-        name: invoiceBase.customerId === 'walk-in' ? 'Walk-in Customer' : 'Unknown Customer',
+        name: invoiceBase.customerId === 'walk-in' ? (invoiceData.customerName || 'Walk-in Customer') : 'Unknown Customer',
         email: '',
         phone: ''
       } as Customer;
@@ -137,11 +137,18 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
         
         // 1. Add primary invoice document
         const invoiceRef = doc(collection(dataDocRef, INVOICES_COLLECTION));
-        batch.set(invoiceRef, {
+        
+        const finalInvoiceData: any = {
             ...invoiceData,
             status: 'Pending',
             createdAt: serverTimestamp(),
-        });
+        };
+
+        if (customer.id === 'walk-in') {
+            finalInvoiceData.customerName = customer.name || 'Walk-in Customer';
+        }
+
+        batch.set(invoiceRef, finalInvoiceData);
 
         // 2. Process items
         for (const item of items) {
@@ -163,11 +170,11 @@ export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceD
                   const historyRef = doc(collection(dataDocRef, INVENTORY_HISTORY_COLLECTION));
                   const productHistory = {
                       ...product,
-                      status: 'Sold',
+                      status: 'Sold' as const,
                       amount: item.total,
                       movedAt: serverTimestamp(),
                       customerId: customer.id,
-                      customerName: customer.name,
+                      customerName: customer.name || 'Walk-in Customer',
                       invoiceId: invoiceRef.id,
                   };
                   batch.set(historyRef, productHistory);
@@ -206,10 +213,16 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
     // 1. Copy invoice to invoices_history
     const historyInvoiceRef = doc(dataDocRef, `${INVOICES_HISTORY_COLLECTION}/${invoice.id}`);
     const { items, customer, ...invoiceBase } = invoice;
-    batch.set(historyInvoiceRef, {
+    const historyInvoiceData: Omit<InvoiceHistory, 'archivedAt'> & {customerName?: string} = {
       ...invoiceBase,
       customerId: customer.id,
       status: 'Voided',
+    }
+    if (customer.id === 'walk-in') {
+      historyInvoiceData.customerName = customer.name;
+    }
+    batch.set(historyInvoiceRef, {
+      ...historyInvoiceData,
       archivedAt: serverTimestamp(),
     });
 

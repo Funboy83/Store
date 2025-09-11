@@ -1,6 +1,7 @@
 
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -51,6 +52,7 @@ export type Invoice = {
   id: string;
   invoiceNumber: string;
   customerId: string;
+  customerName?: string; // For walk-in customers
   subtotal: number;
   tax: number;
   discount?: number;
@@ -62,17 +64,17 @@ export type Invoice = {
   createdAt: any;
 };
 
-export type InvoiceDetail = Omit<Invoice, 'customerId'> & {
+export type InvoiceDetail = Omit<Invoice, 'customerId' | 'customerName'> & {
   customer: Customer;
   items: InvoiceItem[];
 };
 
-export type InvoiceHistory = Omit<Invoice, 'status'> & {
+export type InvoiceHistory = Omit<Invoice, 'status' | 'createdAt'> & {
     status: 'Voided';
     archivedAt: any;
 }
 
-export type InvoiceHistoryDetail = Omit<InvoiceHistory, 'customerId'> & {
+export type InvoiceHistoryDetail = Omit<InvoiceHistory, 'customerId' | 'customerName'> & {
     customer: Customer;
     items: InvoiceItem[];
 };
