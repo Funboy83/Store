@@ -1,0 +1,107 @@
+
+'use client';
+
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { MoreHorizontal } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { Invoice } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
+
+interface InvoiceTableProps {
+    invoices: Invoice[];
+    title?: string;
+    onArchive?: (invoice: Invoice) => Promise<void>;
+}
+
+export function InvoiceTable({ invoices, title = "Invoice History", onArchive }: InvoiceTableProps) {
+  const { toast } = useToast();
+
+  const handleArchiveClick = (invoice: Invoice) => {
+    if (onArchive) {
+        onArchive(invoice);
+    } else {
+        toast({ title: "Archive function not provided."});
+    }
+  };
+
+  return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Invoice</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                {onArchive && <TableHead className="text-right">Actions</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {invoices.length === 0 ? (
+                <TableRow>
+                    <TableCell colSpan={onArchive ? 5 : 4} className="text-center h-24">No invoices found.</TableCell>
+                </TableRow>
+              ) : (
+                invoices.map((invoice) => (
+                  <TableRow key={invoice.id}>
+                    <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+                    <TableCell>
+                      <Badge variant={invoice.status === 'Paid' ? 'default' : 'secondary'}>{invoice.status}</Badge>
+                    </TableCell>
+                    <TableCell>{invoice.issueDate}</TableCell>
+                    <TableCell className="text-right">${invoice.total.toFixed(2)}</TableCell>
+                    {onArchive && (
+                        <TableCell className="text-right">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem onSelect={() => toast({ title: 'Coming soon!'})}>
+                                View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                className="text-destructive"
+                                onSelect={() => handleArchiveClick(invoice)}>
+                                Archive Invoice
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                            </DropdownMenu>
+                        </TableCell>
+                    )}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+  );
+}

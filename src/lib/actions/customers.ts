@@ -2,11 +2,12 @@
 'use server';
 
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, addDoc, serverTimestamp, doc } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, addDoc, serverTimestamp, doc, where, getDoc } from 'firebase/firestore';
 import { MOCK_CUSTOMERS } from '../mock-data';
-import type { Customer, Invoice } from '../types';
+import type { Customer, Invoice, InvoiceDetail } from '../types';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import Link from 'next/link';
 
 const DATA_PATH = 'cellphone-inventory-system/data';
 const CUSTOMERS_COLLECTION = 'customers';
@@ -102,5 +103,54 @@ export async function addCustomer(prevState: any, formData: FormData) {
   } catch (error) {
     console.error('Error adding customer:', error);
     return { errors: { _form: ['Failed to add customer.'] } };
+  }
+}
+
+export async function getCustomerDetails(id: string): Promise<{ customer: Customer; invoices: Invoice[] } | null> {
+  if (!isConfigured) {
+    return null;
+  }
+  try {
+    const dataDocRef = doc(db, DATA_PATH);
+    const customerRef = doc(dataDocRef, `${CUSTOMERS_COLLECTION}/${id}`);
+    const customerSnap = await getDoc(customerRef);
+
+    if (!customerSnap.exists()) {
+      return null;
+    }
+
+    const customerData = customerSnap.data();
+    const createdAt = customerData.createdAt?.toDate ? customerData.createdAt.toDate().toISOString() : new Date().toISOString();
+    
+    const customer: Customer = {
+      id: customerSnap.id,
+      ...customerData,
+      createdAt,
+      totalInvoices: 0, // Will be calculated next
+      totalSpent: 0,   // Will be calculated next
+    } as Customer;
+
+    const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
+    const invoicesQuery = query(invoicesCollectionRef, where('customerId', '==', id), orderBy('createdAt', 'desc'));
+    const invoicesSnapshot = await getDocs(invoicesQuery);
+
+    let totalSpent = 0;
+    const invoices = invoicesSnapshot.docs.map(doc => {
+      const invoiceData = doc.data();
+      totalSpent += invoiceData.total;
+      return {
+        id: doc.id,
+        ...invoiceData,
+        createdAt: invoiceData.createdAt?.toDate ? invoiceData.createdAt.toDate().toISOString() : new Date().toISOString(),
+      } as Invoice;
+    });
+
+    customer.totalInvoices = invoices.length;
+    customer.totalSpent = totalSpent;
+
+    return { customer, invoices };
+  } catch (error) {
+    console.error('Error fetching customer details:', error);
+    return null;
   }
 }
