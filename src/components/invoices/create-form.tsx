@@ -135,11 +135,9 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     setItems(prev => prev.map(item => {
       if (item.id === itemId) {
         const updatedItem = { ...item };
-        const newUnitPrice = field === 'unitPrice' ? Number(value) : updatedItem.unitPrice;
-        const newQuantity = field === 'quantity' ? Number(value) : updatedItem.quantity;
         
         if (field === 'unitPrice') {
-          updatedItem.unitPrice = Number(value);
+            updatedItem.unitPrice = Number(value);
         } else if (field === 'quantity') {
             updatedItem.quantity = Number(value);
         } else {
@@ -328,21 +326,6 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
           <Card>
             <CardHeader><CardTitle>Invoice items</CardTitle></CardHeader>
             <CardContent className="space-y-6">
-                <div className="space-y-2">
-                    <Label>Currency</Label>
-                    <Select defaultValue="usd">
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="usd">
-                                <div className="flex items-center gap-2">
-                                    <span>🇺🇸</span> US Dollar
-                                </div>
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
                 <div>
                   <Label>Items</Label>
                   <div className="space-y-2 mt-2">
@@ -572,4 +555,5 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   );
 }
 
+    
     
