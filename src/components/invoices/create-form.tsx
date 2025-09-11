@@ -26,6 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Logo } from '../logo';
 import { getLatestInvoiceNumber, sendInvoice } from '@/lib/actions/invoice';
 import { AddCustomerForm } from '../customers/add-customer-form';
+import { Checkbox } from '../ui/checkbox';
 
 interface CreateInvoiceFormProps {
   inventory: Product[];
@@ -51,6 +52,12 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const [taxRate, setTaxRate] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [notes, setNotes] = useState('');
+
+  // POS Payment State
+  const [isCashPayment, setIsCashPayment] = useState(false);
+  const [isCardPayment, setIsCardPayment] = useState(false);
+  const [cashAmount, setCashAmount] = useState(0);
+  const [cardAmount, setCardAmount] = useState(0);
 
   useEffect(() => {
     async function fetchInvoiceNumber() {
@@ -111,6 +118,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     const newItem: InvoiceItem = {
       id: `custom-${Date.now()}`,
       productName: '',
+      description: 'Custom item',
       quantity: 1,
       unitPrice: 0,
       total: 0,
@@ -130,13 +138,15 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         const newUnitPrice = field === 'unitPrice' ? Number(value) : updatedItem.unitPrice;
         const newQuantity = field === 'quantity' ? Number(value) : updatedItem.quantity;
         
-        if (field === 'unitPrice' || field === 'quantity') {
-          updatedItem.unitPrice = Number(newUnitPrice);
-          updatedItem.quantity = newQuantity;
-          updatedItem.total = Number(newUnitPrice) * newQuantity;
+        if (field === 'unitPrice') {
+          updatedItem.unitPrice = Number(value);
+        } else if (field === 'quantity') {
+            updatedItem.quantity = Number(value);
         } else {
           (updatedItem as any)[field] = value;
         }
+
+        updatedItem.total = updatedItem.unitPrice * updatedItem.quantity;
         return updatedItem;
       }
       return item;
@@ -147,6 +157,11 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const taxAmount = useMemo(() => subtotal * (taxRate / 100), [subtotal, taxRate]);
   const discountAmount = useMemo(() => subtotal * (discount / 100), [subtotal, discount]);
   const total = useMemo(() => subtotal + taxAmount - discountAmount, [subtotal, taxAmount, discountAmount]);
+
+  const totalPaid = useMemo(() => (isCashPayment ? cashAmount : 0) + (isCardPayment ? cardAmount : 0), [isCashPayment, cashAmount, isCardPayment, cardAmount]);
+  const amountDue = useMemo(() => total - totalPaid, [total, totalPaid]);
+  const change = useMemo(() => amountDue < 0 ? Math.abs(amountDue) : 0, [amountDue]);
+
   
   const handleSendInvoice = () => {
     const finalCustomer = isWalkInCustomer 
@@ -398,20 +413,64 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                         <Input id="discount" type="number" value={discount} onChange={e => setDiscount(parseFloat(e.target.value) || 0)} placeholder="0" />
                     </div>
                 </div>
-                <Separator />
-
-                <div className="space-y-2">
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea 
-                        id="notes" 
-                        value={notes}
-                        onChange={e => setNotes(e.target.value)}
-                        placeholder="Add any relevant notes for the invoice..."
-                        rows={4}
+            </CardContent>
+          </Card>
+           
+          {/* Payment Section */}
+          <Card>
+            <CardHeader><CardTitle>Payment</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex items-center gap-4">
+                    <Checkbox id="cash-payment" checked={isCashPayment} onCheckedChange={(checked) => setIsCashPayment(!!checked)} />
+                    <Label htmlFor="cash-payment" className="flex-1">Cash</Label>
+                    <Input 
+                        type="number"
+                        placeholder="0.00"
+                        value={cashAmount}
+                        onChange={(e) => setCashAmount(parseFloat(e.target.value) || 0)}
+                        disabled={!isCashPayment}
+                        className="max-w-[120px]"
                     />
+                </div>
+                <div className="flex items-center gap-4">
+                    <Checkbox id="card-payment" checked={isCardPayment} onCheckedChange={(checked) => setIsCardPayment(!!checked)} />
+                    <Label htmlFor="card-payment" className="flex-1">Credit Card</Label>
+                    <Input 
+                        type="number"
+                        placeholder="0.00"
+                        value={cardAmount}
+                        onChange={(e) => setCardAmount(parseFloat(e.target.value) || 0)}
+                        disabled={!isCardPayment}
+                        className="max-w-[120px]"
+                    />
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                    <div className="flex justify-between font-medium">
+                        <Label>Total Paid</Label>
+                        <span>${totalPaid.toFixed(2)}</span>
+                    </div>
+                    <div className={cn("flex justify-between font-bold text-lg", amountDue > 0 ? "text-destructive" : "text-green-600")}>
+                        <Label>{amountDue >= 0 ? 'Amount Due' : 'Change'}</Label>
+                        <span>${Math.abs(amountDue).toFixed(2)}</span>
+                    </div>
                 </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Notes</CardTitle></CardHeader>
+            <CardContent>
+              <Textarea 
+                  id="notes" 
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  placeholder="Add any relevant notes for the invoice..."
+                  rows={4}
+              />
+            </CardContent>
+          </Card>
+
         </div>
 
         {/* Right Column */}
@@ -512,3 +571,5 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     </div>
   );
 }
+
+    
