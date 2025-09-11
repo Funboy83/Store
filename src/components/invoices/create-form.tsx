@@ -177,22 +177,15 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const totalPaid = useMemo(() => (isCashPayment ? cashAmount : 0) + (isCardPayment ? cardAmount : 0), [isCashPayment, cashAmount, isCardPayment, cardAmount]);
   const amountDue = useMemo(() => total - totalPaid, [total, totalPaid]);
   
-  const handleFinalizeAndPreview = () => {
-    if (!selectedCustomer) {
-      toast({ title: 'Error', description: 'Please select a customer.', variant: 'destructive' });
-      return;
-    }
-    if (items.length === 0) {
-      toast({ title: 'Error', description: 'Please add at least one item to the invoice.', variant: 'destructive' });
-      return;
-    }
-    setShowPreview(true);
-  };
   
   const handleSendInvoice = () => {
     if (!selectedCustomer) {
       toast({ title: 'Error', description: 'Please select a customer.', variant: 'destructive' });
       return;
+    }
+    if (items.length === 0) {
+        toast({ title: 'Error', description: 'Please add at least one item.', variant: 'destructive' });
+        return;
     }
 
     startSendTransition(async () => {
@@ -200,7 +193,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         ? `Walk-In - ${walkInCustomerName.trim()}`
         : selectedCustomer.name;
 
-      const invoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status'> = {
+      const invoiceData: Omit<Invoice, 'id' | 'createdAt'> = {
         invoiceNumber,
         customerName: finalCustomerName,
         customerId: selectedCustomer.id,
@@ -211,6 +204,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         issueDate: new Date().toISOString().split('T')[0],
         dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
         summary: notes,
+        status: 'Draft',
       };
       
       const result = await sendInvoice({ 
@@ -259,38 +253,27 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     createdAt: new Date().toISOString(),
   } : null;
 
-  if (showPreview && previewInvoice) {
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-4 print:hidden">
-            <Button variant="outline" onClick={() => setShowPreview(false)}>Back to Edit</Button>
-            <h1 className="text-2xl font-bold tracking-tight">Final Invoice</h1>
-            <Button onClick={handleSendInvoice} disabled={isSending} className="ml-auto">
-              {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isSending ? 'Sending...' : 'Confirm & Send Invoice'}
-            </Button>
-        </div>
-        <InvoicePreview invoice={previewInvoice} />
-      </div>
-    );
-  }
-
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between pb-4">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold tracking-tight">New Invoice</h1>
+           <div className="flex items-center space-x-2">
+            <Switch id="show-preview" checked={showPreview} onCheckedChange={setShowPreview} />
+            <Label htmlFor="show-preview">Show Preview</Label>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => toast({ title: 'Coming soon!'})}>Save as Draft</Button>
-          <Button onClick={handleFinalizeAndPreview}>
-            Finalize & Preview
+          <Button onClick={handleSendInvoice} disabled={isSending}>
+            {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSending ? 'Sending...' : 'Send Invoice'}
           </Button>
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8 overflow-auto">
-        <div className="lg:col-span-2 flex flex-col gap-6">
+      <div className={cn("flex-1 grid grid-cols-1 gap-8 overflow-auto", showPreview && "lg:grid-cols-2")}>
+        <div className="flex flex-col gap-6">
           {/* Form Fields */}
           <Card>
             <CardHeader><CardTitle>Invoice details</CardTitle></CardHeader>
@@ -445,44 +428,36 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
             </CardContent>
           </Card>
            
-         
-        </div>
-        <div className="flex flex-col gap-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Summary</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex justify-between">
-                        <span>Subtotal</span>
-                        <span>${subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="tax" className="flex items-center gap-2">
-                            Tax (%) 
-                            <Input id="tax" type="number" value={taxRate} onChange={e => setTaxRate(parseFloat(e.target.value) || 0)} placeholder="0" className="w-20 h-8" />
-                        </Label>
-                        <span>${taxAmount.toFixed(2)}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                       <Label htmlFor="discount" className="flex items-center gap-2">
-                            Discount (%)
-                           <Input id="discount" type="number" value={discount} onChange={e => setDiscount(parseFloat(e.target.value) || 0)} placeholder="0" className="w-20 h-8" />
-                        </Label>
-                        <span className="text-destructive">-${discountAmount.toFixed(2)}</span>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between font-bold text-lg">
-                        <span>Total</span>
-                        <span>${total.toFixed(2)}</span>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader><CardTitle>Payment</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center gap-4">
+          <Card>
+              <CardHeader>
+                  <CardTitle>Summary & Payment</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                  <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span>${subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                      <Label htmlFor="tax" className="flex items-center gap-2">
+                          Tax (%) 
+                          <Input id="tax" type="number" value={taxRate} onChange={e => setTaxRate(parseFloat(e.target.value) || 0)} placeholder="0" className="w-20 h-8" />
+                      </Label>
+                      <span>${taxAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                      <Label htmlFor="discount" className="flex items-center gap-2">
+                          Discount (%)
+                          <Input id="discount" type="number" value={discount} onChange={e => setDiscount(parseFloat(e.target.value) || 0)} placeholder="0" className="w-20 h-8" />
+                      </Label>
+                      <span className="text-destructive">-${discountAmount.toFixed(2)}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between font-bold text-lg">
+                      <span>Total</span>
+                      <span>${total.toFixed(2)}</span>
+                  </div>
+                   <Separator />
+                    <div className="flex items-center gap-4 pt-2">
                         <Checkbox id="cash-payment" checked={isCashPayment} onCheckedChange={(checked) => setIsCashPayment(!!checked)} />
                         <Label htmlFor="cash-payment" className="flex-1">Cash</Label>
                         <Input 
@@ -517,22 +492,29 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                             <span>${Math.abs(amountDue).toFixed(2)}</span>
                         </div>
                     </div>
-                </CardContent>
-            </Card>
+              </CardContent>
+          </Card>
 
-            <Card>
-                <CardHeader><CardTitle>Notes</CardTitle></CardHeader>
-                <CardContent>
-                <Textarea 
-                    id="notes" 
-                    value={notes}
-                    onChange={e => setNotes(e.target.value)}
-                    placeholder="Add any relevant notes for the invoice..."
-                    rows={4}
-                />
-                </CardContent>
-            </Card>
+          <Card>
+              <CardHeader><CardTitle>Notes</CardTitle></CardHeader>
+              <CardContent>
+              <Textarea 
+                  id="notes" 
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  placeholder="Add any relevant notes for the invoice..."
+                  rows={4}
+              />
+              </CardContent>
+          </Card>
         </div>
+        {showPreview && previewInvoice && (
+          <div className="hidden lg:block">
+            <div className="sticky top-0">
+               <InvoicePreview invoice={previewInvoice} />
+            </div>
+          </div>
+        )}
       </div>
       <InventoryPicker
         isOpen={isPickerOpen}
@@ -544,7 +526,5 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     </div>
   );
 }
-
-    
 
     
