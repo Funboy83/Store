@@ -3,72 +3,90 @@
 
 import React, { useState, useMemo, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { X, Plus, CalendarIcon, Loader2, UserPlus } from 'lucide-react';
+import { X, Plus, CalendarIcon, Loader2, UserPlus, History, Eye } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { InventoryPicker } from './inventory-picker';
-import { Product, Customer, InvoiceItem, Invoice, InvoiceDetail } from '@/lib/types';
+import { Product, Customer, InvoiceItem, InvoiceDetail, Invoice } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { getLatestInvoiceNumber, sendInvoice } from '@/lib/actions/invoice';
+import { getLatestInvoiceNumber, sendInvoice, updateInvoice } from '@/lib/actions/invoice';
 import { AddCustomerForm } from '../customers/add-customer-form';
 import { Checkbox } from '../ui/checkbox';
 import { InvoicePreview } from './preview';
 import { Logo } from '../logo';
 
-interface CreateInvoiceFormProps {
+interface InvoiceFormProps {
+  invoice?: InvoiceDetail;
   inventory: Product[];
   customers: Customer[];
 }
 
 const WALK_IN_CUSTOMER_ID = 'Aj0l1O2kJcvlF3J0uVMX';
 
-export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormProps) {
+export function InvoiceForm({ invoice, inventory, customers }: InvoiceFormProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const [isSending, startSendTransition] = useTransition();
+  const [isSaving, startSavingTransition] = useTransition();
+
+  const isEditMode = !!invoice;
+  
+  const [initialInvoice] = useState(invoice);
 
   const [showPreview, setShowPreview] = useState(false);
-  const [items, setItems] = useState<InvoiceItem[]>([]);
+  const [items, setItems] = useState<InvoiceItem[]>(invoice?.items || []);
   
-  const [isWalkIn, setIsWalkIn] = useState(false);
-  const [walkInCustomerName, setWalkInCustomerName] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(() => 
-    customers.find(c => c.id !== WALK_IN_CUSTOMER_ID)
+  const [isWalkIn, setIsWalkIn] = useState(invoice?.customer.id === WALK_IN_CUSTOMER_ID);
+  const [walkInCustomerName, setWalkInCustomerName] = useState(
+    invoice?.customer.id === WALK_IN_CUSTOMER_ID ? invoice.customer.name.replace('Walk-In - ', '') : ''
   );
   
-  const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(() => {
+    if (isEditMode) return invoice.customer;
+    return customers.find(c => c.id !== WALK_IN_CUSTOMER_ID);
+  });
+  
+  const [dueDate, setDueDate] = useState<Date | undefined>(invoice?.dueDate ? parseISO(invoice.dueDate) : new Date());
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
-  const [invoiceNumber, setInvoiceNumber] = useState<string>('...');
-  const [taxRate, setTaxRate] = useState(0);
-  const [discount, setDiscount] = useState(0);
-  const [notes, setNotes] = useState('');
+  const [invoiceNumber, setInvoiceNumber] = useState<string>(invoice?.invoiceNumber || '...');
+
+  const calculateInitialPercentage = (value: number, subtotal: number) => {
+    if (subtotal === 0) return 0;
+    return parseFloat(((value / subtotal) * 100).toFixed(2));
+  }
+
+  const [taxRate, setTaxRate] = useState(invoice ? calculateInitialPercentage(invoice.tax, invoice.subtotal) : 0);
+  const [discount, setDiscount] = useState(invoice ? calculateInitialPercentage(invoice.discount || 0, invoice.subtotal) : 0);
+  const [notes, setNotes] = useState(invoice?.summary || '');
 
   const [isCashPayment, setIsCashPayment] = useState(false);
   const [isCardPayment, setIsCardPayment] = useState(false);
   const [cashAmount, setCashAmount] = useState(0);
   const [cardAmount, setCardAmount] = useState(0);
-
+  
   useEffect(() => {
-    async function fetchInvoiceNumber() {
-      const nextNumber = await getLatestInvoiceNumber();
-      setInvoiceNumber(String(nextNumber));
+    if (!isEditMode) {
+      async function fetchInvoiceNumber() {
+        const nextNumber = await getLatestInvoiceNumber();
+        setInvoiceNumber(String(nextNumber));
+      }
+      fetchInvoiceNumber();
     }
-    fetchInvoiceNumber();
-  }, []);
+  }, [isEditMode]);
 
   const displayCustomers = useMemo(() => {
     return customers.filter(c => c.id !== WALK_IN_CUSTOMER_ID);
@@ -178,54 +196,76 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   const amountDue = useMemo(() => total - totalPaid, [total, totalPaid]);
   
   
-  const handleSendInvoice = () => {
+  const handleSave = () => {
     if (!selectedCustomer) {
       toast({ title: 'Error', description: 'Please select a customer.', variant: 'destructive' });
       return;
     }
-    if (items.length === 0) {
+    if (items.length === 0 && !isEditMode) {
         toast({ title: 'Error', description: 'Please add at least one item.', variant: 'destructive' });
         return;
     }
 
-    startSendTransition(async () => {
+    startSavingTransition(async () => {
       const finalCustomerName = isWalkIn && walkInCustomerName.trim() !== ''
         ? `Walk-In - ${walkInCustomerName.trim()}`
         : selectedCustomer.name;
 
-      const invoiceData: Omit<Invoice, 'id' | 'createdAt'> = {
-        invoiceNumber,
-        customerName: finalCustomerName,
-        customerId: selectedCustomer.id,
-        subtotal,
-        tax: taxAmount,
-        discount: discountAmount,
-        total,
-        issueDate: new Date().toISOString().split('T')[0],
-        dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
-        summary: notes,
-        status: 'Draft',
-      };
-      
-      const result = await sendInvoice({ 
-          invoiceData, 
-          items, 
-          customer: selectedCustomer,
-          totalPaid
-      });
+      if (isEditMode && initialInvoice) {
+        // Update logic
+        const updatedInvoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status'> = {
+          invoiceNumber,
+          customerId: selectedCustomer.id,
+          customerName: finalCustomerName,
+          subtotal,
+          tax: taxAmount,
+          discount: discountAmount,
+          total,
+          issueDate: initialInvoice.issueDate,
+          dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
+          summary: notes
+        };
+        const result = await updateInvoice({
+            originalInvoice: initialInvoice,
+            updatedInvoice: updatedInvoiceData,
+            updatedItems: items,
+        });
 
-      if (result.success) {
-        toast({
-          title: 'Invoice Sent!',
-          description: `Invoice ${invoiceNumber} has been created.`,
-        });
-        router.push('/dashboard/invoices');
+        if (result.success) {
+          toast({ title: 'Invoice Updated!', description: `Invoice ${invoiceNumber} has been successfully updated.` });
+          router.push(`/dashboard/invoices/${invoice.id}`);
+        } else {
+          toast({ title: 'Error', description: result.error || 'Failed to update invoice.', variant: 'destructive' });
+        }
       } else {
-        toast({
-          title: 'Error',
-          description: result.error,
-          variant: 'destructive',
+        // Create logic
+        const invoiceData: Omit<Invoice, 'id' | 'createdAt'> = {
+          invoiceNumber,
+          customerName: finalCustomerName,
+          customerId: selectedCustomer.id,
+          subtotal,
+          tax: taxAmount,
+          discount: discountAmount,
+          total,
+          issueDate: new Date().toISOString().split('T')[0],
+          dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
+          summary: notes,
+          status: 'Draft',
+        };
+        
+        const result = await sendInvoice({ 
+            invoiceData, 
+            items, 
+            customer: selectedCustomer,
+            totalPaid
         });
+
+        if (result.success) {
+          toast({ title: 'Invoice Sent!', description: `Invoice ${invoiceNumber} has been created.` });
+          router.push('/dashboard/invoices');
+        } else {
+          toast({ title: 'Error', description: result.error, variant: 'destructive' });
+        }
       }
     });
   };
@@ -238,7 +278,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   } : selectedCustomer;
 
   const previewInvoice: InvoiceDetail | null = displayedCustomer ? {
-    id: 'preview-id',
+    id: invoice?.id || 'preview-id',
     invoiceNumber,
     customer: displayedCustomer,
     items,
@@ -246,35 +286,43 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     tax: taxAmount,
     discount: discountAmount,
     total,
-    issueDate: new Date().toISOString().split('T')[0],
+    issueDate: invoice?.issueDate || new Date().toISOString().split('T')[0],
     dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
-    status: 'Draft',
+    status: invoice?.status || 'Draft',
     summary: notes,
-    createdAt: new Date().toISOString(),
+    createdAt: invoice?.createdAt || new Date().toISOString(),
   } : null;
 
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between pb-4">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold tracking-tight">New Invoice</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {isEditMode ? `Edit Invoice ${invoiceNumber}` : 'New Invoice'}
+          </h1>
            <div className="flex items-center space-x-2">
             <Switch id="show-preview" checked={showPreview} onCheckedChange={setShowPreview} />
             <Label htmlFor="show-preview">Show Preview</Label>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => toast({ title: 'Coming soon!'})}>Save as Draft</Button>
-          <Button onClick={handleSendInvoice} disabled={isSending}>
-            {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isSending ? 'Sending...' : 'Send Invoice'}
+          {isEditMode && invoice && (
+            <Link href={`/dashboard/invoices/${invoice.id}/history`} passHref>
+                <Button variant="outline"><History className="mr-2 h-4 w-4" />View History</Button>
+            </Link>
+          )}
+          {!isEditMode && (
+            <Button variant="outline" onClick={() => toast({ title: 'Coming soon!'})}>Save as Draft</Button>
+          )}
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSaving ? 'Saving...' : isEditMode ? 'Save Changes' : 'Send Invoice'}
           </Button>
         </div>
       </div>
 
       <div className={cn("flex-1 grid grid-cols-1 gap-8 overflow-auto", showPreview && "lg:grid-cols-2")}>
         <div className="flex flex-col gap-6">
-          {/* Form Fields */}
           <Card>
             <CardHeader><CardTitle>Invoice details</CardTitle></CardHeader>
             <CardContent className="space-y-6">
@@ -456,42 +504,46 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                       <span>Total</span>
                       <span>${total.toFixed(2)}</span>
                   </div>
-                   <Separator />
-                    <div className="flex items-center gap-4 pt-2">
-                        <Checkbox id="cash-payment" checked={isCashPayment} onCheckedChange={(checked) => setIsCashPayment(!!checked)} />
-                        <Label htmlFor="cash-payment" className="flex-1">Cash</Label>
-                        <Input 
-                            type="number"
-                            placeholder="0.00"
-                            value={cashAmount}
-                            onChange={(e) => setCashAmount(parseFloat(e.target.value) || 0)}
-                            disabled={!isCashPayment}
-                            className="max-w-[120px]"
-                        />
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <Checkbox id="card-payment" checked={isCardPayment} onCheckedChange={(checked) => setIsCardPayment(!!checked)} />
-                        <Label htmlFor="card-payment" className="flex-1">Credit Card</Label>
-                        <Input 
-                            type="number"
-                            placeholder="0.00"
-                            value={cardAmount}
-                            onChange={(e) => setCardAmount(parseFloat(e.target.value) || 0)}
-                            disabled={!isCardPayment}
-                            className="max-w-[120px]"
-                        />
-                    </div>
-                    <Separator />
-                    <div className="space-y-2">
-                        <div className="flex justify-between font-medium">
-                            <Label>Total Paid</Label>
-                            <span>${totalPaid.toFixed(2)}</span>
+                   {!isEditMode && (
+                    <>
+                        <Separator />
+                        <div className="flex items-center gap-4 pt-2">
+                            <Checkbox id="cash-payment" checked={isCashPayment} onCheckedChange={(checked) => setIsCashPayment(!!checked)} />
+                            <Label htmlFor="cash-payment" className="flex-1">Cash</Label>
+                            <Input 
+                                type="number"
+                                placeholder="0.00"
+                                value={cashAmount}
+                                onChange={(e) => setCashAmount(parseFloat(e.target.value) || 0)}
+                                disabled={!isCashPayment}
+                                className="max-w-[120px]"
+                            />
                         </div>
-                        <div className={cn("flex justify-between font-bold text-lg", amountDue > 0 ? "text-destructive" : "text-green-600")}>
-                            <Label>{amountDue >= 0 ? 'Amount Due' : 'Change'}</Label>
-                            <span>${Math.abs(amountDue).toFixed(2)}</span>
+                        <div className="flex items-center gap-4">
+                            <Checkbox id="card-payment" checked={isCardPayment} onCheckedChange={(checked) => setIsCardPayment(!!checked)} />
+                            <Label htmlFor="card-payment" className="flex-1">Credit Card</Label>
+                            <Input 
+                                type="number"
+                                placeholder="0.00"
+                                value={cardAmount}
+                                onChange={(e) => setCardAmount(parseFloat(e.target.value) || 0)}
+                                disabled={!isCardPayment}
+                                className="max-w-[120px]"
+                            />
                         </div>
-                    </div>
+                        <Separator />
+                        <div className="space-y-2">
+                            <div className="flex justify-between font-medium">
+                                <Label>Total Paid</Label>
+                                <span>${totalPaid.toFixed(2)}</span>
+                            </div>
+                            <div className={cn("flex justify-between font-bold text-lg", amountDue > 0 ? "text-destructive" : "text-green-600")}>
+                                <Label>{amountDue >= 0 ? 'Amount Due' : 'Change'}</Label>
+                                <span>${Math.abs(amountDue).toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </>
+                   )}
               </CardContent>
           </Card>
 
@@ -526,5 +578,3 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     </div>
   );
 }
-
-    

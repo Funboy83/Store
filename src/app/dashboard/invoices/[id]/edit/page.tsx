@@ -3,7 +3,7 @@ import { getInvoiceById } from "@/lib/actions/invoice";
 import { getInventory } from "@/lib/actions/inventory";
 import { getCustomers } from "@/lib/actions/customers";
 import { notFound } from 'next/navigation';
-import { EditInvoiceForm } from "@/components/invoices/edit-form";
+import { InvoiceForm } from "@/components/invoices/invoice-form";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -28,10 +28,9 @@ export default async function EditInvoicePage({ params }: { params: { id: string
             <span className="sr-only">Back to Invoice</span>
           </Button>
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight">Edit Invoice {invoice.invoiceNumber}</h1>
       </div>
 
-      <EditInvoiceForm 
+      <InvoiceForm 
         invoice={invoice} 
         inventory={inventory} 
         customers={customers} 
