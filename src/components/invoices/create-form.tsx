@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useMemo, useEffect, useTransition } from 'react';
@@ -31,6 +32,8 @@ interface CreateInvoiceFormProps {
   customers: Customer[];
 }
 
+const WALK_IN_CUSTOMER_ID = 'Aj0l1O2kJcvlF3J0uVMX';
+
 export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -41,7 +44,9 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   
   const [isWalkIn, setIsWalkIn] = useState(false);
   const [walkInCustomerName, setWalkInCustomerName] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(customers[0]);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(() => 
+    customers.find(c => c.id !== WALK_IN_CUSTOMER_ID)
+  );
   
   const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -63,6 +68,23 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     }
     fetchInvoiceNumber();
   }, []);
+
+  const displayCustomers = useMemo(() => {
+    return customers.filter(c => c.id !== WALK_IN_CUSTOMER_ID);
+  }, [customers]);
+
+  useEffect(() => {
+    if (isWalkIn) {
+      const walkInCustomer = customers.find(c => c.id === WALK_IN_CUSTOMER_ID);
+      setSelectedCustomer(walkInCustomer);
+    } else {
+      // If the currently selected customer is the walk-in, switch to the first available customer
+      if (selectedCustomer?.id === WALK_IN_CUSTOMER_ID) {
+        setSelectedCustomer(displayCustomers[0]);
+      }
+    }
+  }, [isWalkIn, customers, displayCustomers, selectedCustomer?.id]);
+
 
   const handleSelectCustomer = (customerId: string) => {
     setSelectedCustomer(customers.find(c => c.id === customerId));
@@ -157,8 +179,8 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
 
   
   const handleSendInvoice = () => {
-    if (!selectedCustomer && !isWalkIn) {
-      toast({ title: 'Error', description: 'Please select a customer or mark as walk-in.', variant: 'destructive' });
+    if (!selectedCustomer) {
+      toast({ title: 'Error', description: 'Please select a customer.', variant: 'destructive' });
       return;
     }
     if (items.length === 0) {
@@ -167,8 +189,13 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     }
 
     startSendTransition(async () => {
-      const invoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status' | 'customerId' | 'customerName'> = {
+      const finalCustomerName = isWalkIn && walkInCustomerName.trim() !== ''
+        ? `Walk-in - ${walkInCustomerName}`
+        : selectedCustomer?.name;
+
+      const invoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status' | 'customerId'> = {
         invoiceNumber,
+        customerName: finalCustomerName,
         subtotal,
         tax: taxAmount,
         discount: discountAmount,
@@ -181,8 +208,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
       const result = await sendInvoice({ 
           invoiceData, 
           items, 
-          customer: isWalkIn ? undefined : selectedCustomer,
-          walkInCustomerName: isWalkIn ? walkInCustomerName : undefined
+          customer: selectedCustomer
       });
 
       if (result.success) {
@@ -202,7 +228,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
   };
 
   const displayedCustomer = isWalkIn ? {
-      name: walkInCustomerName || 'Walk-in Customer',
+      name: walkInCustomerName ? `Walk-in - ${walkInCustomerName}`: 'Walk-in Customer',
       address: '',
       email: ''
   } : selectedCustomer;
@@ -241,13 +267,13 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                   </div>
                   {isWalkIn ? (
                     <Input 
-                      placeholder="Enter customer name (optional)"
+                      placeholder="Enter customer name for receipt (optional)"
                       value={walkInCustomerName}
                       onChange={(e) => setWalkInCustomerName(e.target.value)}
                     />
                   ) : (
                     <div className="flex items-center gap-2">
-                      <Select onValueChange={handleSelectCustomer} defaultValue={selectedCustomer?.id}>
+                      <Select onValueChange={handleSelectCustomer} value={selectedCustomer?.id} disabled={isWalkIn}>
                       <SelectTrigger className="h-14">
                           <SelectValue asChild>
                           {selectedCustomer ? (
@@ -266,7 +292,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                           </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                          {customers.map(customer => (
+                          {displayCustomers.map(customer => (
                           <SelectItem key={customer.id} value={customer.id}>
                               <div className="flex items-center gap-3">
                               <Avatar>
@@ -545,3 +571,5 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     </div>
   );
 }
+
+    

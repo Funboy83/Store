@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -85,22 +86,8 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
       const itemsSnapshot = await getDocs(itemsCollectionRef);
       const items = itemsSnapshot.docs.map(itemDoc => ({ id: itemDoc.id, ...itemDoc.data() } as InvoiceItem));
 
-      let customer: Customer | undefined;
-      if (invoiceData.customerId === 'walk-in') {
-        customer = {
-            id: 'walk-in',
-            name: invoiceData.customerName || 'Walk-in Customer',
-            email: '',
-            phone: '',
-            createdAt: new Date().toISOString(),
-            totalInvoices: 0,
-            totalSpent: 0,
-        }
-      } else {
-        customer = customerMap.get(invoiceData.customerId);
-      }
-
-
+      const customer = customerMap.get(invoiceData.customerId);
+      
       if (customer) {
         const invoiceBase = { id: invoiceDoc.id, ...invoiceData, createdAt } as Invoice;
         invoiceDetails.push({
@@ -150,12 +137,15 @@ interface SendInvoiceData {
   invoiceData: Omit<Invoice, 'id' | 'createdAt' | 'status'>;
   items: InvoiceItem[];
   customer?: Customer;
-  walkInCustomerName?: string;
 }
 
-export async function sendInvoice({ invoiceData, items, customer, walkInCustomerName }: SendInvoiceData) {
+export async function sendInvoice({ invoiceData, items, customer }: SendInvoiceData) {
     if (!isConfigured) {
         return { success: false, error: 'Firebase is not configured.' };
+    }
+
+    if (!customer) {
+      return { success: false, error: 'Customer is required.' };
     }
 
     try {
@@ -167,15 +157,9 @@ export async function sendInvoice({ invoiceData, items, customer, walkInCustomer
         const finalInvoiceData: any = {
             ...invoiceData,
             status: 'Pending',
+            customerId: customer.id,
             createdAt: serverTimestamp(),
         };
-
-        if (customer) {
-            finalInvoiceData.customerId = customer.id;
-        } else {
-            finalInvoiceData.customerId = 'walk-in';
-            finalInvoiceData.customerName = walkInCustomerName ? `Walk-${walkInCustomerName}` : 'Walk-in Customer';
-        }
 
         batch.set(invoiceRef, finalInvoiceData);
 
@@ -188,7 +172,7 @@ export async function sendInvoice({ invoiceData, items, customer, walkInCustomer
           }
           batch.set(itemRef, itemData);
 
-          if (!item.isCustom) {
+          if (!item.isCustom && item.id) {
               const inventoryItemRef = doc(collection(dataDocRef, INVENTORY_COLLECTION), item.id);
               const inventoryItemSnap = await getDoc(inventoryItemRef);
 
@@ -242,11 +226,8 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
     const historyInvoiceData: Omit<InvoiceHistory, 'archivedAt'> & {customerName?: string} = {
       ...invoiceBase,
       customerId: customer.id,
+      customerName: customer.name,
       status: 'Voided',
-    }
-
-    if (customer.id === 'walk-in') {
-        historyInvoiceData.customerName = customer.name;
     }
     
     batch.set(historyInvoiceRef, {
@@ -296,3 +277,5 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
     return { success: false, error: 'An unknown error occurred while archiving the invoice.' };
   }
 }
+
+    
