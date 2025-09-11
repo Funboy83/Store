@@ -8,13 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { X, Plus, CalendarIcon, Loader2, UserPlus, ArrowLeft, History } from 'lucide-react';
+import { X, Plus, CalendarIcon, Loader2, UserPlus, History, Eye } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { InventoryPicker } from './inventory-picker';
@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { updateInvoice } from '@/lib/actions/invoice';
 import { AddCustomerForm } from '../customers/add-customer-form';
+import { InvoicePreview } from './preview';
 
 interface EditInvoiceFormProps {
   invoice: InvoiceDetail;
@@ -37,7 +38,6 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
   const { toast } = useToast();
   const [isUpdating, startUpdateTransition] = useTransition();
 
-  // Store the initial state of the invoice to compare against on save
   const [initialInvoice] = useState(invoice);
 
   const [items, setItems] = useState<InvoiceItem[]>(invoice.items);
@@ -48,13 +48,22 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
   );
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(invoice.customer);
   
-  const [dueDate, setDueDate] = useState<Date | undefined>(new Date(invoice.dueDate));
+  const [dueDate, setDueDate] = useState<Date | undefined>(invoice.dueDate ? parseISO(invoice.dueDate) : undefined);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
   const [invoiceNumber] = useState<string>(invoice.invoiceNumber);
-  const [taxRate, setTaxRate] = useState((invoice.tax / invoice.subtotal) * 100 || 0);
-  const [discount, setDiscount] = useState((invoice.discount / invoice.subtotal) * 100 || 0);
+  
+  const calculateInitialPercentage = (value: number, subtotal: number) => {
+      if (subtotal === 0) return 0;
+      return (value / subtotal) * 100;
+  }
+
+  const [taxRate, setTaxRate] = useState(calculateInitialPercentage(invoice.tax, invoice.subtotal));
+  const [discount, setDiscount] = useState(calculateInitialPercentage(invoice.discount || 0, invoice.subtotal));
   const [notes, setNotes] = useState(invoice.summary || '');
+  
+  const [showPreview, setShowPreview] = useState(false);
+
 
   const displayCustomers = useMemo(() => {
     return customers.filter(c => c.id !== WALK_IN_CUSTOMER_ID);
@@ -177,6 +186,36 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
       }
     });
   };
+  
+    const displayedCustomer = isWalkIn && selectedCustomer ? {
+    ...selectedCustomer,
+    name: walkInCustomerName.trim() !== '' ? `Walk-In - ${walkInCustomerName.trim()}` : 'Walk-In Customer',
+  } : selectedCustomer;
+
+  const previewInvoice: InvoiceDetail | null = displayedCustomer ? {
+    ...invoice,
+    customer: displayedCustomer,
+    items: items,
+    subtotal: subtotal,
+    tax: taxAmount,
+    discount: discountAmount,
+    total: total,
+    dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
+    summary: notes,
+  } : null;
+
+  if (showPreview && previewInvoice) {
+    return (
+        <div className="flex flex-col gap-4 h-full">
+            <div className="flex items-center gap-4 print:hidden">
+                <Button variant="outline" onClick={() => setShowPreview(false)}>Back to Edit</Button>
+                <h1 className="text-2xl font-bold tracking-tight">Invoice Preview</h1>
+            </div>
+            <InvoicePreview invoice={previewInvoice} />
+        </div>
+    );
+  }
+
 
   return (
     <div className="h-full flex flex-col">
@@ -190,6 +229,10 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
                 View History
             </Button>
           </Link>
+          <Button variant="outline" onClick={() => setShowPreview(true)}>
+            <Eye className="mr-2 h-4 w-4" />
+            Preview Changes
+          </Button>
           <Button onClick={handleUpdateInvoice} disabled={isUpdating}>
             {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isUpdating ? 'Saving...' : 'Save Changes'}
@@ -378,3 +421,5 @@ export function EditInvoiceForm({ invoice, inventory, customers }: EditInvoiceFo
     </div>
   );
 }
+
+    

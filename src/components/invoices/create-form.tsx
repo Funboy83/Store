@@ -289,8 +289,8 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8 overflow-auto">
-        <div className="flex flex-col gap-6">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8 overflow-auto">
+        <div className="lg:col-span-2 flex flex-col gap-6">
           {/* Form Fields */}
           <Card>
             <CardHeader><CardTitle>Invoice details</CardTitle></CardHeader>
@@ -442,75 +442,96 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
                       </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-
-                <Separator />
-
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="tax">Tax (%)</Label>
-                        <Input id="tax" type="number" value={taxRate} onChange={e => setTaxRate(parseFloat(e.target.value) || 0)} placeholder="0" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="discount">Discount (%)</Label>
-                        <Input id="discount" type="number" value={discount} onChange={e => setDiscount(parseFloat(e.target.value) || 0)} placeholder="0" />
-                    </div>
-                </div>
             </CardContent>
           </Card>
            
-          <Card>
-            <CardHeader><CardTitle>Payment</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-                <div className="flex items-center gap-4">
-                    <Checkbox id="cash-payment" checked={isCashPayment} onCheckedChange={(checked) => setIsCashPayment(!!checked)} />
-                    <Label htmlFor="cash-payment" className="flex-1">Cash</Label>
-                    <Input 
-                        type="number"
-                        placeholder="0.00"
-                        value={cashAmount}
-                        onChange={(e) => setCashAmount(parseFloat(e.target.value) || 0)}
-                        disabled={!isCashPayment}
-                        className="max-w-[120px]"
-                    />
-                </div>
-                <div className="flex items-center gap-4">
-                    <Checkbox id="card-payment" checked={isCardPayment} onCheckedChange={(checked) => setIsCardPayment(!!checked)} />
-                    <Label htmlFor="card-payment" className="flex-1">Credit Card</Label>
-                    <Input 
-                        type="number"
-                        placeholder="0.00"
-                        value={cardAmount}
-                        onChange={(e) => setCardAmount(parseFloat(e.target.value) || 0)}
-                        disabled={!isCardPayment}
-                        className="max-w-[120px]"
-                    />
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                    <div className="flex justify-between font-medium">
-                        <Label>Total Paid</Label>
-                        <span>${totalPaid.toFixed(2)}</span>
+         
+        </div>
+        <div className="flex flex-col gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex justify-between">
+                        <span>Subtotal</span>
+                        <span>${subtotal.toFixed(2)}</span>
                     </div>
-                    <div className={cn("flex justify-between font-bold text-lg", amountDue > 0 ? "text-destructive" : "text-green-600")}>
-                        <Label>{amountDue >= 0 ? 'Amount Due' : 'Change'}</Label>
-                        <span>${Math.abs(amountDue).toFixed(2)}</span>
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="tax" className="flex items-center gap-2">
+                            Tax (%) 
+                            <Input id="tax" type="number" value={taxRate} onChange={e => setTaxRate(parseFloat(e.target.value) || 0)} placeholder="0" className="w-20 h-8" />
+                        </Label>
+                        <span>${taxAmount.toFixed(2)}</span>
                     </div>
-                </div>
-            </CardContent>
-          </Card>
+                    <div className="flex items-center justify-between">
+                       <Label htmlFor="discount" className="flex items-center gap-2">
+                            Discount (%)
+                           <Input id="discount" type="number" value={discount} onChange={e => setDiscount(parseFloat(e.target.value) || 0)} placeholder="0" className="w-20 h-8" />
+                        </Label>
+                        <span className="text-destructive">-${discountAmount.toFixed(2)}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between font-bold text-lg">
+                        <span>Total</span>
+                        <span>${total.toFixed(2)}</span>
+                    </div>
+                </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader><CardTitle>Notes</CardTitle></CardHeader>
-            <CardContent>
-              <Textarea 
-                  id="notes" 
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  placeholder="Add any relevant notes for the invoice..."
-                  rows={4}
-              />
-            </CardContent>
-          </Card>
+            <Card>
+                <CardHeader><CardTitle>Payment</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center gap-4">
+                        <Checkbox id="cash-payment" checked={isCashPayment} onCheckedChange={(checked) => setIsCashPayment(!!checked)} />
+                        <Label htmlFor="cash-payment" className="flex-1">Cash</Label>
+                        <Input 
+                            type="number"
+                            placeholder="0.00"
+                            value={cashAmount}
+                            onChange={(e) => setCashAmount(parseFloat(e.target.value) || 0)}
+                            disabled={!isCashPayment}
+                            className="max-w-[120px]"
+                        />
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <Checkbox id="card-payment" checked={isCardPayment} onCheckedChange={(checked) => setIsCardPayment(!!checked)} />
+                        <Label htmlFor="card-payment" className="flex-1">Credit Card</Label>
+                        <Input 
+                            type="number"
+                            placeholder="0.00"
+                            value={cardAmount}
+                            onChange={(e) => setCardAmount(parseFloat(e.target.value) || 0)}
+                            disabled={!isCardPayment}
+                            className="max-w-[120px]"
+                        />
+                    </div>
+                    <Separator />
+                    <div className="space-y-2">
+                        <div className="flex justify-between font-medium">
+                            <Label>Total Paid</Label>
+                            <span>${totalPaid.toFixed(2)}</span>
+                        </div>
+                        <div className={cn("flex justify-between font-bold text-lg", amountDue > 0 ? "text-destructive" : "text-green-600")}>
+                            <Label>{amountDue >= 0 ? 'Amount Due' : 'Change'}</Label>
+                            <span>${Math.abs(amountDue).toFixed(2)}</span>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader><CardTitle>Notes</CardTitle></CardHeader>
+                <CardContent>
+                <Textarea 
+                    id="notes" 
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    placeholder="Add any relevant notes for the invoice..."
+                    rows={4}
+                />
+                </CardContent>
+            </Card>
         </div>
       </div>
       <InventoryPicker
@@ -523,5 +544,7 @@ export function CreateInvoiceForm({ inventory, customers }: CreateInvoiceFormPro
     </div>
   );
 }
+
+    
 
     
