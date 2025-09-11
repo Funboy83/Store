@@ -1,5 +1,6 @@
 
 import { getInvoiceById } from "@/lib/actions/invoice";
+import { getInvoiceEditHistory } from "@/lib/actions/edit-history";
 import { notFound } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Edit } from "lucide-react";
@@ -7,11 +8,16 @@ import Link from "next/link";
 import { InvoicePreview } from "@/components/invoices/preview";
 
 export default async function InvoiceDetailsPage({ params }: { params: { id: string } }) {
-  const invoice = await getInvoiceById(params.id);
+  const [invoice, history] = await Promise.all([
+    getInvoiceById(params.id),
+    getInvoiceEditHistory(params.id)
+  ]);
 
   if (!invoice) {
     notFound();
   }
+
+  const isEdited = history.length > 1;
 
   return (
     <div className="flex flex-col gap-4">
@@ -30,7 +36,7 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
             </Button>
         </Link>
       </div>
-      <InvoicePreview invoice={invoice} />
+      <InvoicePreview invoice={invoice} isEdited={isEdited} />
     </div>
   );
 }

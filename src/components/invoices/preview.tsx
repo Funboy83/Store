@@ -22,15 +22,33 @@ import { Separator } from "@/components/ui/separator"
 import type { InvoiceDetail } from "@/lib/types"
 import { Printer } from "lucide-react"
 import { Logo } from "../logo"
+import { Badge } from "../ui/badge"
 
 interface InvoicePreviewProps {
   invoice: InvoiceDetail;
+  isEdited?: boolean;
 }
 
-export function InvoicePreview({ invoice }: InvoicePreviewProps) {
+export function InvoicePreview({ invoice, isEdited = false }: InvoicePreviewProps) {
   const handlePrint = () => {
     window.print();
   };
+
+  const getStatusVariant = (status?: InvoiceDetail['status']) => {
+    switch (status) {
+      case 'Paid':
+        return 'default';
+      case 'Partial':
+        return 'secondary';
+      case 'Unpaid':
+      case 'Overdue':
+        return 'destructive';
+      default:
+        return 'outline';
+    }
+  }
+
+  const isActive = invoice.status !== 'Voided';
 
   return (
     <>
@@ -50,6 +68,10 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
               <h1 className="text-2xl font-bold">Invoice</h1>
               <p className="text-muted-foreground">{invoice.invoiceNumber}</p>
             </div>
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            {isActive && <Badge variant="default" className="bg-green-600">Active</Badge>}
+            {isEdited && <Badge variant="secondary">Edited</Badge>}
           </div>
           <Separator className="my-4" />
           <div className="grid grid-cols-2 gap-4">
@@ -124,5 +146,3 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
     </>
   );
 }
-
-    
