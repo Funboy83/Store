@@ -3,6 +3,7 @@
 
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -38,6 +39,7 @@ export type Customer = {
   createdAt: string;
   totalInvoices: number;
   totalSpent: number;
+  debt: number;
 };
 
 export type InvoiceItem = {
@@ -62,7 +64,7 @@ export type Invoice = {
   total: number;
   issueDate: string;
   dueDate: string;
-  status: 'Paid' | 'Pending' | 'Overdue' | 'Draft';
+  status: 'Paid' | 'Pending' | 'Overdue' | 'Draft' | 'Partial' | 'Unpaid';
   summary?: string;
   createdAt: any;
 };

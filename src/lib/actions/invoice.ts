@@ -1,11 +1,10 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp, writeBatch, doc, getDoc, collectionGroup, deleteDoc, where } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp, writeBatch, doc, getDoc, collectionGroup, deleteDoc, where, updateDoc, increment } from 'firebase/firestore';
 import { summarizeInvoice } from '@/ai/flows/invoice-summary';
 import type { Invoice, InvoiceItem, Product, Customer, InvoiceDetail, InvoiceHistory } from '@/lib/types';
 import { getInventory } from './inventory';
@@ -74,6 +73,7 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
         createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
         totalInvoices: 0,
         totalSpent: 0,
+        debt: data.debt || 0,
       } as Customer);
     });
 
@@ -91,6 +91,7 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
       if (invoiceData.customerId === WALK_IN_CUSTOMER_ID) {
         customer = customerMap.get(WALK_IN_CUSTOMER_ID);
         if (customer) {
+            // Use the specific name from the invoice for walk-ins, but the underlying customer is the same
             customer = { ...customer, name: invoiceData.customerName || 'Walk-In Customer' };
         }
       } else {
@@ -164,16 +165,32 @@ export async function sendInvoice({ invoiceData, items, customer, totalPaid }: S
         
         const invoiceRef = doc(collection(dataDocRef, INVOICES_COLLECTION));
 
-        const isPaid = invoiceData.total > 0 && Math.abs(invoiceData.total - totalPaid) < 0.001;
-        
+        const amountDue = invoiceData.total - totalPaid;
+        let status: Invoice['status'];
+
+        if (totalPaid <= 0) {
+          status = 'Unpaid';
+        } else if (amountDue > 0) {
+          status = 'Partial';
+        } else {
+          status = 'Paid';
+        }
+
         const finalInvoiceData: any = {
             ...invoiceData,
-            status: isPaid ? 'Paid' : 'Pending',
+            status: status,
             customerId: customer.id,
             createdAt: serverTimestamp(),
         };
 
         batch.set(invoiceRef, finalInvoiceData);
+
+        // Update customer debt if they are not a walk-in customer and there's an amount due
+        if (customer.id !== WALK_IN_CUSTOMER_ID && amountDue > 0) {
+            const customerRef = doc(dataDocRef, `${CUSTOMERS_COLLECTION}/${customer.id}`);
+            batch.update(customerRef, { debt: increment(amountDue) });
+        }
+
 
         for (const item of items) {
           const itemRef = doc(collection(invoiceRef, 'invoice_items'));
@@ -181,9 +198,6 @@ export async function sendInvoice({ invoiceData, items, customer, totalPaid }: S
           const itemData: any = { ...item };
           if (!item.isCustom) {
             itemData.inventoryId = item.id;
-          } else {
-            // Ensure we don't try to save an undefined inventoryId for custom items.
-            delete itemData.inventoryId;
           }
           batch.set(itemRef, itemData);
 
@@ -214,7 +228,9 @@ export async function sendInvoice({ invoiceData, items, customer, totalPaid }: S
         revalidatePath('/dashboard/invoices');
         revalidatePath('/dashboard/inventory');
         revalidatePath('/dashboard/inventory/history');
-        
+        revalidatePath(`/dashboard/customers/${customer.id}`);
+        revalidatePath('/dashboard/customers');
+
         return { success: true, invoiceId: invoiceRef.id };
 
     } catch (error) {

@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { InvoiceDetail, Invoice } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface InvoiceTableProps {
     invoices: (Invoice | InvoiceDetail)[];
@@ -50,6 +51,21 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
       return invoice.customerName;
     }
     return 'N/A';
+  }
+
+  const getStatusVariant = (status: Invoice['status']) => {
+    switch (status) {
+      case 'Paid':
+        return 'default';
+      case 'Partial':
+        return 'secondary';
+      case 'Unpaid':
+        return 'destructive';
+      case 'Overdue':
+        return 'destructive';
+      default:
+        return 'outline';
+    }
   }
 
   return (
@@ -80,7 +96,7 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
                     <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                     <TableCell>{getCustomerName(invoice)}</TableCell>
                     <TableCell>
-                      <Badge variant={invoice.status === 'Paid' ? 'default' : 'secondary'}>{invoice.status}</Badge>
+                      <Badge variant={getStatusVariant(invoice.status)}>{invoice.status}</Badge>
                     </TableCell>
                     <TableCell>{invoice.issueDate}</TableCell>
                     <TableCell className="text-right">${invoice.total.toFixed(2)}</TableCell>

@@ -71,7 +71,20 @@ export const columns: ColumnDef<Customer>[] = [
   },
   {
     accessorKey: "totalInvoices",
-    header: "Total Invoices",
+    header: "Invoices",
+  },
+  {
+    accessorKey: "debt",
+    header: () => <div className="text-right">Debt</div>,
+    cell: ({ row }) => {
+      const amount = parseFloat(row.getValue("debt"))
+      const formatted = new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+      }).format(amount)
+
+      return <div className="text-right font-medium text-destructive">{formatted}</div>
+    },
   },
   {
     accessorKey: "totalSpent",

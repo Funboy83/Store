@@ -1,12 +1,13 @@
 
 import { getCustomerDetails } from '@/lib/actions/customers';
 import { notFound } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Mail, Phone, Edit } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Edit, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { InvoiceTable } from '@/components/invoices/invoice-table';
+import { Separator } from '@/components/ui/separator';
 
 const WALK_IN_CUSTOMER_ID = 'Aj0l1O2kJcvlF3J0uVMX';
 
@@ -39,7 +40,7 @@ export default async function CustomerDetailsPage({ params }: { params: { id: st
       </div>
       
       <Card>
-        <CardHeader className="flex flex-row items-start gap-4 space-y-0">
+        <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-4">
           <Avatar className="w-16 h-16 text-2xl">
             <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
           </Avatar>
@@ -52,16 +53,30 @@ export default async function CustomerDetailsPage({ params }: { params: { id: st
               </div>
             </div>
           </div>
-          <div className="text-right">
-              <p className="text-sm text-muted-foreground">Total Spent</p>
-              <p className="text-2xl font-bold">
-                {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(customer.totalSpent)}
-              </p>
-              <p className="text-sm text-muted-foreground">{customer.totalInvoices} invoices</p>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-right">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Spent</p>
+                <p className="text-2xl font-bold">
+                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(customer.totalSpent)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Invoices</p>
+                <p className="text-2xl font-bold">{customer.totalInvoices}</p>
+              </div>
+               {!isWalkInCustomer && (
+                <div className="col-span-2">
+                  <p className="text-sm text-muted-foreground">Outstanding Debt</p>
+                  <p className="text-2xl font-bold text-destructive">
+                    {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(customer.debt)}
+                  </p>
+                </div>
+              )}
           </div>
         </CardHeader>
         {customer.notes && (
-          <CardContent>
+          <CardContent className="pt-4">
+             <Separator className="mb-4" />
             <h3 className="font-semibold text-sm mb-1">Notes</h3>
             <p className="text-sm text-muted-foreground bg-secondary/50 p-3 rounded-md">{customer.notes}</p>
           </CardContent>

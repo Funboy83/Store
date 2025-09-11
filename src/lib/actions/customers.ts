@@ -67,6 +67,7 @@ export async function getCustomers(): Promise<Customer[]> {
         createdAt: createdAt,
         totalInvoices: stats.totalInvoices,
         totalSpent: stats.totalSpent,
+        debt: data.debt || 0,
       } as Customer
     });
   } catch (error) {
@@ -93,6 +94,7 @@ export async function addCustomer(prevState: any, formData: FormData) {
     const customersCollectionRef = collection(dataDocRef, CUSTOMERS_COLLECTION);
     await addDoc(customersCollectionRef, {
       ...validatedFields.data,
+      debt: 0,
       createdAt: serverTimestamp(),
     });
     revalidatePath('/dashboard/customers');
@@ -126,6 +128,7 @@ export async function getCustomerDetails(id: string): Promise<{ customer: Custom
       createdAt,
       totalInvoices: 0, // Will be calculated next
       totalSpent: 0,   // Will be calculated next
+      debt: customerData.debt || 0,
     } as Customer;
 
     const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
