@@ -21,7 +21,7 @@ export default async function EditInvoicePage({ params }: { params: { id: string
 
   return (
     <div className="flex flex-col gap-4 h-full">
-       <div className="flex items-center gap-4">
+       <div className="flex items-center gap-4 print:hidden">
         <Link href={`/dashboard/invoices/${invoice.id}`} passHref>
           <Button variant="outline" size="icon">
             <ArrowLeft className="h-4 w-4" />
