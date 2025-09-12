@@ -1,6 +1,7 @@
 
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -91,6 +92,7 @@ export type Payment = {
     amountPaid: number;
     appliedToInvoices: string[];
     tenderDetails: TenderDetail[];
+    notes?: string;
 };
 
 

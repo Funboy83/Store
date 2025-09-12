@@ -11,6 +11,7 @@ interface ApplyPaymentPayload {
   cashAmount: number;
   checkAmount: number;
   cardAmount: number;
+  notes?: string;
 }
 
 const DATA_PATH = 'cellphone-inventory-system/data';
@@ -23,7 +24,7 @@ export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ succ
     return { success: false, error: 'Firebase is not configured.' };
   }
 
-  const { customerId, cashAmount, checkAmount, cardAmount } = payload;
+  const { customerId, cashAmount, checkAmount, cardAmount, notes } = payload;
   const totalPaid = cashAmount + checkAmount + cardAmount;
 
   if (totalPaid <= 0) {
@@ -37,18 +38,17 @@ export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ succ
       const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
       
       // --- 1. READ PHASE ---
-      // Read the customer document first.
       const customerDoc = await transaction.get(customerRef);
       if (!customerDoc.exists()) {
         throw new Error("Customer not found.");
       }
 
-      // Read all outstanding invoices for the customer.
       const outstandingInvoicesQuery = query(
         invoicesCollectionRef,
         where('customerId', '==', customerId),
         where('status', 'in', ['Unpaid', 'Partial'])
       );
+      
       const querySnapshot = await getDocs(outstandingInvoicesQuery);
       
       const outstandingInvoices = querySnapshot.docs
@@ -94,29 +94,32 @@ export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ succ
       const newDebt = Math.max(0, currentDebt - totalPaid);
 
       // --- 3. WRITE PHASE ---
-      // Create the payment record
       const paymentRef = doc(collection(dataDocRef, PAYMENTS_COLLECTION));
       const tenderDetails: TenderDetail[] = [];
       if (cashAmount > 0) tenderDetails.push({ method: 'Cash', amount: cashAmount });
       if (checkAmount > 0) tenderDetails.push({ method: 'Check', amount: checkAmount });
       if (cardAmount > 0) tenderDetails.push({ method: 'Card/Zelle/Wire', amount: cardAmount });
 
-      transaction.set(paymentRef, {
+      const paymentData: any = {
         customerId: customerId,
         paymentDate: serverTimestamp(),
         recordedBy: 'admin_user', // Hardcoded user
         amountPaid: totalPaid,
         appliedToInvoices: appliedInvoiceIds,
         tenderDetails: tenderDetails,
-      });
+      };
 
-      // Update all invoices with the real payment ID.
+      if (notes) {
+        paymentData.notes = notes;
+      }
+      
+      transaction.set(paymentRef, paymentData);
+
       for (const update of invoiceUpdates) {
         const paymentIds = update.data.paymentIds.map((id: string) => id === 'placeholder_payment_id' ? paymentRef.id : id);
         transaction.update(update.ref, { ...update.data, paymentIds });
       }
       
-      // Update customer's debt
       transaction.update(customerRef, { debt: newDebt });
     });
 
