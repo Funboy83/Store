@@ -33,42 +33,33 @@ export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ succ
   try {
     await runTransaction(db, async (transaction) => {
       const dataDocRef = doc(db, DATA_PATH);
-      
-      // 1. Fetch outstanding invoices for the customer within the transaction
+      const customerRef = doc(dataDocRef, `${CUSTOMERS_COLLECTION}/${customerId}`);
       const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
+      
+      // --- 1. READ PHASE ---
+      // Read the customer document first.
+      const customerDoc = await transaction.get(customerRef);
+      if (!customerDoc.exists()) {
+        throw new Error("Customer not found.");
+      }
+
+      // Read all outstanding invoices for the customer.
       const outstandingInvoicesQuery = query(
         invoicesCollectionRef,
         where('customerId', '==', customerId),
         where('status', 'in', ['Unpaid', 'Partial'])
       );
-      
       const querySnapshot = await getDocs(outstandingInvoicesQuery);
+      
       const outstandingInvoices = querySnapshot.docs
         .map(d => ({ id: d.id, ...d.data() } as Invoice))
         .sort((a, b) => new Date(a.issueDate).getTime() - new Date(b.issueDate).getTime());
 
-
+      // --- 2. LOGIC/CALCULATION PHASE (IN-MEMORY) ---
       let paymentRemaining = totalPaid;
       const appliedInvoiceIds: string[] = [];
+      const invoiceUpdates: { ref: any; data: any }[] = [];
 
-      // 2. Create the payment record
-      const paymentRef = doc(collection(dataDocRef, PAYMENTS_COLLECTION));
-      const tenderDetails: TenderDetail[] = [];
-      if (cashAmount > 0) tenderDetails.push({ method: 'Cash', amount: cashAmount });
-      if (checkAmount > 0) tenderDetails.push({ method: 'Check', amount: checkAmount });
-      if (cardAmount > 0) tenderDetails.push({ method: 'Card/Zelle/Wire', amount: cardAmount });
-
-      // The appliedToInvoices will be filled in the loop below.
-      transaction.set(paymentRef, {
-        customerId: customerId,
-        paymentDate: serverTimestamp(),
-        recordedBy: 'admin_user', // Hardcoded user
-        amountPaid: totalPaid,
-        appliedToInvoices: [], // Will be updated later
-        tenderDetails: tenderDetails,
-      });
-
-      // 3. Allocate payment to invoices
       for (const invoice of outstandingInvoices) {
         if (paymentRemaining <= 0) break;
         
@@ -85,28 +76,48 @@ export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ succ
         if (newAmountPaid >= invoice.total) {
           newStatus = 'Paid';
         }
-
-        transaction.update(invoiceRef, {
-          amountPaid: newAmountPaid,
-          status: newStatus,
-          paymentIds: [...(invoice.paymentIds || []), paymentRef.id],
+        
+        invoiceUpdates.push({
+          ref: invoiceRef,
+          data: {
+            amountPaid: newAmountPaid,
+            status: newStatus,
+            paymentIds: [...(invoice.paymentIds || []), 'placeholder_payment_id'], // Placeholder
+          }
         });
 
         appliedInvoiceIds.push(invoice.id);
         paymentRemaining -= amountToApply;
       }
-
-      // Update the payment record with the invoices it was applied to
-      transaction.update(paymentRef, { appliedToInvoices: appliedInvoiceIds });
       
-      // 4. Update customer's debt
-      const customerRef = doc(dataDocRef, `${CUSTOMERS_COLLECTION}/${customerId}`);
-      const customerDoc = await transaction.get(customerRef);
-      if (customerDoc.exists()) {
-          const currentDebt = customerDoc.data().debt || 0;
-          const newDebt = Math.max(0, currentDebt - totalPaid);
-          transaction.update(customerRef, { debt: newDebt });
+      const currentDebt = customerDoc.data().debt || 0;
+      const newDebt = Math.max(0, currentDebt - totalPaid);
+
+      // --- 3. WRITE PHASE ---
+      // Create the payment record
+      const paymentRef = doc(collection(dataDocRef, PAYMENTS_COLLECTION));
+      const tenderDetails: TenderDetail[] = [];
+      if (cashAmount > 0) tenderDetails.push({ method: 'Cash', amount: cashAmount });
+      if (checkAmount > 0) tenderDetails.push({ method: 'Check', amount: checkAmount });
+      if (cardAmount > 0) tenderDetails.push({ method: 'Card/Zelle/Wire', amount: cardAmount });
+
+      transaction.set(paymentRef, {
+        customerId: customerId,
+        paymentDate: serverTimestamp(),
+        recordedBy: 'admin_user', // Hardcoded user
+        amountPaid: totalPaid,
+        appliedToInvoices: appliedInvoiceIds,
+        tenderDetails: tenderDetails,
+      });
+
+      // Update all invoices with the real payment ID.
+      for (const update of invoiceUpdates) {
+        const paymentIds = update.data.paymentIds.map((id: string) => id === 'placeholder_payment_id' ? paymentRef.id : id);
+        transaction.update(update.ref, { ...update.data, paymentIds });
       }
+      
+      // Update customer's debt
+      transaction.update(customerRef, { debt: newDebt });
     });
 
     revalidatePath(`/dashboard/customers/${customerId}`);
