@@ -38,6 +38,7 @@ export type Customer = {
   totalInvoices: number;
   totalSpent: number;
   debt: number;
+  status: 'active' | 'inactive';
 };
 
 export type InvoiceItem = {

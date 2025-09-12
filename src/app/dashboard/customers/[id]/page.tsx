@@ -8,6 +8,8 @@ import { ArrowLeft, Mail, Phone, Edit, DollarSign, CreditCard } from 'lucide-rea
 import Link from 'next/link';
 import { InvoiceTable } from '@/components/invoices/invoice-table';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 const WALK_IN_CUSTOMER_ID = 'Aj0l1O2kJcvlF3J0uVMX';
 
@@ -55,7 +57,10 @@ export default async function CustomerDetailsPage({ params }: { params: { id: st
             <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <CardTitle className="text-3xl">{customer.name}</CardTitle>
+            <div className="flex items-center gap-3">
+              <CardTitle className="text-3xl">{customer.name}</CardTitle>
+              <Badge className={cn('text-base', customer.status === 'active' ? 'bg-green-600' : 'bg-gray-500')}>{customer.status}</Badge>
+            </div>
             <div className="mt-1 text-sm text-muted-foreground">
               <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1.5"><Mail className="h-4 w-4" /> {customer.email}</span>

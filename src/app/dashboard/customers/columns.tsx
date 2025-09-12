@@ -18,6 +18,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Customer } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
 const WALK_IN_CUSTOMER_ID = 'Aj0l1O2kJcvlF3J0uVMX';
 
@@ -59,6 +61,14 @@ export const columns: ColumnDef<Customer>[] = [
                 </Link>
             </div>
         )
+    }
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => {
+      const status = row.getValue("status") as string;
+      return <Badge className={cn(status === 'active' ? 'bg-green-600' : 'bg-gray-500')}>{status}</Badge>
     }
   },
   {

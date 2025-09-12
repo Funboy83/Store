@@ -68,6 +68,7 @@ export async function getCustomers(): Promise<Customer[]> {
         totalInvoices: stats.totalInvoices,
         totalSpent: stats.totalSpent,
         debt: data.debt || 0,
+        status: data.status || 'active',
       } as Customer
     });
   } catch (error) {
@@ -95,6 +96,7 @@ export async function addCustomer(prevState: any, formData: FormData) {
     await addDoc(customersCollectionRef, {
       ...validatedFields.data,
       debt: 0,
+      status: 'active',
       createdAt: serverTimestamp(),
     });
     revalidatePath('/dashboard/customers');
@@ -126,6 +128,7 @@ export async function getCustomerDetails(id: string): Promise<{ customer: Custom
       id: customerSnap.id,
       ...customerData,
       createdAt,
+      status: customerData.status || 'active',
       totalInvoices: 0, // Will be calculated next
       totalSpent: 0,   // Will be calculated next
       debt: customerData.debt || 0,
