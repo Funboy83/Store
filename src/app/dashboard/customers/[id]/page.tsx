@@ -32,10 +32,16 @@ export default async function CustomerDetailsPage({ params }: { params: { id: st
         </Link>
         <h1 className="text-2xl font-bold tracking-tight">Customer Details</h1>
         {!isWalkInCustomer && (
-          <Button variant="outline" className="ml-auto">
-            <Edit className="mr-2 h-4 w-4" />
-            Edit Customer
-          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline">
+              <DollarSign className="mr-2 h-4 w-4" />
+              Send Reminder
+            </Button>
+            <Button variant="outline">
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Customer
+            </Button>
+          </div>
         )}
       </div>
       
