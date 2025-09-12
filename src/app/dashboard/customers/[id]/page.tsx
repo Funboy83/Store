@@ -39,10 +39,12 @@ export default async function CustomerDetailsPage({ params }: { params: { id: st
               <DollarSign className="mr-2 h-4 w-4" />
               Send Reminder
             </Button>
-             <Button variant="outline">
-              <CreditCard className="mr-2 h-4 w-4" />
-              Payment
-            </Button>
+            <Link href={`/dashboard/customers/${customer.id}/payment`} passHref>
+              <Button variant="outline">
+                <CreditCard className="mr-2 h-4 w-4" />
+                Payment
+              </Button>
+            </Link>
             <Button variant="outline">
               <Edit className="mr-2 h-4 w-4" />
               Edit Customer

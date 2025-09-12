@@ -135,7 +135,7 @@ export async function getCustomerDetails(id: string): Promise<{ customer: Custom
     } as Customer;
 
     const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
-    const invoicesQuery = query(invoicesCollectionRef, where('customerId', '==', id));
+    const invoicesQuery = query(invoicesCollectionRef, where('customerId', '==', id), where('status', '!=', 'Voided'));
     const invoicesSnapshot = await getDocs(invoicesQuery);
 
     let totalSpent = 0;
