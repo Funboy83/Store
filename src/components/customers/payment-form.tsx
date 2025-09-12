@@ -1,7 +1,8 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Customer, Invoice } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -12,6 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { applyPayment } from '@/lib/actions/payment';
+import { Loader2 } from 'lucide-react';
 
 interface PaymentFormProps {
     customer: Customer;
@@ -19,7 +22,10 @@ interface PaymentFormProps {
 }
 
 export function PaymentForm({ customer, invoices }: PaymentFormProps) {
+    const router = useRouter();
     const { toast } = useToast();
+    const [isSaving, startSavingTransition] = useTransition();
+
     const [cashAmount, setCashAmount] = useState(0);
     const [checkAmount, setCheckAmount] = useState(0);
     const [cardAmount, setCardAmount] = useState(0);
@@ -36,12 +42,12 @@ export function PaymentForm({ customer, invoices }: PaymentFormProps) {
         const allocations = new Map<string, { applied: number, status: 'Paid' | 'Partial' | 'Unpaid' }>();
 
         for (const invoice of invoices) {
-            const amountDueOnInvoice = invoice.total - ((invoice.total - (invoice.discount || 0)) < invoice.total ? (invoice.total - (invoice.discount || 0)) : 0);
-            if (paymentRemaining > 0) {
+            const amountDueOnInvoice = invoice.total - (invoice.amountPaid || 0);
+            if (paymentRemaining > 0 && amountDueOnInvoice > 0) {
                 const amountToApply = Math.min(paymentRemaining, amountDueOnInvoice);
-                const newTotalPaidOnInvoice = (invoice.total - amountDueOnInvoice) + amountToApply;
+                const newTotalPaidOnInvoice = (invoice.amountPaid || 0) + amountToApply;
                 
-                let status: 'Paid' | 'Partial' | 'Unpaid' = 'Unpaid';
+                let status: 'Paid' | 'Partial' | 'Unpaid' = invoice.status;
                 if (newTotalPaidOnInvoice >= invoice.total) {
                     status = 'Paid';
                 } else if (newTotalPaidOnInvoice > 0) {
@@ -57,6 +63,41 @@ export function PaymentForm({ customer, invoices }: PaymentFormProps) {
         return allocations;
     }, [totalPaid, invoices]);
     
+    const handleSavePayment = () => {
+        if (totalPaid <= 0) {
+            toast({
+                title: 'No Payment Entered',
+                description: 'Please enter a payment amount.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        startSavingTransition(async () => {
+            const result = await applyPayment({
+                customerId: customer.id,
+                cashAmount,
+                checkAmount,
+                cardAmount,
+            });
+
+            if (result.success) {
+                toast({
+                    title: 'Payment Applied!',
+                    description: `Successfully applied ${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(totalPaid)}.`,
+                });
+                // Redirect back to customer page
+                router.push(`/dashboard/customers/${customer.id}`);
+            } else {
+                toast({
+                    title: 'Error Applying Payment',
+                    description: result.error || 'An unknown error occurred.',
+                    variant: 'destructive',
+                });
+            }
+        });
+    }
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
@@ -85,7 +126,7 @@ export function PaymentForm({ customer, invoices }: PaymentFormProps) {
                                 ) : (
                                     invoices.map(invoice => {
                                         const allocation = paymentAllocations.get(invoice.id) || { applied: 0, status: invoice.status };
-                                        const amountDue = invoice.total - ((invoice.total - (invoice.discount || 0)) < invoice.total ? (invoice.total - (invoice.discount || 0)) : 0);
+                                        const amountDue = invoice.total - (invoice.amountPaid || 0);
 
                                         const isFullyPaid = allocation.status === 'Paid';
                                         
@@ -158,7 +199,10 @@ export function PaymentForm({ customer, invoices }: PaymentFormProps) {
                         </div>
                     </CardContent>
                      <CardFooter>
-                        <Button className="w-full" disabled>Save Payment</Button>
+                        <Button className="w-full" disabled={isSaving || totalPaid <= 0} onClick={handleSavePayment}>
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {isSaving ? 'Saving...' : 'Save Payment'}
+                        </Button>
                     </CardFooter>
                 </Card>
             </div>

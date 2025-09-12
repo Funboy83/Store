@@ -97,6 +97,7 @@ export async function addCustomer(prevState: any, formData: FormData) {
       ...validatedFields.data,
       debt: 0,
       status: 'active',
+      customerType: 'retail', // Default customer type
       createdAt: serverTimestamp(),
     });
     revalidatePath('/dashboard/customers');

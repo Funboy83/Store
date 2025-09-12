@@ -1,5 +1,6 @@
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -39,6 +40,7 @@ export type Customer = {
   totalSpent: number;
   debt: number;
   status: 'active' | 'inactive';
+  customerType?: 'wholesale' | 'retail';
 };
 
 export type InvoiceItem = {
@@ -66,6 +68,8 @@ export type Invoice = {
   status: 'Paid' | 'Partial' | 'Unpaid' | 'Voided' | 'Draft' | 'Overdue';
   summary?: string;
   createdAt: any;
+  amountPaid: number;
+  paymentIds: string[];
 };
 
 export type InvoiceDetail = Omit<Invoice, 'customerId' | 'customerName'> & {
@@ -73,6 +77,22 @@ export type InvoiceDetail = Omit<Invoice, 'customerId' | 'customerName'> & {
   items: InvoiceItem[];
   isEdited?: boolean;
 };
+
+export type TenderDetail = {
+  method: 'Cash' | 'Check' | 'Card/Zelle/Wire';
+  amount: number;
+};
+
+export type Payment = {
+    id: string;
+    customerId: string;
+    paymentDate: any;
+    recordedBy: string;
+    amountPaid: number;
+    appliedToInvoices: string[];
+    tenderDetails: TenderDetail[];
+};
+
 
 export type InvoiceHistory = Omit<Invoice, 'status' | 'createdAt'> & {
     status: 'Voided';
