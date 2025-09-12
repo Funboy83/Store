@@ -8,6 +8,15 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
+function formatChangeKey(key: string): string {
+    if (key.startsWith('itemQty_')) return 'Item Quantity Changed';
+    if (key.startsWith('itemPrice_')) return 'Item Price Changed';
+    if (key.startsWith('addedItem_')) return 'Item Added';
+    if (key.startsWith('removedItem_')) return 'Item Removed';
+    return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+}
+
+
 export default async function InvoiceHistoryPage({ params }: { params: { id: string } }) {
   const [invoice, history] = await Promise.all([
     getInvoiceById(params.id),
@@ -21,10 +30,10 @@ export default async function InvoiceHistoryPage({ params }: { params: { id: str
   return (
     <div className="flex flex-col gap-6 max-w-4xl mx-auto">
        <div className="flex items-center gap-4">
-        <Link href={`/dashboard/invoices/${params.id}/edit`} passHref>
+        <Link href={`/dashboard/invoices/${params.id}`} passHref>
           <Button variant="outline" size="icon">
             <ArrowLeft className="h-4 w-4" />
-            <span className="sr-only">Back to Edit Invoice</span>
+            <span className="sr-only">Back to Invoice</span>
           </Button>
         </Link>
         <div className="flex-1">
@@ -55,7 +64,7 @@ export default async function InvoiceHistoryPage({ params }: { params: { id: str
                         <div className="mt-2 p-4 bg-muted/50 rounded-lg space-y-3">
                         {Object.entries(entry.changes).map(([field, values]) => (
                             <div key={field} className="text-sm">
-                            <span className="font-bold text-muted-foreground capitalize">{field.replace(/([A-Z])/g, ' $1')}:</span>
+                            <span className="font-bold text-muted-foreground capitalize">{formatChangeKey(field)}:</span>
                             {field === 'initialCreation' ? (
                                 <span className="ml-2 text-green-600">{String(values.to)}</span>
                             ) : (

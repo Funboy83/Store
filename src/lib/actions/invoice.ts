@@ -1,6 +1,5 @@
 
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -340,7 +339,7 @@ export async function updateInvoice({ originalInvoice, updatedInvoice, updatedIt
     // --- 1. Detect Changes and Create History Entry ---
     const changes: EditHistoryEntry['changes'] = {};
 
-    // Simple fields
+    // Compare simple fields
     if (originalInvoice.customer.id !== updatedInvoice.customerId) {
       changes.customer = { from: originalInvoice.customer.name, to: updatedInvoice.customerName };
     }
@@ -351,10 +350,34 @@ export async function updateInvoice({ originalInvoice, updatedInvoice, updatedIt
       changes.summary = { from: originalInvoice.summary, to: updatedInvoice.summary };
     }
     if (originalInvoice.total !== updatedInvoice.total) {
-      changes.totalAmount = { from: originalInvoice.total, to: updatedInvoice.total };
+      changes.totalAmount = { from: originalInvoice.total.toFixed(2), to: updatedInvoice.total.toFixed(2) };
     }
     
-    // TODO: Handle item changes more granularly (added, removed, modified quantity/price)
+    // Compare items
+    const originalItemsMap = new Map(originalInvoice.items.map(item => [item.id, item]));
+    const updatedItemsMap = new Map(updatedItems.map(item => [item.id, item]));
+
+    // Check for removed and modified items
+    for (const [id, originalItem] of originalItemsMap.entries()) {
+      if (!updatedItemsMap.has(id)) {
+        changes[`removedItem_${id}`] = { from: originalItem.productName, to: 'Removed' };
+      } else {
+        const updatedItem = updatedItemsMap.get(id)!;
+        if (originalItem.quantity !== updatedItem.quantity) {
+          changes[`itemQty_${id}`] = { from: `${originalItem.productName} (Qty: ${originalItem.quantity})`, to: `Qty: ${updatedItem.quantity}` };
+        }
+        if (originalItem.unitPrice !== updatedItem.unitPrice) {
+          changes[`itemPrice_${id}`] = { from: `${originalItem.productName} (Price: ${originalItem.unitPrice.toFixed(2)})`, to: `Price: ${updatedItem.unitPrice.toFixed(2)}` };
+        }
+      }
+    }
+
+    // Check for added items
+    for (const [id, updatedItem] of updatedItemsMap.entries()) {
+      if (!originalItemsMap.has(id)) {
+        changes[`addedItem_${id}`] = { from: 'Not present', to: updatedItem.productName };
+      }
+    }
 
     if (Object.keys(changes).length > 0) {
       const historyRef = doc(collection(invoiceRef, 'edit_history'));
@@ -370,7 +393,6 @@ export async function updateInvoice({ originalInvoice, updatedInvoice, updatedIt
     batch.update(invoiceRef, updatedInvoice);
 
     // --- 3. Update/Re-create Items Subcollection ---
-    // For simplicity, we delete old items and create new ones. A more complex diff could be done.
     const oldItemsSnapshot = await getDocs(collection(invoiceRef, 'invoice_items'));
     oldItemsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
 
@@ -379,16 +401,16 @@ export async function updateInvoice({ originalInvoice, updatedInvoice, updatedIt
       batch.set(newItemRef, item);
     }
     
-    // --- 4. TODO: Handle inventory changes (restock removed items, etc.) ---
+    // --- TODO: Handle inventory changes (restock removed items, etc.) ---
     
-    // --- 5. TODO: Handle debt changes ---
-
+    // --- TODO: Handle debt changes ---
 
     await batch.commit();
 
     revalidatePath(`/dashboard/invoices`);
     revalidatePath(`/dashboard/invoices/${originalInvoice.id}/edit`);
     revalidatePath(`/dashboard/invoices/${originalInvoice.id}`);
+    revalidatePath(`/dashboard/invoices/${originalInvoice.id}/history`);
 
 
     return { success: true };
