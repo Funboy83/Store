@@ -17,7 +17,8 @@ import {
   getStorageOptions, addStorageOption,
   getColorOptions, addColorOption,
   getCarrierOptions, addCarrierOption,
-  getGradeOptions, addGradeOption
+  getGradeOptions, addGradeOption,
+  getConditionOptions, addConditionOption,
 } from '@/lib/actions/options';
 import { CheckCircle, XCircle, Loader, CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
@@ -160,21 +161,27 @@ export function AddInventoryForm() {
                             error={state.errors?.grade}
                         />
                     </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <AddableCombobox
+                            formControlName="condition"
+                            label="Condition"
+                            fetchOptions={getConditionOptions}
+                            addOption={addConditionOption}
+                            error={state.errors?.condition}
+                        />
                         <div className="space-y-2">
                             <Label htmlFor="price">Purchase Price</Label>
                             <Input id="price" name="price" type="number" step="0.01" placeholder="e.g. 999.99" />
                             {state.errors?.price && <p className="text-sm text-destructive">{state.errors.price}</p>}
                         </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="battery">Battery Health (%)</Label>
                             <Input id="battery" name="battery" type="number" placeholder="e.g. 98" />
                             {state.errors?.battery && <p className="text-sm text-destructive">{state.errors.battery}</p>}
                         </div>
-                    </div>
-
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="date">Date Added</Label>
                              <Popover>

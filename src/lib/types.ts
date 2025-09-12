@@ -12,6 +12,8 @@ export type Product = {
   carrier: string;
   battery: number;
   date: string;
+  condition: string;
+  status: 'Available' | 'Sold' | 'Deleted';
   createdAt: string; 
   updatedAt: string;
 };

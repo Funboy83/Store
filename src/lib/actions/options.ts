@@ -15,6 +15,7 @@ async function getOptions(optionType: string): Promise<string[]> {
             'options_color': ['Black', 'White', 'Blue'],
             'options_carrier': ['Unlocked', 'Verizon', 'T-Mobile'],
             'options_grade': ['A', 'B', 'C'],
+            'options_condition': ['New', 'Used - Like New', 'Used - Good', 'Used - Fair'],
         }
         return mockOptions[optionType] || [];
     }
@@ -67,3 +68,6 @@ export const addCarrierOption = async (value: string) => addOption('options_carr
 
 export const getGradeOptions = async () => getOptions('options_grade');
 export const addGradeOption = async (value: string) => addOption('options_grade', value);
+
+export const getConditionOptions = async () => getOptions('options_condition');
+export const addConditionOption = async (value: string) => addOption('options_condition', value);

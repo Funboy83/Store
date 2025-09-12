@@ -16,6 +16,7 @@ const ProductSchema = z.object({
   grade: z.string().min(1, 'Grade is required'),
   color: z.string().min(2, 'Color is required'),
   carrier: z.string().min(3, 'Carrier is required'),
+  condition: z.string().min(3, 'Condition is required'),
   price: z.coerce.number().positive('Price must be a positive number'),
   battery: z.coerce.number().int().min(0).max(100, 'Battery must be between 0 and 100'),
   date: z.string().min(1, 'Date is required'),
@@ -92,6 +93,7 @@ export async function addProduct(prevState: any, formData: FormData) {
     const inventoryCollectionRef = collection(dataDocRef, INVENTORY_COLLECTION);
     const newProduct = {
       ...validatedFields.data,
+      status: 'Available',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }

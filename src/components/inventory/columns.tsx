@@ -29,6 +29,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Product } from "@/lib/types"
 import { deleteProduct } from "@/lib/actions/inventory"
 import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 
 export const columns: ColumnDef<Product>[] = [
   {
@@ -98,6 +99,13 @@ export const columns: ColumnDef<Product>[] = [
     }
   },
   {
+    accessorKey: "condition",
+    header: "Condition",
+    cell: ({ row }) => {
+      return <Badge variant="secondary">{row.getValue("condition")}</Badge>
+    }
+  },
+  {
     accessorKey: "price",
     header: () => <div className="text-right">Price</div>,
     cell: ({ row }) => {
@@ -127,6 +135,14 @@ export const columns: ColumnDef<Product>[] = [
                 {battery}%
             </div>
         )
+    }
+  },
+   {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => {
+      const status = row.getValue("status") as string;
+      return <Badge className={cn(status === 'Available' ? 'bg-green-600' : 'bg-gray-500')}>{status}</Badge>
     }
   },
   {
