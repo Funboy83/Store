@@ -237,7 +237,7 @@ export async function sendInvoice({ invoiceData, items, customer, totalPaid }: S
         const amountDue = invoiceData.total - totalPaid;
         let status: Invoice['status'];
 
-        if (totalPaid <= 0) {
+        if (totalPaid <= 0 && invoiceData.total > 0) {
           status = 'Unpaid';
         } else if (amountDue > 0) {
           status = 'Partial';
@@ -347,7 +347,7 @@ export async function updateInvoice({ originalInvoice, updatedInvoice, updatedIt
       changes.dueDate = { from: originalInvoice.dueDate, to: updatedInvoice.dueDate };
     }
     if (originalInvoice.summary !== updatedInvoice.summary) {
-      changes.summary = { from: originalInvoice.summary, to: updatedInvoice.summary };
+      changes.summary = { from: originalInvoice.summary || 'N/A', to: updatedInvoice.summary || 'N/A' };
     }
     if (originalInvoice.total !== updatedInvoice.total) {
       changes.totalAmount = { from: originalInvoice.total.toFixed(2), to: updatedInvoice.total.toFixed(2) };
@@ -359,15 +359,15 @@ export async function updateInvoice({ originalInvoice, updatedInvoice, updatedIt
 
     // Check for removed and modified items
     for (const [id, originalItem] of originalItemsMap.entries()) {
-      if (!updatedItemsMap.has(id)) {
-        changes[`removedItem_${id}`] = { from: originalItem.productName, to: 'Removed' };
+      const updatedItem = updatedItemsMap.get(id);
+      if (!updatedItem) {
+        changes[`removedItem_${id.slice(0,5)}`] = { from: originalItem.productName, to: 'Removed' };
       } else {
-        const updatedItem = updatedItemsMap.get(id)!;
         if (originalItem.quantity !== updatedItem.quantity) {
-          changes[`itemQty_${id}`] = { from: `${originalItem.productName} (Qty: ${originalItem.quantity})`, to: `Qty: ${updatedItem.quantity}` };
+          changes[`itemQty_${id.slice(0,5)}`] = { from: `${originalItem.productName} (Qty: ${originalItem.quantity})`, to: `Qty: ${updatedItem.quantity}` };
         }
         if (originalItem.unitPrice !== updatedItem.unitPrice) {
-          changes[`itemPrice_${id}`] = { from: `${originalItem.productName} (Price: ${originalItem.unitPrice.toFixed(2)})`, to: `Price: ${updatedItem.unitPrice.toFixed(2)}` };
+          changes[`itemPrice_${id.slice(0,5)}`] = { from: `${originalItem.productName} (Price: ${originalItem.unitPrice.toFixed(2)})`, to: `Price: ${updatedItem.unitPrice.toFixed(2)}` };
         }
       }
     }
@@ -375,7 +375,7 @@ export async function updateInvoice({ originalInvoice, updatedInvoice, updatedIt
     // Check for added items
     for (const [id, updatedItem] of updatedItemsMap.entries()) {
       if (!originalItemsMap.has(id)) {
-        changes[`addedItem_${id}`] = { from: 'Not present', to: updatedItem.productName };
+        changes[`addedItem_${id.slice(0,5)}`] = { from: 'Not present', to: updatedItem.productName };
       }
     }
 
@@ -390,7 +390,7 @@ export async function updateInvoice({ originalInvoice, updatedInvoice, updatedIt
     }
     
     // --- 2. Update Invoice Document ---
-    batch.update(invoiceRef, updatedInvoice);
+    batch.update(invoiceRef, updatedInvoice as any);
 
     // --- 3. Update/Re-create Items Subcollection ---
     const oldItemsSnapshot = await getDocs(collection(invoiceRef, 'invoice_items'));
@@ -401,9 +401,14 @@ export async function updateInvoice({ originalInvoice, updatedInvoice, updatedIt
       batch.set(newItemRef, item);
     }
     
-    // --- TODO: Handle inventory changes (restock removed items, etc.) ---
-    
-    // --- TODO: Handle debt changes ---
+    // --- 4. Handle inventory and debt changes ---
+    // This part is complex. For now, we only handle debt adjustment based on total change.
+    // A full implementation would need to track item-level changes to restock/un-stock inventory.
+    const totalDifference = updatedInvoice.total - originalInvoice.total;
+    if (totalDifference !== 0 && originalInvoice.customer.id !== WALK_IN_CUSTOMER_ID) {
+      const customerRef = doc(dataDocRef, `${CUSTOMERS_COLLECTION}/${originalInvoice.customer.id}`);
+      batch.update(customerRef, { debt: increment(totalDifference) });
+    }
 
     await batch.commit();
 
@@ -411,6 +416,8 @@ export async function updateInvoice({ originalInvoice, updatedInvoice, updatedIt
     revalidatePath(`/dashboard/invoices/${originalInvoice.id}/edit`);
     revalidatePath(`/dashboard/invoices/${originalInvoice.id}`);
     revalidatePath(`/dashboard/invoices/${originalInvoice.id}/history`);
+    revalidatePath(`/dashboard/customers`);
+    revalidatePath(`/dashboard/customers/${originalInvoice.customer.id}`);
 
 
     return { success: true };
@@ -480,3 +487,5 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
     return { success: false, error: 'An unknown error occurred while archiving the invoice.' };
   }
 }
+
+    
