@@ -135,19 +135,21 @@ export async function getCustomerDetails(id: string): Promise<{ customer: Custom
     } as Customer;
 
     const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
-    const invoicesQuery = query(invoicesCollectionRef, where('customerId', '==', id), where('status', '!=', 'Voided'));
+    const invoicesQuery = query(invoicesCollectionRef, where('customerId', '==', id));
     const invoicesSnapshot = await getDocs(invoicesQuery);
 
     let totalSpent = 0;
-    const invoices = invoicesSnapshot.docs.map(doc => {
-      const invoiceData = doc.data();
-      totalSpent += invoiceData.total;
-      return {
-        id: doc.id,
-        ...invoiceData,
-        createdAt: invoiceData.createdAt?.toDate ? invoiceData.createdAt.toDate().toISOString() : new Date().toISOString(),
-      } as Invoice;
-    });
+    const invoices = invoicesSnapshot.docs
+      .map(doc => {
+        const invoiceData = doc.data();
+        totalSpent += invoiceData.total;
+        return {
+          id: doc.id,
+          ...invoiceData,
+          createdAt: invoiceData.createdAt?.toDate ? invoiceData.createdAt.toDate().toISOString() : new Date().toISOString(),
+        } as Invoice;
+      })
+      .filter(invoice => invoice.status !== 'Voided');
 
     // Sort in code instead of in the query to avoid needing a composite index
     invoices.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
