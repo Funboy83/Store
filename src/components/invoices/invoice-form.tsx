@@ -298,7 +298,7 @@ export function InvoiceForm({ invoice, inventory, customers }: InvoiceFormProps)
       <div className="flex items-center justify-between pb-4">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold tracking-tight">
-            {isEditMode ? `Edit Invoice ${invoiceNumber}` : 'New Invoice'}
+            {isEditMode ? '' : 'New Invoice'}
           </h1>
            <div className="flex items-center space-x-2">
             <Switch id="show-preview" checked={showPreview} onCheckedChange={setShowPreview} />
@@ -306,17 +306,12 @@ export function InvoiceForm({ invoice, inventory, customers }: InvoiceFormProps)
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {isEditMode && invoice && (
-            <Link href={`/dashboard/invoices/${invoice.id}/history`} passHref>
-                <Button variant="outline"><History className="mr-2 h-4 w-4" />View History</Button>
-            </Link>
-          )}
           {!isEditMode && (
             <Button variant="outline" onClick={() => toast({ title: 'Coming soon!'})}>Save as Draft</Button>
           )}
           <Button onClick={handleSave} disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isSaving ? 'Saving...' : isEditMode ? 'Save Changes' : 'Send Invoice'}
+            {isSaving ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Invoice'}
           </Button>
         </div>
       </div>

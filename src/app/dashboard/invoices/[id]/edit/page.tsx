@@ -6,7 +6,7 @@ import { notFound } from 'next/navigation';
 import { InvoiceForm } from "@/components/invoices/invoice-form";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, History } from "lucide-react";
 
 export default async function EditInvoicePage({ params }: { params: { id: string } }) {
   const [invoice, inventory, customers] = await Promise.all([
@@ -26,6 +26,15 @@ export default async function EditInvoicePage({ params }: { params: { id: string
           <Button variant="outline" size="icon">
             <ArrowLeft className="h-4 w-4" />
             <span className="sr-only">Back to Invoice</span>
+          </Button>
+        </Link>
+        <h1 className="text-2xl font-bold tracking-tight flex-1">
+          Edit Invoice {invoice.invoiceNumber}
+        </h1>
+        <Link href={`/dashboard/invoices/${invoice.id}/history`} passHref>
+          <Button variant="outline">
+            <History className="mr-2 h-4 w-4" />
+            View History
           </Button>
         </Link>
       </div>
