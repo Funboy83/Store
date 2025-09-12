@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, doc, runTransaction, serverTimestamp, getDocs, where, query, orderBy } from 'firebase/firestore';
+import { collection, doc, runTransaction, serverTimestamp, getDocs, where, query, orderBy, increment } from 'firebase/firestore';
 import type { Invoice, Customer, TenderDetail } from '@/lib/types';
 
 interface ApplyPaymentPayload {
@@ -39,12 +39,14 @@ export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ succ
       const outstandingInvoicesQuery = query(
         invoicesCollectionRef,
         where('customerId', '==', customerId),
-        where('status', 'in', ['Unpaid', 'Partial']),
-        orderBy('issueDate', 'asc')
+        where('status', 'in', ['Unpaid', 'Partial'])
       );
       
-      const invoiceSnapshot = await getDocs(outstandingInvoicesQuery, { readTime: transaction.readTime });
-      const outstandingInvoices = invoiceSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as Invoice));
+      const querySnapshot = await getDocs(outstandingInvoicesQuery);
+      const outstandingInvoices = querySnapshot.docs
+        .map(d => ({ id: d.id, ...d.data() } as Invoice))
+        .sort((a, b) => new Date(a.issueDate).getTime() - new Date(b.issueDate).getTime());
+
 
       let paymentRemaining = totalPaid;
       const appliedInvoiceIds: string[] = [];
