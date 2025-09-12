@@ -57,7 +57,8 @@ export function AddableCombobox({
   }, []);
 
   const comboboxOptions = useMemo(() => {
-    const opts = options.map(opt => ({ value: opt, label: opt }));
+    const uniqueOptions = [...new Set(options)]; // Ensure options are unique
+    const opts = uniqueOptions.map(opt => ({ value: opt, label: opt }));
     opts.push({ value: ADD_NEW_VALUE, label: `+ Add New ${label}...` });
     return opts;
   }, [options, label]);
