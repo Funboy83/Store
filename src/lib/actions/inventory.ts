@@ -127,25 +127,15 @@ export async function deleteProduct(product: Product) {
         return { success: false, error: 'Firebase not configured.' };
     }
     try {
-        const batch = writeBatch(db);
         const dataDocRef = doc(db, DATA_PATH);
+        const productRef = doc(dataDocRef, `${INVENTORY_COLLECTION}/${product.id}`);
         
-        const historyRef = doc(collection(dataDocRef, INVENTORY_HISTORY_COLLECTION));
-        const productHistory = {
-            ...product,
+        await updateDoc(productRef, {
             status: 'Deleted',
-            amount: 0,
-            movedAt: serverTimestamp(),
-        };
-        batch.set(historyRef, productHistory);
-        
-        const productRef = doc(collection(dataDocRef, INVENTORY_COLLECTION), product.id);
-        batch.delete(productRef);
-
-        await batch.commit();
+            updatedAt: serverTimestamp()
+        });
 
         revalidatePath('/dashboard/inventory');
-        revalidatePath('/dashboard/inventory/history');
         return { success: true };
     } catch (error) {
         console.error('Error deleting product:', error);
