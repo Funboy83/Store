@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Mail, Phone, Edit, DollarSign } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Edit, DollarSign, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { InvoiceTable } from '@/components/invoices/invoice-table';
 import { Separator } from '@/components/ui/separator';
@@ -36,6 +36,10 @@ export default async function CustomerDetailsPage({ params }: { params: { id: st
             <Button variant="outline">
               <DollarSign className="mr-2 h-4 w-4" />
               Send Reminder
+            </Button>
+             <Button variant="outline">
+              <CreditCard className="mr-2 h-4 w-4" />
+              Payment
             </Button>
             <Button variant="outline">
               <Edit className="mr-2 h-4 w-4" />
