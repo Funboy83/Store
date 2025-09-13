@@ -4,10 +4,11 @@
 import { useState, useEffect } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
-import { PaymentDetail, TenderDetail } from "@/lib/types"
+import { PaymentDetail, AppliedInvoice } from "@/lib/types"
 import { ArrowRight, MoreHorizontal, StickyNote } from "lucide-react"
 import { Button } from "../ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover"
+import Link from "next/link"
 
 // New component to handle client-side date rendering
 function DateCell({ dateString }: { dateString: string }) {
@@ -43,7 +44,7 @@ export const columns: ColumnDef<PaymentDetail>[] = [
     accessorKey: "tenderDetails",
     header: "Payment Method",
     cell: ({ row }) => {
-        const tenderDetails = row.getValue("tenderDetails") as TenderDetail[]
+        const tenderDetails = row.getValue("tenderDetails") as PaymentDetail['tenderDetails'];
         return (
             <div className="flex flex-col gap-1">
                 {tenderDetails.map((tender, index) => (
@@ -72,7 +73,11 @@ export const columns: ColumnDef<PaymentDetail>[] = [
     accessorKey: "appliedToInvoices",
     header: "Applied to Invoices",
     cell: ({ row }) => {
-        const invoices = row.getValue("appliedToInvoices") as string[]
+        const invoices = row.getValue("appliedToInvoices") as AppliedInvoice[];
+        if (!invoices || invoices.length === 0) {
+            return <span>N/A</span>;
+        }
+
         return (
              <Popover>
                 <PopoverTrigger asChild>
@@ -83,8 +88,16 @@ export const columns: ColumnDef<PaymentDetail>[] = [
                 <PopoverContent>
                     <div className="space-y-2">
                         <p className="font-semibold text-sm">Applied to:</p>
-                        <ul className="list-disc list-inside text-muted-foreground text-sm">
-                            {invoices.map(invId => <li key={invId}>{invId}</li>)}
+                        <ul className="list-none space-y-1 text-sm">
+                            {invoices.map(inv => (
+                                <li key={inv.id}>
+                                    <Link href={`/dashboard/invoices/${inv.id}`} passHref>
+                                        <Button variant="link" className="p-0 h-auto font-normal">
+                                            {inv.invoiceNumber}
+                                        </Button>
+                                    </Link>
+                                </li>
+                            ))}
                         </ul>
                     </div>
                 </PopoverContent>

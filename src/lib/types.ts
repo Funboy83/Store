@@ -5,6 +5,7 @@
 
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -88,13 +89,18 @@ export type TenderDetail = {
   amount: number;
 };
 
+export type AppliedInvoice = {
+  id: string;
+  invoiceNumber: string;
+};
+
 export type Payment = {
     id: string;
     customerId: string;
     paymentDate: any;
     recordedBy: string;
     amountPaid: number;
-    appliedToInvoices: string[];
+    appliedToInvoices: AppliedInvoice[];
     tenderDetails: TenderDetail[];
     notes?: string;
 };
@@ -133,4 +139,5 @@ export type EditHistoryEntry = {
   user: string;
   changes: Record<string, { from: any; to: any }>;
 };
+
 

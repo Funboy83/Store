@@ -1,11 +1,12 @@
 
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, doc, runTransaction, serverTimestamp, getDocs, where, query, orderBy, increment, WriteBatch, collectionGroup } from 'firebase/firestore';
-import type { Invoice, Customer, TenderDetail, Payment, PaymentDetail } from '@/lib/types';
+import { collection, doc, runTransaction, serverTimestamp, getDocs, where, query, orderBy, increment, WriteBatch, collectionGroup, getDoc } from 'firebase/firestore';
+import type { Invoice, Customer, TenderDetail, Payment, PaymentDetail, AppliedInvoice } from '@/lib/types';
 import { getCustomers } from './customers';
 
 interface ApplyPaymentPayload {
@@ -29,26 +30,41 @@ export async function getPayments(): Promise<PaymentDetail[]> {
     const dataDocRef = doc(db, DATA_PATH);
     const paymentsCollectionRef = collection(dataDocRef, PAYMENTS_COLLECTION);
     
-    const [paymentsSnapshot, customers] = await Promise.all([
+    const [paymentsSnapshot, customers, invoicesSnapshot] = await Promise.all([
       getDocs(query(paymentsCollectionRef, orderBy('paymentDate', 'desc'))),
-      getCustomers()
+      getCustomers(),
+      getDocs(collection(dataDocRef, INVOICES_COLLECTION))
     ]);
     
     const customerMap = new Map<string, Customer>();
     customers.forEach(customer => customerMap.set(customer.id, customer));
+
+    const invoiceMap = new Map<string, Invoice>();
+    invoicesSnapshot.forEach(doc => invoiceMap.set(doc.id, { id: doc.id, ...doc.data()} as Invoice));
     
-    return paymentsSnapshot.docs.map(doc => {
-      const data = doc.data() as Payment;
+    const paymentDetails = paymentsSnapshot.docs.map(doc => {
+      const data = doc.data() as Omit<Payment, 'appliedToInvoices'> & { appliedToInvoices: string[] }; // Raw data from firestore
       const paymentDate = data.paymentDate?.toDate ? data.paymentDate.toDate() : (data.paymentDate ? new Date(data.paymentDate) : new Date());
       const customer = data.customerId ? customerMap.get(data.customerId) : undefined;
       
+      const appliedToInvoices: AppliedInvoice[] = (data.appliedToInvoices || []).map(invoiceId => {
+          const invoice = invoiceMap.get(invoiceId);
+          return {
+              id: invoiceId,
+              invoiceNumber: invoice?.invoiceNumber || 'N/A'
+          };
+      });
+
       return { 
         id: doc.id, 
         ...data,
         paymentDate: paymentDate.toISOString(),
         customerName: customer ? customer.name : 'N/A',
+        appliedToInvoices,
       } as PaymentDetail;
     });
+
+    return paymentDetails;
 
   } catch (error) {
     console.error('Error fetching payments:', error);
@@ -278,4 +294,5 @@ export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ succ
     return { success: false, error: 'An unknown error occurred while applying the payment.' };
   }
 }
+
 
