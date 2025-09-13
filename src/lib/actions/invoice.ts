@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -120,7 +119,7 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
         if (indexA !== indexB) {
             return indexA - indexB;
         }
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return new Date(b.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
 
     return invoiceDetails;
@@ -332,9 +331,21 @@ export async function updateInvoice({ originalInvoice, updatedInvoice, updatedIt
   }
 
   try {
-    const batch = writeBatch(db);
     const dataDocRef = doc(db, DATA_PATH);
     const invoiceRef = doc(dataDocRef, `${INVOICES_COLLECTION}/${originalInvoice.id}`);
+    
+    // Server-side validation: Fetch the latest invoice state
+    const currentInvoiceSnap = await getDoc(invoiceRef);
+    if (!currentInvoiceSnap.exists()) {
+        return { success: false, error: 'Invoice not found.' };
+    }
+    const currentInvoice = currentInvoiceSnap.data() as Invoice;
+
+    if (currentInvoice.status !== 'Unpaid') {
+      return { success: false, error: `Cannot edit an invoice with status "${currentInvoice.status}".` };
+    }
+
+    const batch = writeBatch(db);
 
     // --- 1. Detect Changes and Create History Entry ---
     const changes: EditHistoryEntry['changes'] = {};
@@ -437,19 +448,29 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
   }
 
   try {
-    const batch = writeBatch(db);
     const dataDocRef = doc(db, DATA_PATH);
     const originalInvoiceRef = doc(dataDocRef, `${INVOICES_COLLECTION}/${invoice.id}`);
+
+    // Server-side validation
+    const currentInvoiceSnap = await getDoc(originalInvoiceRef);
+    if (!currentInvoiceSnap.exists()) {
+        return { success: false, error: 'Invoice not found.' };
+    }
+    const currentInvoice = currentInvoiceSnap.data() as Invoice;
+
+    if (currentInvoice.status !== 'Unpaid') {
+      return { success: false, error: `Cannot void an invoice with status "${currentInvoice.status}".` };
+    }
+
+    const batch = writeBatch(db);
     
     batch.update(originalInvoiceRef, { status: 'Voided' });
 
-    const amountDueWhenCreated = invoice.total - (invoice.discount || 0); // This is an approximation
-    const totalPaid = invoice.total - amountDueWhenCreated;
-    const debtToReverse = invoice.total - totalPaid;
-
-    if (invoice.customer.id !== WALK_IN_CUSTOMER_ID && debtToReverse > 0) {
+    // Since we now only allow voiding 'Unpaid' invoices, the debt reversal logic simplifies.
+    // We just reverse the full total of the invoice.
+    if (invoice.customer.id !== WALK_IN_CUSTOMER_ID) {
         const customerRef = doc(dataDocRef, `${CUSTOMERS_COLLECTION}/${invoice.customer.id}`);
-        batch.update(customerRef, { debt: increment(-debtToReverse) });
+        batch.update(customerRef, { debt: increment(-invoice.total) });
     }
     
     const inventoryHistoryRef = collection(dataDocRef, INVENTORY_HISTORY_COLLECTION);
@@ -463,7 +484,7 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
 
       if (originalProduct.id && originalProduct.brand && originalProduct.model) {
         const inventoryRef = doc(dataDocRef, `${INVENTORY_COLLECTION}/${originalProduct.id}`);
-        batch.set(inventoryRef, originalProduct); 
+        batch.set(inventoryRef, { ...originalProduct, status: 'Available' }); 
       }
       
       batch.update(docSnap.ref, { status: 'Voided' });
