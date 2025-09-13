@@ -3,7 +3,6 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal } from "lucide-react"
-import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -56,9 +55,9 @@ export const columns: ColumnDef<Customer>[] = [
                 <Avatar>
                     <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <Link href={`/dashboard/customers/${customer.id}`} className="font-medium hover:underline">
+                <span className="font-medium">
                   {customer.name}
-                </Link>
+                </span>
             </div>
         )
     }

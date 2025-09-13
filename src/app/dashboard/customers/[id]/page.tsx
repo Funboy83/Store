@@ -102,7 +102,7 @@ export default async function CustomerDetailsPage({ params }: { params: { id: st
         )}
       </Card>
       
-      <InvoiceTable invoices={invoices as InvoiceDetail[]} title={`Invoices for ${customer.name}`} />
+      <InvoiceTable invoices={invoices} title={`Invoices for ${customer.name}`} />
     </div>
   );
 }
