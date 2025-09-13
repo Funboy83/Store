@@ -178,7 +178,11 @@ export async function getInvoiceById(id: string): Promise<InvoiceDetail | null> 
             const paymentDocs = await Promise.all(paymentPromises);
             payments = paymentDocs
                 .filter(doc => doc.exists())
-                .map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+                .map(docSnap => {
+                    const data = docSnap.data();
+                    const paymentDate = data.paymentDate?.toDate ? data.paymentDate.toDate().toISOString() : new Date().toISOString();
+                    return { id: docSnap.id, ...data, paymentDate } as Payment;
+                });
         }
 
 

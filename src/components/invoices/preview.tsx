@@ -74,7 +74,7 @@ export function InvoicePreview({ invoice, isEdited = false }: InvoicePreviewProp
                   <div key={payment.id} className="p-3 bg-muted/50 rounded-lg">
                       <div className="flex justify-between items-center">
                           <p className="font-semibold text-sm">
-                              Payment on {new Date(payment.paymentDate.seconds * 1000).toLocaleDateString()}
+                              Payment on {new Date(payment.paymentDate).toLocaleDateString()}
                           </p>
                           <p className="font-bold text-lg text-green-600">
                               {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(payment.amountPaid)}
@@ -188,4 +188,3 @@ export function InvoicePreview({ invoice, isEdited = false }: InvoicePreviewProp
     </>
   );
 }
-
