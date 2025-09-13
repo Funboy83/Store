@@ -24,7 +24,7 @@ export default async function RefundExchangePage() {
           pendingActions={stats.pendingActions}
           refundedValue={stats.refundedValue}
         />
-        <CustomerTable customers={customers} />
+        <CustomerTable customers={customers} showAddCustomerButton={false} />
     </div>
   );
 }

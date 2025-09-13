@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -13,19 +12,22 @@ import { Card, CardContent } from '@/components/ui/card';
 
 interface CustomerTableProps {
     customers: Customer[];
+    showAddCustomerButton?: boolean;
 }
 
-export function CustomerTable({ customers }: CustomerTableProps) {
+export function CustomerTable({ customers, showAddCustomerButton = true }: CustomerTableProps) {
     const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
 
     return (
         <>
             <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-semibold tracking-tight">Customer List</h2>
-                <Button onClick={() => setIsAddCustomerOpen(true)}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Customer
-                </Button>
+                {showAddCustomerButton && (
+                    <Button onClick={() => setIsAddCustomerOpen(true)}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add Customer
+                    </Button>
+                )}
             </div>
             <Card>
                 <CardContent className="p-0">
