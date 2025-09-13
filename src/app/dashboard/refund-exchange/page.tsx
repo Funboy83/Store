@@ -81,7 +81,11 @@ function CustomerDetailModal({ customerId, isOpen, onOpenChange }: { customerId:
                                     </Link>
                                 </CardHeader>
                             </Card>
-                            <InvoiceTable invoices={customerDetails.invoices} title="Recent Invoices" />
+                            <InvoiceTable 
+                                invoices={customerDetails.invoices} 
+                                title="Recent Invoices"
+                                showRefundInQuickView={true}
+                            />
                         </>
                     )}
                 </div>

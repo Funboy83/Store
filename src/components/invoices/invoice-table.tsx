@@ -39,9 +39,10 @@ interface InvoiceTableProps {
     invoices: InvoiceDetail[];
     title?: string;
     onArchive?: (invoice: InvoiceDetail) => void;
+    showRefundInQuickView?: boolean;
 }
 
-export function InvoiceTable({ invoices, title = "Invoices", onArchive }: InvoiceTableProps) {
+export function InvoiceTable({ invoices, title = "Invoices", onArchive, showRefundInQuickView = false }: InvoiceTableProps) {
   const { toast } = useToast();
   const [quickViewInvoice, setQuickViewInvoice] = useState<InvoiceDetail | null>(null);
 
@@ -163,7 +164,7 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
                   <DialogTitle>Quick View: Invoice {quickViewInvoice.invoiceNumber}</DialogTitle>
                 </DialogHeader>
                 <div className="flex-1 overflow-y-auto px-6">
-                   <InvoiceQuickView invoice={quickViewInvoice} />
+                   <InvoiceQuickView invoice={quickViewInvoice} showRefundExchangeButton={showRefundInQuickView} />
                 </div>
               </>
             )}
