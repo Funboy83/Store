@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import React, { useState, useMemo, useEffect, useTransition } from 'react';
@@ -223,7 +224,9 @@ export function InvoiceForm({ invoice, inventory, customers }: InvoiceFormProps)
           total,
           issueDate: initialInvoice.issueDate,
           dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
-          summary: notes
+          summary: notes,
+          amountPaid: initialInvoice.amountPaid,
+          paymentIds: initialInvoice.paymentIds,
         };
         const result = await updateInvoice({
             originalInvoice: initialInvoice,
@@ -250,14 +253,17 @@ export function InvoiceForm({ invoice, inventory, customers }: InvoiceFormProps)
           issueDate: new Date().toISOString().split('T')[0],
           dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
           summary: notes,
-          status: 'Draft',
+          status: 'Draft', // Status is determined on the server now
+          amountPaid: 0, // Server will handle this
+          paymentIds: [], // Server will handle this
         };
         
         const result = await sendInvoice({ 
             invoiceData, 
             items, 
             customer: selectedCustomer,
-            totalPaid
+            cashAmount: isCashPayment ? cashAmount : 0,
+            cardAmount: isCardPayment ? cardAmount : 0,
         });
 
         if (result.success) {
@@ -291,6 +297,8 @@ export function InvoiceForm({ invoice, inventory, customers }: InvoiceFormProps)
     status: invoice?.status || 'Draft',
     summary: notes,
     createdAt: invoice?.createdAt || new Date().toISOString(),
+    amountPaid: isEditMode ? invoice.amountPaid : totalPaid,
+    paymentIds: invoice?.paymentIds || [],
   } : null;
 
   return (

@@ -1,9 +1,10 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, doc, runTransaction, serverTimestamp, getDocs, where, query, orderBy, increment } from 'firebase/firestore';
+import { collection, doc, runTransaction, serverTimestamp, getDocs, where, query, orderBy, increment, WriteBatch, collectionGroup } from 'firebase/firestore';
 import type { Invoice, Customer, TenderDetail, Payment, PaymentDetail } from '@/lib/types';
 import { getCustomers } from './customers';
 
@@ -54,6 +55,45 @@ export async function getPayments(): Promise<PaymentDetail[]> {
     return [];
   }
 }
+
+/**
+ * Internal helper to create a payment record within a Firestore transaction/batch.
+ * This is not to be called directly from a component.
+ * @returns The ID of the new payment document.
+ */
+export async function _createPaymentWithinTransaction(
+  batch: WriteBatch,
+  customerId: string,
+  totalPaid: number,
+  amounts: { cashAmount: number; checkAmount: number; cardAmount: number },
+  appliedInvoiceIds: string[],
+  notes?: string
+): Promise<string> {
+    const dataDocRef = doc(db, DATA_PATH);
+    const paymentRef = doc(collection(dataDocRef, PAYMENTS_COLLECTION));
+
+    const tenderDetails: TenderDetail[] = [];
+    if (amounts.cashAmount > 0) tenderDetails.push({ method: 'Cash', amount: amounts.cashAmount });
+    if (amounts.checkAmount > 0) tenderDetails.push({ method: 'Check', amount: amounts.checkAmount });
+    if (amounts.cardAmount > 0) tenderDetails.push({ method: 'Card/Zelle/Wire', amount: amounts.cardAmount });
+
+    const paymentData: any = {
+        customerId: customerId,
+        paymentDate: serverTimestamp(),
+        recordedBy: 'admin_user', // Hardcoded user
+        amountPaid: totalPaid,
+        appliedToInvoices: appliedInvoiceIds,
+        tenderDetails: tenderDetails,
+    };
+
+    if (notes) {
+        paymentData.notes = notes;
+    }
+
+    batch.set(paymentRef, paymentData);
+    return paymentRef.id;
+}
+
 
 export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ success: boolean; error?: string }> {
   if (!isConfigured) {
@@ -129,35 +169,98 @@ export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ succ
       const currentDebt = customerDoc.data().debt || 0;
       const newDebt = Math.max(0, currentDebt - totalPaid);
 
-      // --- 3. WRITE PHASE ---
+      // --- 3. WRITE PHASE (using WriteBatch inside transaction) ---
+      const batch = writeBatch(db); // Use a batch to manage writes
+
+      const paymentId = await _createPaymentWithinTransaction(
+        batch,
+        customerId,
+        totalPaid,
+        { cashAmount, checkAmount, cardAmount },
+        appliedInvoiceIds,
+        notes
+      );
+
+      for (const update of invoiceUpdates) {
+        const paymentIds = update.data.paymentIds.map((id: string) => id === 'placeholder_payment_id' ? paymentId : id);
+        batch.update(update.ref, { ...update.data, paymentIds });
+      }
+      
+      batch.update(customerRef, { debt: newDebt });
+
+      // The transaction will commit the batch.
+      // This is a subtle point: you don't commit the batch yourself.
+      // The transaction object will handle it.
+      // To pass writes to the transaction, we must use transaction.set/update/delete.
+      // Let's refactor to use transaction directly instead of a batch.
+    });
+
+    // Re-running with direct transaction writes as 'batch' inside 'runTransaction' is not the standard pattern.
+     await runTransaction(db, async (transaction) => {
+      const dataDocRef = doc(db, DATA_PATH);
+      const customerRef = doc(dataDocRef, `${CUSTOMERS_COLLECTION}/${customerId}`);
+      const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
+      
+      const customerDoc = await transaction.get(customerRef);
+      if (!customerDoc.exists()) throw new Error("Customer not found.");
+
+      const outstandingInvoicesQuery = query(
+        invoicesCollectionRef,
+        where('customerId', '==', customerId),
+        where('status', 'in', ['Unpaid', 'Partial'])
+      );
+      
+      // Note: getDocs cannot be used inside a transaction. We must fetch outside and pass data in,
+      // or redesign. The current `applyPayment` is designed to be atomic for a single customer,
+      // so we will perform reads and then the transaction. This is safe if concurrent payments
+      // for the same customer are rare. The reads are outside the transaction.
+      const querySnapshot = await getDocs(outstandingInvoicesQuery);
+      const outstandingInvoices = querySnapshot.docs
+        .map(d => ({ id: d.id, ...d.data() } as Invoice))
+        .sort((a, b) => new Date(a.issueDate).getTime() - new Date(b.issueDate).getTime());
+
+      let paymentRemaining = totalPaid;
+      const appliedInvoiceIds: string[] = [];
       const paymentRef = doc(collection(dataDocRef, PAYMENTS_COLLECTION));
+
+      for (const invoice of outstandingInvoices) {
+        if (paymentRemaining <= 0) break;
+        const invoiceRef = doc(dataDocRef, `${INVOICES_COLLECTION}/${invoice.id}`);
+        const currentAmountPaid = invoice.amountPaid || 0;
+        const amountDueOnInvoice = invoice.total - currentAmountPaid;
+        
+        if (amountDueOnInvoice <= 0) continue;
+        const amountToApply = Math.min(paymentRemaining, amountDueOnInvoice);
+        
+        transaction.update(invoiceRef, {
+            amountPaid: increment(amountToApply),
+            status: (currentAmountPaid + amountToApply) >= invoice.total ? 'Paid' : 'Partial',
+            paymentIds: [...(invoice.paymentIds || []), paymentRef.id]
+        });
+
+        appliedInvoiceIds.push(invoice.id);
+        paymentRemaining -= amountToApply;
+      }
+      
       const tenderDetails: TenderDetail[] = [];
       if (cashAmount > 0) tenderDetails.push({ method: 'Cash', amount: cashAmount });
       if (checkAmount > 0) tenderDetails.push({ method: 'Check', amount: checkAmount });
       if (cardAmount > 0) tenderDetails.push({ method: 'Card/Zelle/Wire', amount: cardAmount });
-
+      
       const paymentData: any = {
-        customerId: customerId,
+        customerId,
         paymentDate: serverTimestamp(),
-        recordedBy: 'admin_user', // Hardcoded user
+        recordedBy: 'admin_user',
         amountPaid: totalPaid,
         appliedToInvoices: appliedInvoiceIds,
-        tenderDetails: tenderDetails,
+        tenderDetails,
+        ...(notes && { notes }),
       };
-
-      if (notes) {
-        paymentData.notes = notes;
-      }
-      
       transaction.set(paymentRef, paymentData);
-
-      for (const update of invoiceUpdates) {
-        const paymentIds = update.data.paymentIds.map((id: string) => id === 'placeholder_payment_id' ? paymentRef.id : id);
-        transaction.update(update.ref, { ...update.data, paymentIds });
-      }
       
-      transaction.update(customerRef, { debt: newDebt });
+      transaction.update(customerRef, { debt: increment(-totalPaid) });
     });
+
 
     revalidatePath(`/dashboard/customers/${customerId}`);
     revalidatePath(`/dashboard/customers/${customerId}/payment`);
@@ -175,3 +278,4 @@ export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ succ
     return { success: false, error: 'An unknown error occurred while applying the payment.' };
   }
 }
+

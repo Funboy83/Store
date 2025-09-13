@@ -7,8 +7,9 @@ import { z } from 'zod';
 import { db, isConfigured } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp, writeBatch, doc, getDoc, collectionGroup, deleteDoc, where, updateDoc, increment } from 'firebase/firestore';
 import { summarizeInvoice } from '@/ai/flows/invoice-summary';
-import type { Invoice, InvoiceItem, Product, Customer, InvoiceDetail, InvoiceHistory, EditHistoryEntry, Payment } from '@/lib/types';
+import type { Invoice, InvoiceItem, Product, Customer, InvoiceDetail, InvoiceHistory, EditHistoryEntry, Payment, TenderDetail } from '@/lib/types';
 import { getInventory } from './inventory';
+import { _createPaymentWithinTransaction } from './payment';
 
 const InvoiceSummarySchema = z.object({
   items: z.array(z.object({
@@ -231,10 +232,11 @@ interface SendInvoiceData {
   invoiceData: Omit<Invoice, 'id' | 'createdAt'>;
   items: InvoiceItem[];
   customer?: Customer;
-  totalPaid: number;
+  cashAmount: number;
+  cardAmount: number;
 }
 
-export async function sendInvoice({ invoiceData, items, customer, totalPaid }: SendInvoiceData) {
+export async function sendInvoice({ invoiceData, items, customer, cashAmount, cardAmount }: SendInvoiceData) {
     if (!isConfigured) {
         return { success: false, error: 'Firebase is not configured.' };
     }
@@ -242,6 +244,8 @@ export async function sendInvoice({ invoiceData, items, customer, totalPaid }: S
     if (!customer) {
       return { success: false, error: 'Customer is required.' };
     }
+
+    const totalPaid = cashAmount + cardAmount;
 
     try {
         const batch = writeBatch(db);
@@ -264,8 +268,22 @@ export async function sendInvoice({ invoiceData, items, customer, totalPaid }: S
             ...invoiceData,
             status: status,
             customerId: customer.id,
+            amountPaid: totalPaid,
             createdAt: serverTimestamp(),
+            paymentIds: [],
         };
+        
+        // If there's a payment, create the payment record and link it
+        if (totalPaid > 0) {
+            const paymentId = await _createPaymentWithinTransaction(
+              batch, 
+              customer.id, 
+              totalPaid, 
+              { cashAmount, cardAmount, checkAmount: 0 },
+              [invoiceRef.id] // Applied to the new invoice
+            );
+            finalInvoiceData.paymentIds.push(paymentId);
+        }
 
         batch.set(invoiceRef, finalInvoiceData);
 
@@ -323,6 +341,7 @@ export async function sendInvoice({ invoiceData, items, customer, totalPaid }: S
         revalidatePath('/dashboard/inventory/history');
         revalidatePath(`/dashboard/customers/${customer.id}`);
         revalidatePath('/dashboard/customers');
+        revalidatePath('/dashboard/finance');
 
         return { success: true, invoiceId: invoiceRef.id };
 
