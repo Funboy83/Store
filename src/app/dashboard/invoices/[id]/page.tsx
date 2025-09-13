@@ -1,4 +1,5 @@
 
+
 import { getInvoiceById } from "@/lib/actions/invoice";
 import { getInvoiceEditHistory } from "@/lib/actions/edit-history";
 import { notFound } from 'next/navigation';
@@ -18,6 +19,7 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
   }
 
   const isEdited = history.length > 1;
+  const canEdit = invoice.status === 'Unpaid';
 
   return (
     <div className="flex flex-col gap-4">
@@ -37,7 +39,7 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
                 </Button>
             </Link>
             <Link href={`/dashboard/invoices/${invoice.id}/edit`} passHref>
-                <Button>
+                <Button disabled={!canEdit}>
                     <Edit className="mr-2 h-4 w-4" />
                     Edit Invoice
                 </Button>

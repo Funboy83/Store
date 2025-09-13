@@ -121,7 +121,7 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
                             <DropdownMenuItem asChild>
                                 <Link href={`/dashboard/invoices/${invoice.id}`}>View Invoice</Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
+                            <DropdownMenuItem asChild disabled={invoice.status === 'Paid' || invoice.status === 'Partial'}>
                                 <Link href={`/dashboard/invoices/${invoice.id}/edit`}>Edit Invoice</Link>
                             </DropdownMenuItem>
                             {onArchive && (
