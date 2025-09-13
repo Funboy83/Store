@@ -129,6 +129,7 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem 
                                     className="text-destructive"
+                                    disabled={invoice.status === 'Paid' || invoice.status === 'Partial'}
                                     onSelect={() => handleArchiveClick(invoice as InvoiceDetail)}>
                                     Void Invoice
                                 </DropdownMenuItem>
