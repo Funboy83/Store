@@ -14,7 +14,10 @@ export const columns: ColumnDef<PaymentDetail>[] = [
     header: "Date",
     cell: ({ row }) => {
       const date = new Date(row.getValue("paymentDate"))
-      return <span>{date.toLocaleString()}</span>
+      // Format date and time separately to avoid timezone issues during hydration
+      const formattedDate = date.toLocaleDateString();
+      const formattedTime = date.toLocaleTimeString();
+      return <span>{formattedDate} {formattedTime}</span>
     },
   },
   {
