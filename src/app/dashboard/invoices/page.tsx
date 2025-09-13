@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { InvoiceTable } from '@/components/invoices/invoice-table';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 type FilterStatus = 'all' | 'paid' | 'unpaid';
 
