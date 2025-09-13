@@ -7,6 +7,7 @@
 
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -101,13 +102,14 @@ export type Payment = {
     paymentDate: any;
     recordedBy: string;
     amountPaid: number;
-    appliedToInvoices: AppliedInvoice[];
+    appliedToInvoices: string[];
     tenderDetails: TenderDetail[];
     notes?: string;
 };
 
-export type PaymentDetail = Payment & {
+export type PaymentDetail = Omit<Payment, 'appliedToInvoices'> & {
   customerName: string;
+  appliedToInvoices: InvoiceDetail[];
 };
 
 

@@ -1,12 +1,13 @@
 
 
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import { db, isConfigured } from '@/lib/firebase';
 import { collection, doc, runTransaction, serverTimestamp, getDocs, where, query, orderBy, increment, WriteBatch, collectionGroup, getDoc } from 'firebase/firestore';
-import type { Invoice, Customer, TenderDetail, Payment, PaymentDetail, AppliedInvoice } from '@/lib/types';
+import type { Invoice, Customer, TenderDetail, Payment, PaymentDetail, InvoiceDetail, InvoiceItem } from '@/lib/types';
 import { getCustomers } from './customers';
 
 interface ApplyPaymentPayload {
@@ -42,27 +43,45 @@ export async function getPayments(): Promise<PaymentDetail[]> {
     const invoiceMap = new Map<string, Invoice>();
     invoicesSnapshot.forEach(doc => invoiceMap.set(doc.id, { id: doc.id, ...doc.data()} as Invoice));
     
-    const paymentDetails = paymentsSnapshot.docs.map(doc => {
-      const data = doc.data() as Omit<Payment, 'appliedToInvoices'> & { appliedToInvoices: string[] }; // Raw data from firestore
+    const paymentDetailsPromises = paymentsSnapshot.docs.map(async (paymentDoc) => {
+      const data = paymentDoc.data() as Payment;
       const paymentDate = data.paymentDate?.toDate ? data.paymentDate.toDate() : (data.paymentDate ? new Date(data.paymentDate) : new Date());
       const customer = data.customerId ? customerMap.get(data.customerId) : undefined;
       
-      const appliedToInvoices: AppliedInvoice[] = (data.appliedToInvoices || []).map(invoiceId => {
-          const invoice = invoiceMap.get(invoiceId);
+      const appliedToInvoicesPromises = (data.appliedToInvoices || []).map(async (invoiceId) => {
+          const invoiceRef = doc(dataDocRef, `${INVOICES_COLLECTION}/${invoiceId}`);
+          const invoiceSnap = await getDoc(invoiceRef);
+          if (!invoiceSnap.exists()) return null;
+
+          const invoiceData = invoiceSnap.data() as Invoice;
+          const invoiceCustomer = customerMap.get(invoiceData.customerId);
+          if (!invoiceCustomer) return null;
+
+          const itemsCollectionRef = collection(invoiceRef, 'invoice_items');
+          const itemsSnapshot = await getDocs(itemsCollectionRef);
+          const items = itemsSnapshot.docs.map(itemDoc => ({ id: itemDoc.id, ...itemDoc.data() } as InvoiceItem));
+
           return {
+              ...invoiceData,
               id: invoiceId,
-              invoiceNumber: invoice?.invoiceNumber || 'N/A'
-          };
+              customer: invoiceCustomer,
+              items,
+              createdAt: invoiceData.createdAt?.toDate ? invoiceData.createdAt.toDate().toISOString() : new Date().toISOString(),
+          } as InvoiceDetail
       });
 
+      const appliedToInvoices = (await Promise.all(appliedToInvoicesPromises)).filter((inv): inv is InvoiceDetail => inv !== null);
+
       return { 
-        id: doc.id, 
+        id: paymentDoc.id, 
         ...data,
         paymentDate: paymentDate.toISOString(),
         customerName: customer ? customer.name : 'N/A',
         appliedToInvoices,
       } as PaymentDetail;
     });
+
+    const paymentDetails = await Promise.all(paymentDetailsPromises);
 
     return paymentDetails;
 
