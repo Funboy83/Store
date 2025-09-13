@@ -1,6 +1,7 @@
 
 "use client"
 
+import { useState, useEffect } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
 import { PaymentDetail, TenderDetail } from "@/lib/types"
@@ -8,16 +9,30 @@ import { ArrowRight, MoreHorizontal, StickyNote } from "lucide-react"
 import { Button } from "../ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover"
 
+// New component to handle client-side date rendering
+function DateCell({ dateString }: { dateString: string }) {
+  const [formattedDate, setFormattedDate] = useState('');
+
+  useEffect(() => {
+    // This code will only run on the client after hydration
+    const date = new Date(dateString);
+    const datePart = date.toLocaleDateString();
+    const timePart = date.toLocaleTimeString();
+    setFormattedDate(`${datePart} ${timePart}`);
+  }, [dateString]);
+  
+  // Render a placeholder or nothing on the server and initial client render
+  return <span>{formattedDate || 'Loading date...'}</span>;
+}
+
+
 export const columns: ColumnDef<PaymentDetail>[] = [
   {
     accessorKey: "paymentDate",
     header: "Date",
     cell: ({ row }) => {
-      const date = new Date(row.getValue("paymentDate"))
-      // Format date and time separately to avoid timezone issues during hydration
-      const formattedDate = date.toLocaleDateString();
-      const formattedTime = date.toLocaleTimeString();
-      return <span>{formattedDate} {formattedTime}</span>
+      const dateString = row.getValue("paymentDate") as string;
+      return <DateCell dateString={dateString} />;
     },
   },
   {
