@@ -34,12 +34,15 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ChevronDown } from "lucide-react"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
+import { cn } from "@/lib/utils"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   rowSelection?: RowSelectionState
   onRowSelectionChange?: React.Dispatch<React.SetStateAction<RowSelectionState>>
+  onRowClick?: (row: TData) => void;
+  hideActions?: boolean;
 }
 
 export function DataTable<TData, TValue>({
@@ -47,6 +50,8 @@ export function DataTable<TData, TValue>({
   data,
   rowSelection,
   onRowSelectionChange,
+  onRowClick,
+  hideActions,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -56,9 +61,13 @@ export function DataTable<TData, TValue>({
   const isControllable = rowSelection !== undefined && onRowSelectionChange !== undefined;
   const [internalRowSelection, setInternalRowSelection] = React.useState({})
 
+  const tableColumns = React.useMemo(() => 
+    hideActions ? columns.filter(c => c.id !== 'actions') : columns,
+  [columns, hideActions]);
+
   const table = useReactTable({
     data,
-    columns,
+    columns: tableColumns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
@@ -143,7 +152,8 @@ export function DataTable<TData, TValue>({
                     <TableRow
                       key={row.id}
                       data-state={row.getIsSelected() && "selected"}
-                      className="hover:bg-muted/50"
+                      className={cn("hover:bg-muted/50", onRowClick && "cursor-pointer")}
+                      onClick={() => onRowClick?.(row.original)}
                     >
                       {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id}>
@@ -158,7 +168,7 @@ export function DataTable<TData, TValue>({
                 ) : (
                   <TableRow>
                     <TableCell
-                      colSpan={columns.length}
+                      colSpan={tableColumns.length}
                       className="h-24 text-center"
                     >
                       No results.

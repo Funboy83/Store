@@ -13,9 +13,11 @@ import { Card, CardContent } from '@/components/ui/card';
 interface CustomerTableProps {
     customers: Customer[];
     showAddCustomerButton?: boolean;
+    onRowClick?: (customer: Customer) => void;
+    hideActions?: boolean;
 }
 
-export function CustomerTable({ customers, showAddCustomerButton = true }: CustomerTableProps) {
+export function CustomerTable({ customers, showAddCustomerButton = true, onRowClick, hideActions }: CustomerTableProps) {
     const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
 
     return (
@@ -31,7 +33,12 @@ export function CustomerTable({ customers, showAddCustomerButton = true }: Custo
             </div>
             <Card>
                 <CardContent className="p-0">
-                    <DataTable columns={columns} data={customers} />
+                    <DataTable 
+                        columns={columns} 
+                        data={customers} 
+                        onRowClick={onRowClick}
+                        hideActions={hideActions}
+                    />
                 </CardContent>
             </Card>
             <AddCustomerForm isOpen={isAddCustomerOpen} onOpenChange={setIsAddCustomerOpen} />
