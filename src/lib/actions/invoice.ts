@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -6,7 +7,7 @@ import { z } from 'zod';
 import { db, isConfigured } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp, writeBatch, doc, getDoc, collectionGroup, deleteDoc, where, updateDoc, increment } from 'firebase/firestore';
 import { summarizeInvoice } from '@/ai/flows/invoice-summary';
-import type { Invoice, InvoiceItem, Product, Customer, InvoiceDetail, InvoiceHistory, EditHistoryEntry } from '@/lib/types';
+import type { Invoice, InvoiceItem, Product, Customer, InvoiceDetail, InvoiceHistory, EditHistoryEntry, Payment } from '@/lib/types';
 import { getInventory } from './inventory';
 
 const InvoiceSummarySchema = z.object({
@@ -42,6 +43,7 @@ const INVOICES_COLLECTION = 'invoices';
 const INVENTORY_COLLECTION = 'inventory';
 const INVENTORY_HISTORY_COLLECTION = 'inventory_history';
 const CUSTOMERS_COLLECTION = 'customers';
+const PAYMENTS_COLLECTION = 'payments';
 const WALK_IN_CUSTOMER_ID = 'Aj0l1O2kJcvlF3J0uVMX';
 
 
@@ -166,12 +168,26 @@ export async function getInvoiceById(id: string): Promise<InvoiceDetail | null> 
             customer.name = invoiceData.customerName || 'Walk-In Customer';
         }
 
+        // Fetch related payments
+        let payments: Payment[] = [];
+        if (invoiceData.paymentIds && invoiceData.paymentIds.length > 0) {
+            const paymentPromises = invoiceData.paymentIds.map(pid => 
+                getDoc(doc(dataDocRef, `${PAYMENTS_COLLECTION}/${pid}`))
+            );
+            const paymentDocs = await Promise.all(paymentPromises);
+            payments = paymentDocs
+                .filter(doc => doc.exists())
+                .map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+        }
+
+
         return {
             id: invoiceSnap.id,
             ...invoiceData,
             createdAt,
             customer,
             items,
+            payments,
         } as InvoiceDetail;
 
     } catch (error) {

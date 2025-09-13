@@ -4,6 +4,7 @@
 
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -78,6 +79,7 @@ export type Invoice = {
 export type InvoiceDetail = Omit<Invoice, 'customerId' | 'customerName'> & {
   customer: Customer;
   items: InvoiceItem[];
+  payments?: Payment[];
   isEdited?: boolean;
 };
 
@@ -131,3 +133,4 @@ export type EditHistoryEntry = {
   user: string;
   changes: Record<string, { from: any; to: any }>;
 };
+

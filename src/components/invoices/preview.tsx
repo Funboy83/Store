@@ -7,6 +7,7 @@ import {
   CardContent,
   CardFooter,
   CardHeader,
+  CardTitle,
 } from "@/components/ui/card"
 import {
   Table,
@@ -20,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import type { InvoiceDetail } from "@/lib/types"
-import { Printer } from "lucide-react"
+import { Printer, Wallet } from "lucide-react"
 import { Logo } from "../logo"
 import { Badge } from "../ui/badge"
 
@@ -59,6 +60,42 @@ export function InvoicePreview({ invoice, isEdited = false }: InvoicePreviewProp
           Print / Save PDF
         </Button>
       </div>
+      
+      {invoice.payments && invoice.payments.length > 0 && (
+          <Card className="w-full max-w-4xl mx-auto mb-4 print:hidden">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="h-5 w-5" />
+                Payment History
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {invoice.payments.map(payment => (
+                  <div key={payment.id} className="p-3 bg-muted/50 rounded-lg">
+                      <div className="flex justify-between items-center">
+                          <p className="font-semibold text-sm">
+                              Payment on {new Date(payment.paymentDate.seconds * 1000).toLocaleDateString()}
+                          </p>
+                          <p className="font-bold text-lg text-green-600">
+                              {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(payment.amountPaid)}
+                          </p>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                          {payment.tenderDetails.map((tender, index) => (
+                              <Badge key={index} variant="secondary">
+                                  {tender.method}: {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(tender.amount)}
+                              </Badge>
+                          ))}
+                      </div>
+                      {payment.notes && (
+                           <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">Note: {payment.notes}</p>
+                      )}
+                  </div>
+              ))}
+            </CardContent>
+          </Card>
+      )}
+
 
       <Card className="w-full max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 print:shadow-none print:border-0 print:p-0">
         <CardHeader>
@@ -127,9 +164,14 @@ export function InvoicePreview({ invoice, isEdited = false }: InvoicePreviewProp
                     <span className="text-muted-foreground">Tax</span>
                     <span>${invoice.tax.toFixed(2)}</span>
                 </div>
+                 <div className="flex justify-between">
+                    <span className="text-muted-foreground">Amount Paid</span>
+                    <span className="text-green-600">-${invoice.amountPaid?.toFixed(2) || '0.00'}</span>
+                </div>
+                <Separator />
                 <div className="flex justify-between font-bold text-lg">
-                    <span>Total</span>
-                    <span>${invoice.total.toFixed(2)}</span>
+                    <span>Amount Due</span>
+                    <span>${(invoice.total - (invoice.amountPaid || 0)).toFixed(2)}</span>
                 </div>
             </div>
             {invoice.summary && (
@@ -146,3 +188,4 @@ export function InvoicePreview({ invoice, isEdited = false }: InvoicePreviewProp
     </>
   );
 }
+
