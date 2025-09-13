@@ -2,6 +2,7 @@
 
 
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -117,6 +118,7 @@ export async function _createPaymentWithinTransaction(
         paymentDate: serverTimestamp(),
         recordedBy: 'admin_user', // Hardcoded user
         amountPaid: totalPaid,
+        type: 'payment',
         appliedToInvoices: appliedInvoiceIds,
         tenderDetails: tenderDetails,
     };
@@ -287,6 +289,7 @@ export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ succ
         paymentDate: serverTimestamp(),
         recordedBy: 'admin_user',
         amountPaid: totalPaid,
+        type: 'payment',
         appliedToInvoices: appliedInvoiceIds,
         tenderDetails,
         ...(notes && { notes }),
@@ -313,5 +316,6 @@ export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ succ
     return { success: false, error: 'An unknown error occurred while applying the payment.' };
   }
 }
+
 
 

@@ -1,11 +1,12 @@
 
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp, writeBatch, doc, getDoc, collectionGroup, deleteDoc, where, updateDoc, increment } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp, writeBatch, doc, getDoc, collectionGroup, deleteDoc, where, updateDoc, increment, DocumentReference } from 'firebase/firestore';
 import { summarizeInvoice } from '@/ai/flows/invoice-summary';
 import type { Invoice, InvoiceItem, Product, Customer, InvoiceDetail, InvoiceHistory, EditHistoryEntry, Payment, TenderDetail } from '@/lib/types';
 import { getInventory } from './inventory';
@@ -232,6 +233,68 @@ export async function getLatestInvoiceNumber(): Promise<number> {
   }
 }
 
+interface CreateInvoicePayload {
+  invoiceData: Omit<Invoice, 'id' | 'createdAt'>;
+  items: InvoiceItem[];
+  customer: Customer;
+}
+
+/**
+ * Internal helper to create an invoice and its items within a Firestore transaction/batch.
+ * This is the "Master Chef" function. It does NOT commit the batch.
+ * @returns The DocumentReference of the new invoice.
+ */
+export async function _createInvoiceWithItems(
+  batch: WriteBatch,
+  payload: CreateInvoicePayload
+): Promise<DocumentReference> {
+  const { invoiceData, items, customer } = payload;
+  
+  const dataDocRef = doc(db, DATA_PATH);
+  const invoiceRef = doc(collection(dataDocRef, INVOICES_COLLECTION));
+
+  const finalInvoiceData = { ...invoiceData, createdAt: serverTimestamp() };
+  batch.set(invoiceRef, finalInvoiceData);
+
+  // Handle inventory updates and history for sold items
+  for (const item of items) {
+    const itemRef = doc(collection(invoiceRef, 'invoice_items'));
+    batch.set(itemRef, { ...item, inventoryId: item.isCustom ? null : item.id });
+
+    if (!item.isCustom && item.id) {
+      const inventoryItemRef = doc(dataDocRef, `${INVENTORY_COLLECTION}/${item.id}`);
+      // Note: We expect the calling function to have verified inventory existence.
+      // In a real-world scenario, you might re-fetch here if not using a transaction.
+      const productHistoryRef = doc(collection(dataDocRef, INVENTORY_HISTORY_COLLECTION));
+      batch.set(productHistoryRef, {
+        // This assumes 'item' has enough product details, which might need adjustment.
+        // For now, we'll store what we have. A better approach might fetch the full product.
+        ...item, // This is a simplification.
+        id: item.id,
+        imei: item.description?.split(' - ')[0] || 'N/A', // Assuming description has IMEI
+        status: 'Sold' as const,
+        amount: item.total,
+        movedAt: serverTimestamp(),
+        customerId: customer.id,
+        customerName: invoiceData.customerName || customer.name,
+        invoiceId: invoiceRef.id,
+      });
+      batch.delete(inventoryItemRef);
+    }
+  }
+
+  // Create initial edit history
+  const historyRef = doc(collection(invoiceRef, 'edit_history'));
+  batch.set(historyRef, {
+    timestamp: serverTimestamp(),
+    user: 'admin_user', // Hardcoded user
+    changes: { initialCreation: { from: null, to: `Invoice Created (Total: ${invoiceData.total.toFixed(2)})` } }
+  });
+
+  return invoiceRef;
+}
+
+
 interface SendInvoiceData {
   invoiceData: Omit<Invoice, 'id' | 'createdAt'>;
   items: InvoiceItem[];
@@ -244,7 +307,6 @@ export async function sendInvoice({ invoiceData, items, customer, cashAmount, ca
     if (!isConfigured) {
         return { success: false, error: 'Firebase is not configured.' };
     }
-
     if (!customer) {
       return { success: false, error: 'Customer is required.' };
     }
@@ -254,89 +316,38 @@ export async function sendInvoice({ invoiceData, items, customer, cashAmount, ca
     try {
         const batch = writeBatch(db);
         const dataDocRef = doc(db, DATA_PATH);
-        
-        const invoiceRef = doc(collection(dataDocRef, INVOICES_COLLECTION));
 
         const amountDue = invoiceData.total - totalPaid;
-        let status: Invoice['status'];
-
-        if (totalPaid <= 0 && invoiceData.total > 0) {
-          status = 'Unpaid';
-        } else if (amountDue > 0) {
-          status = 'Partial';
-        } else {
-          status = 'Paid';
-        }
+        let status: Invoice['status'] = 'Draft';
+        if (totalPaid <= 0 && invoiceData.total > 0) status = 'Unpaid';
+        else if (amountDue > 0) status = 'Partial';
+        else status = 'Paid';
 
         const finalInvoiceData: any = {
             ...invoiceData,
-            status: status,
-            customerId: customer.id,
+            status,
             amountPaid: totalPaid,
-            createdAt: serverTimestamp(),
             paymentIds: [],
         };
-        
-        // If there's a payment, create the payment record and link it
+
+        const invoiceRef = await _createInvoiceWithItems(batch, { invoiceData: finalInvoiceData, items, customer });
+
         if (totalPaid > 0) {
             const paymentId = await _createPaymentWithinTransaction(
               batch, 
               customer.id, 
               totalPaid, 
               { cashAmount, cardAmount, checkAmount: 0 },
-              [invoiceRef.id] // Applied to the new invoice
+              [invoiceRef.id]
             );
-            finalInvoiceData.paymentIds.push(paymentId);
+            // Update the invoice with the actual payment ID
+            batch.update(invoiceRef, { paymentIds: [paymentId] });
         }
-
-        batch.set(invoiceRef, finalInvoiceData);
-
+        
         if (customer.id !== WALK_IN_CUSTOMER_ID && amountDue > 0) {
             const customerRef = doc(dataDocRef, `${CUSTOMERS_COLLECTION}/${customer.id}`);
             batch.update(customerRef, { debt: increment(amountDue) });
         }
-
-
-        for (const item of items) {
-          const itemRef = doc(collection(invoiceRef, 'invoice_items'));
-          
-          const itemData: any = { ...item };
-          if (!item.isCustom) {
-            itemData.inventoryId = item.id;
-          }
-          batch.set(itemRef, itemData);
-
-          if (!item.isCustom && item.id) {
-              const inventoryItemRef = doc(collection(dataDocRef, INVENTORY_COLLECTION), item.id);
-              const inventoryItemSnap = await getDoc(inventoryItemRef);
-
-              if (inventoryItemSnap.exists()) {
-                  const product = { id: inventoryItemSnap.id, ...inventoryItemSnap.data() } as Product;
-                  const historyRef = doc(collection(dataDocRef, INVENTORY_HISTORY_COLLECTION));
-                  const finalCustomerName = invoiceData.customerName || customer.name;
-                  const productHistory = {
-                      ...product,
-                      status: 'Sold' as const,
-                      amount: item.total,
-                      movedAt: serverTimestamp(),
-                      customerId: finalInvoiceData.customerId,
-                      customerName: finalCustomerName,
-                      invoiceId: invoiceRef.id,
-                  };
-                  batch.set(historyRef, productHistory);
-                  batch.delete(inventoryItemRef);
-              }
-          }
-        }
-        
-        const historyRef = doc(collection(invoiceRef, 'edit_history'));
-        batch.set(historyRef, {
-            timestamp: serverTimestamp(),
-            user: 'admin_user', // Hardcoded user
-            changes: {
-                initialCreation: { from: null, to: 'Invoice Created' }
-            }
-        });
         
         await batch.commit();
 

@@ -8,6 +8,7 @@
 
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -77,6 +78,8 @@ export type Invoice = {
   createdAt: any;
   amountPaid: number;
   paymentIds: string[];
+  relatedCreditNoteId?: string; // For invoices created from an exchange
+  relatedInvoiceId?: string; // For invoices that have been refunded/exchanged against
 };
 
 export type InvoiceDetail = Omit<Invoice, 'customerId' | 'customerName'> & {
@@ -87,7 +90,7 @@ export type InvoiceDetail = Omit<Invoice, 'customerId' | 'customerName'> & {
 };
 
 export type TenderDetail = {
-  method: 'Cash' | 'Check' | 'Card/Zelle/Wire';
+  method: 'Cash' | 'Check' | 'Card/Zelle/Wire' | 'StoreCredit';
   amount: number;
 };
 
@@ -102,6 +105,7 @@ export type Payment = {
     paymentDate: any;
     recordedBy: string;
     amountPaid: number;
+    type: 'payment' | 'refund';
     appliedToInvoices: string[];
     tenderDetails: TenderDetail[];
     notes?: string;
@@ -141,4 +145,15 @@ export type EditHistoryEntry = {
   timestamp: any;
   user: string;
   changes: Record<string, { from: any; to: any }>;
+};
+
+export type CreditNote = {
+  id: string;
+  originalInvoiceId: string;
+  customerId: string;
+  issueDate: string;
+  items: InvoiceItem[];
+  totalCredit: number; // Should be a positive value representing the credit amount
+  newExchangeInvoiceId?: string;
+  refundPaymentId?: string;
 };
