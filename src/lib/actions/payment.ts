@@ -4,7 +4,8 @@
 import { revalidatePath } from 'next/cache';
 import { db, isConfigured } from '@/lib/firebase';
 import { collection, doc, runTransaction, serverTimestamp, getDocs, where, query, orderBy, increment } from 'firebase/firestore';
-import type { Invoice, Customer, TenderDetail } from '@/lib/types';
+import type { Invoice, Customer, TenderDetail, Payment, PaymentDetail } from '@/lib/types';
+import { getCustomers } from './customers';
 
 interface ApplyPaymentPayload {
   customerId: string;
@@ -18,6 +19,41 @@ const DATA_PATH = 'cellphone-inventory-system/data';
 const PAYMENTS_COLLECTION = 'payments';
 const INVOICES_COLLECTION = 'invoices';
 const CUSTOMERS_COLLECTION = 'customers';
+
+export async function getPayments(): Promise<PaymentDetail[]> {
+  if (!isConfigured) {
+    return [];
+  }
+  try {
+    const dataDocRef = doc(db, DATA_PATH);
+    const paymentsCollectionRef = collection(dataDocRef, PAYMENTS_COLLECTION);
+    
+    const [paymentsSnapshot, customers] = await Promise.all([
+      getDocs(query(paymentsCollectionRef, orderBy('paymentDate', 'desc'))),
+      getCustomers()
+    ]);
+    
+    const customerMap = new Map<string, Customer>();
+    customers.forEach(customer => customerMap.set(customer.id, customer));
+    
+    return paymentsSnapshot.docs.map(doc => {
+      const data = doc.data() as Payment;
+      const paymentDate = data.paymentDate?.toDate ? data.paymentDate.toDate() : (data.paymentDate ? new Date(data.paymentDate) : new Date());
+      const customer = data.customerId ? customerMap.get(data.customerId) : undefined;
+      
+      return { 
+        id: doc.id, 
+        ...data,
+        paymentDate: paymentDate.toISOString(),
+        customerName: customer ? customer.name : 'N/A',
+      } as PaymentDetail;
+    });
+
+  } catch (error) {
+    console.error('Error fetching payments:', error);
+    return [];
+  }
+}
 
 export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ success: boolean; error?: string }> {
   if (!isConfigured) {
@@ -126,6 +162,8 @@ export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ succ
     revalidatePath(`/dashboard/customers/${customerId}`);
     revalidatePath(`/dashboard/customers/${customerId}/payment`);
     revalidatePath('/dashboard/invoices');
+    revalidatePath('/dashboard/finance');
+
 
     return { success: true };
 

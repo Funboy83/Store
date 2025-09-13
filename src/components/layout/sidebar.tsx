@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Boxes, LayoutGrid, BarChart3, Users, Settings } from 'lucide-react';
+import { Boxes, LayoutGrid, BarChart3, Users, Settings, Landmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Logo } from '../logo';
 
@@ -28,6 +28,11 @@ const mainNavItems = [
     icon: Users,
     label: 'Customers',
   },
+  {
+    href: '/dashboard/finance',
+    icon: Landmark,
+    label: 'Finance',
+  }
 ];
 
 const settingsNavItem = {

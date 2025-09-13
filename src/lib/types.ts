@@ -3,6 +3,7 @@
 
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -96,6 +97,10 @@ export type Payment = {
     notes?: string;
 };
 
+export type PaymentDetail = Payment & {
+  customerName: string;
+};
+
 
 export type InvoiceHistory = Omit<Invoice, 'status' | 'createdAt'> & {
     status: 'Voided';
@@ -126,4 +131,3 @@ export type EditHistoryEntry = {
   user: string;
   changes: Record<string, { from: any; to: any }>;
 };
-
