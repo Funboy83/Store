@@ -3,7 +3,7 @@
 
 import { db, isConfigured } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, addDoc, serverTimestamp, doc, where, getDoc } from 'firebase/firestore';
-import type { Customer, Invoice, InvoiceDetail } from '../types';
+import type { Customer, Invoice, InvoiceDetail, InvoiceItem } from '../types';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
@@ -109,7 +109,7 @@ export async function addCustomer(prevState: any, formData: FormData) {
   }
 }
 
-export async function getCustomerDetails(id: string): Promise<{ customer: Customer; invoices: Invoice[] } | null> {
+export async function getCustomerDetails(id: string): Promise<{ customer: Customer; invoices: InvoiceDetail[] } | null> {
   if (!isConfigured) {
     return null;
   }
@@ -140,17 +140,25 @@ export async function getCustomerDetails(id: string): Promise<{ customer: Custom
     const invoicesSnapshot = await getDocs(invoicesQuery);
 
     let totalSpent = 0;
-    const invoices = invoicesSnapshot.docs
-      .map(doc => {
-        const invoiceData = doc.data();
+    const invoicePromises = invoicesSnapshot.docs.map(async (doc) => {
+        const invoiceData = doc.data() as Invoice;
         totalSpent += invoiceData.total;
+
+        const itemsCollectionRef = collection(doc.ref, 'invoice_items');
+        const itemsSnapshot = await getDocs(itemsCollectionRef);
+        const items = itemsSnapshot.docs.map(itemDoc => ({ id: itemDoc.id, ...itemDoc.data() } as InvoiceItem));
+
         return {
           id: doc.id,
           ...invoiceData,
           createdAt: invoiceData.createdAt?.toDate ? invoiceData.createdAt.toDate().toISOString() : new Date().toISOString(),
-        } as Invoice;
-      })
-      .filter(invoice => invoice.status !== 'Voided');
+          customer: customer,
+          items: items,
+        } as InvoiceDetail;
+      });
+
+    let invoices = await Promise.all(invoicePromises);
+    invoices = invoices.filter(invoice => invoice.status !== 'Voided');
 
     // Sort in code instead of in the query to avoid needing a composite index
     invoices.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

@@ -2,6 +2,7 @@
 
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal } from 'lucide-react';
@@ -26,15 +27,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { InvoiceDetail, Invoice } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { InvoiceQuickView } from './invoice-quick-view';
 
 interface InvoiceTableProps {
-    invoices: (Invoice | InvoiceDetail)[];
+    invoices: InvoiceDetail[];
     title?: string;
     onArchive?: (invoice: InvoiceDetail) => void;
 }
 
 export function InvoiceTable({ invoices, title = "Invoices", onArchive }: InvoiceTableProps) {
   const { toast } = useToast();
+  const [quickViewInvoice, setQuickViewInvoice] = useState<InvoiceDetail | null>(null);
 
   const handleArchiveClick = (invoice: InvoiceDetail) => {
     if (onArchive) {
@@ -70,80 +79,96 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive }: Invoic
   }
 
   return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Payment Status</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invoices.length === 0 ? (
+      <>
+        <Card>
+          <CardHeader>
+            <CardTitle>{title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
                 <TableRow>
-                    <TableCell colSpan={7} className="text-center h-24">No invoices found.</TableCell>
+                  <TableHead>Invoice</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Payment Status</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ) : (
-                invoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
-                    <TableCell>{getCustomerName(invoice)}</TableCell>
-                    <TableCell>
-                      <Badge variant={getPaymentStatusVariant(invoice.status)}>{invoice.status || 'Paid'}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {invoice.status !== 'Voided' && <Badge variant="default" className="bg-green-600 hover:bg-green-700">Active</Badge>}
-                        {'isEdited' in invoice && invoice.isEdited && <Badge variant="secondary">Edited</Badge>}
-                      </div>
-                    </TableCell>
-                    <TableCell>{invoice.issueDate}</TableCell>
-                    <TableCell className="text-right">${invoice.total.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0" disabled={invoice.status === 'Voided'}>
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem asChild>
-                                <Link href={`/dashboard/invoices/${invoice.id}`}>View Invoice</Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild disabled={invoice.status === 'Paid' || invoice.status === 'Partial'}>
-                                <Link href={`/dashboard/invoices/${invoice.id}/edit`}>Edit Invoice</Link>
-                            </DropdownMenuItem>
-                            {onArchive && (
-                                <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem 
-                                    className="text-destructive"
-                                    disabled={invoice.status === 'Paid' || invoice.status === 'Partial'}
-                                    onSelect={() => handleArchiveClick(invoice as InvoiceDetail)}>
-                                    Void Invoice
-                                </DropdownMenuItem>
-                                </>
-                            )}
-                        </DropdownMenuContent>
-                        </DropdownMenu>
-                    </TableCell>
+              </TableHeader>
+              <TableBody>
+                {invoices.length === 0 ? (
+                  <TableRow>
+                      <TableCell colSpan={7} className="text-center h-24">No invoices found.</TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                ) : (
+                  invoices.map((invoice) => (
+                    <TableRow key={invoice.id}>
+                      <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+                      <TableCell>{getCustomerName(invoice)}</TableCell>
+                      <TableCell>
+                        <Badge variant={getPaymentStatusVariant(invoice.status)}>{invoice.status || 'Paid'}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {invoice.status !== 'Voided' && <Badge variant="default" className="bg-green-600 hover:bg-green-700">Active</Badge>}
+                          {'isEdited' in invoice && invoice.isEdited && <Badge variant="secondary">Edited</Badge>}
+                        </div>
+                      </TableCell>
+                      <TableCell>{invoice.issueDate}</TableCell>
+                      <TableCell className="text-right">${invoice.total.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">
+                      <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0" disabled={invoice.status === 'Voided'}>
+                              <span className="sr-only">Open menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem onSelect={() => setQuickViewInvoice(invoice)}>
+                                View Invoice
+                              </DropdownMenuItem>
+                              <DropdownMenuItem asChild disabled={invoice.status === 'Paid' || invoice.status === 'Partial'}>
+                                  <Link href={`/dashboard/invoices/${invoice.id}/edit`}>Edit Invoice</Link>
+                              </DropdownMenuItem>
+                              {onArchive && (
+                                  <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                      className="text-destructive"
+                                      disabled={invoice.status === 'Paid' || invoice.status === 'Partial'}
+                                      onSelect={() => handleArchiveClick(invoice as InvoiceDetail)}>
+                                      Void Invoice
+                                  </DropdownMenuItem>
+                                  </>
+                              )}
+                          </DropdownMenuContent>
+                          </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+        <Dialog open={!!quickViewInvoice} onOpenChange={(isOpen) => !isOpen && setQuickViewInvoice(null)}>
+          <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
+            {quickViewInvoice && (
+              <>
+                <DialogHeader className="p-6 pb-0">
+                  <DialogTitle>Quick View: Invoice {quickViewInvoice.invoiceNumber}</DialogTitle>
+                </DialogHeader>
+                <div className="flex-1 overflow-y-auto px-6">
+                   <InvoiceQuickView invoice={quickViewInvoice} />
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+      </>
   );
 }

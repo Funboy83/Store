@@ -1,4 +1,5 @@
 
+
 import { getCustomerDetails } from '@/lib/actions/customers';
 import { notFound } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,6 +11,7 @@ import { InvoiceTable } from '@/components/invoices/invoice-table';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import type { InvoiceDetail } from '@/lib/types';
 
 const WALK_IN_CUSTOMER_ID = 'Aj0l1O2kJcvlF3J0uVMX';
 
@@ -100,7 +102,7 @@ export default async function CustomerDetailsPage({ params }: { params: { id: st
         )}
       </Card>
       
-      <InvoiceTable invoices={invoices} title={`Invoices for ${customer.name}`} />
+      <InvoiceTable invoices={invoices as InvoiceDetail[]} title={`Invoices for ${customer.name}`} />
     </div>
   );
 }
