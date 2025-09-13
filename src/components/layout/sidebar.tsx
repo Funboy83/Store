@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Boxes, LayoutGrid, BarChart3, Users, Settings, Landmark } from 'lucide-react';
+import { Boxes, LayoutGrid, BarChart3, Users, Settings, Landmark, ArrowLeftRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Logo } from '../logo';
 
@@ -32,6 +32,11 @@ const mainNavItems = [
     href: '/dashboard/finance',
     icon: Landmark,
     label: 'Finance',
+  },
+  {
+    href: '/dashboard/refund-exchange',
+    icon: ArrowLeftRight,
+    label: 'Refund & Exchange',
   }
 ];
 
