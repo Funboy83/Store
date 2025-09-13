@@ -2,6 +2,7 @@
 
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -125,3 +126,4 @@ export type EditHistoryEntry = {
   user: string;
   changes: Record<string, { from: any; to: any }>;
 };
+
