@@ -2,10 +2,10 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, History } from 'lucide-react';
+import { PlusCircle, ListFilter } from 'lucide-react';
 import { getInvoices, archiveInvoice } from '@/lib/actions/invoice';
 import {
   AlertDialog,
@@ -17,10 +17,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { useAsyncEffect } from '@/hooks/use-async-effect';
 import type { InvoiceDetail } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { InvoiceTable } from '@/components/invoices/invoice-table';
+import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
+
+type FilterStatus = 'all' | 'paid' | 'unpaid';
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<InvoiceDetail[]>([]);
@@ -28,6 +31,7 @@ export default function InvoicesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDetail | null>(null);
   const { toast } = useToast();
+  const [filter, setFilter] = useState<FilterStatus>('all');
 
   const fetchAndSetInvoices = async () => {
     setLoading(true);
@@ -68,28 +72,72 @@ export default function InvoicesPage() {
     setSelectedInvoice(null);
   };
 
+  const filteredInvoices = useMemo(() => {
+    if (filter === 'paid') {
+      return invoices.filter(inv => inv.status === 'Paid');
+    }
+    if (filter === 'unpaid') {
+      return invoices.filter(inv => inv.status === 'Unpaid' || inv.status === 'Partial');
+    }
+    return invoices;
+  }, [invoices, filter]);
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Invoices</h1>
-        <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => toast({ title: 'Coming Soon!', description: 'Invoice history will be available in a future update.'})}>
-              <History className="mr-2 h-4 w-4" />
-              History
-            </Button>
-          <Link href="/dashboard/invoices/create" passHref>
+    <div className="flex flex-col gap-6">
+      <div className="flex items-start justify-between">
+        <div>
+            <h1 className="text-3xl font-bold tracking-tight">Invoice Dashboard</h1>
+            <p className="text-muted-foreground mt-1">Filter and manage your invoices below.</p>
+        </div>
+        <Link href="/dashboard/invoices/create" passHref>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" />
-              Create Invoice
+              New Invoice
             </Button>
-          </Link>
-        </div>
+        </Link>
       </div>
 
+       <div className="flex items-center gap-2">
+            <Button 
+                variant={filter === 'all' ? 'default' : 'outline'}
+                onClick={() => setFilter('all')}
+            >
+                All Invoices
+            </Button>
+             <Button 
+                variant={filter === 'paid' ? 'default' : 'outline'}
+                onClick={() => setFilter('paid')}
+            >
+                Paid
+            </Button>
+             <Button 
+                variant={filter === 'unpaid' ? 'default' : 'outline'}
+                onClick={() => setFilter('unpaid')}
+            >
+                Unpaid & Partial
+            </Button>
+            <Button 
+                variant="outline" 
+                className="ml-auto"
+                onClick={() => toast({ title: 'Coming Soon!', description: 'Advanced filtering will be available in a future update.'})}
+            >
+              <ListFilter className="mr-2 h-4 w-4" />
+              Filters
+            </Button>
+        </div>
+
+
       {loading ? (
-        <p>Loading invoices...</p>
+        <Card>
+          <CardHeader><Skeleton className="h-6 w-48" /></CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+        </Card>
       ) : (
-        <InvoiceTable invoices={invoices} onArchive={handleArchiveRequest} />
+        <InvoiceTable invoices={filteredInvoices} onArchive={handleArchiveRequest} />
       )}
       
       <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
