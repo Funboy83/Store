@@ -9,6 +9,7 @@ import { Customer } from '@/lib/types';
 import { AddCustomerForm } from '@/components/customers/add-customer-form';
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
 
 interface CustomerTableProps {
     customers: Customer[];
@@ -19,6 +20,15 @@ interface CustomerTableProps {
 
 export function CustomerTable({ customers, showAddCustomerButton = true, onRowClick, hideActions }: CustomerTableProps) {
     const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
+    const router = useRouter();
+
+    const handleRowClick = (customer: Customer) => {
+        if (onRowClick) {
+            onRowClick(customer);
+        } else {
+            router.push(`/dashboard/customers/${customer.id}`);
+        }
+    };
 
     return (
         <>
@@ -36,7 +46,7 @@ export function CustomerTable({ customers, showAddCustomerButton = true, onRowCl
                     <DataTable 
                         columns={columns} 
                         data={customers} 
-                        onRowClick={onRowClick}
+                        onRowClick={handleRowClick}
                         hideActions={hideActions}
                     />
                 </CardContent>
