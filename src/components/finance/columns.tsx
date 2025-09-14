@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
 import { PaymentDetail, InvoiceDetail } from "@/lib/types"
-import { ArrowRight, MoreHorizontal, StickyNote } from "lucide-react"
+import { MoreHorizontal, StickyNote, Undo2 } from "lucide-react"
 import { Button } from "../ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover"
 import {
@@ -33,62 +33,6 @@ function DateCell({ dateString }: { dateString: string }) {
   // Render a placeholder or nothing on the server and initial client render
   return <span>{formattedDate || 'Loading date...'}</span>;
 }
-
-function AppliedToCell({ row }: { row: any }) {
-    const [quickViewInvoice, setQuickViewInvoice] = useState<InvoiceDetail | null>(null);
-    const payment = row.original as PaymentDetail;
-    const invoices = payment.appliedToInvoices;
-
-    if (payment.type === 'refund') {
-        if (payment.sourceCreditNoteId) {
-            return (
-                 <Link href={`/dashboard/credit-notes/${payment.sourceCreditNoteId}`} passHref>
-                    <Badge variant="destructive" className="cursor-pointer hover:bg-destructive/80">
-                        Refund
-                    </Badge>
-                </Link>
-            );
-        }
-        return <Badge variant="destructive">Refund</Badge>;
-    }
-
-    if (!invoices || invoices.length === 0) {
-        return <span>N/A</span>;
-    }
-
-    return (
-        <>
-            <div className="flex flex-col items-start gap-1">
-                {invoices.map(inv => (
-                    <Button 
-                        key={inv.id}
-                        variant="link" 
-                        className="p-0 h-auto font-normal"
-                        onClick={() => setQuickViewInvoice(inv)}
-                    >
-                        {inv.invoiceNumber}
-                    </Button>
-                ))}
-            </div>
-
-            <Dialog open={!!quickViewInvoice} onOpenChange={(isOpen) => !isOpen && setQuickViewInvoice(null)}>
-                <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
-                    {quickViewInvoice && (
-                    <>
-                        <DialogHeader className="p-6 pb-0">
-                        <DialogTitle>Quick View: Invoice {quickViewInvoice.invoiceNumber}</DialogTitle>
-                        </DialogHeader>
-                        <div className="flex-1 overflow-y-auto px-6">
-                            <InvoiceQuickView invoice={quickViewInvoice} />
-                        </div>
-                    </>
-                    )}
-                </DialogContent>
-            </Dialog>
-        </>
-    );
-}
-
 
 export const columns: ColumnDef<PaymentDetail>[] = [
   {
@@ -137,7 +81,50 @@ export const columns: ColumnDef<PaymentDetail>[] = [
   {
     id: "appliedTo",
     header: "Applied to",
-    cell: AppliedToCell,
+    cell: ({ row }) => {
+        const payment = row.original as PaymentDetail;
+        const [quickViewInvoice, setQuickViewInvoice] = useState<InvoiceDetail | null>(null);
+
+        return (
+             <>
+                {payment.type === 'refund' && payment.sourceCreditNoteId ? (
+                     <Link href={`/dashboard/credit-notes/${payment.sourceCreditNoteId}`} passHref>
+                        <Badge variant="destructive" className="cursor-pointer hover:bg-destructive/80">
+                            <Undo2 className="mr-1.5 h-3 w-3"/>
+                            Refund
+                        </Badge>
+                    </Link>
+                ) : (
+                    <div className="flex flex-col items-start gap-1">
+                        {(payment.appliedToInvoices || []).map(inv => (
+                            <Button 
+                                key={inv.id}
+                                variant="link" 
+                                className="p-0 h-auto font-normal"
+                                onClick={() => setQuickViewInvoice(inv)}
+                            >
+                                {inv.invoiceNumber}
+                            </Button>
+                        ))}
+                    </div>
+                )}
+                 <Dialog open={!!quickViewInvoice} onOpenChange={(isOpen) => !isOpen && setQuickViewInvoice(null)}>
+                    <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
+                        {quickViewInvoice && (
+                        <>
+                            <DialogHeader className="p-6 pb-0">
+                            <DialogTitle>Quick View: Invoice {quickViewInvoice.invoiceNumber}</DialogTitle>
+                            </DialogHeader>
+                            <div className="flex-1 overflow-y-auto px-6">
+                                <InvoiceQuickView invoice={quickViewInvoice} />
+                            </div>
+                        </>
+                        )}
+                    </DialogContent>
+                </Dialog>
+            </>
+        )
+    },
   },
   {
     accessorKey: "notes",
