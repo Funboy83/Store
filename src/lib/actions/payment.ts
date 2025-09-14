@@ -4,6 +4,8 @@
 
 
 
+
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -105,7 +107,8 @@ export async function _createPaymentWithinTransaction(
   amounts: { cashAmount: number; checkAmount: number; cardAmount: number; storeCreditAmount?: number },
   appliedInvoiceIds: string[],
   type: 'payment' | 'refund' = 'payment',
-  notes?: string
+  notes?: string,
+  sourceCreditNoteId?: string
 ): Promise<string> {
     const dataDocRef = doc(db, DATA_PATH);
     const paymentRef = doc(collection(dataDocRef, PAYMENTS_COLLECTION));
@@ -132,6 +135,9 @@ export async function _createPaymentWithinTransaction(
 
     if (notes) {
         paymentData.notes = notes;
+    }
+    if (sourceCreditNoteId) {
+        paymentData.sourceCreditNoteId = sourceCreditNoteId;
     }
 
     batch.set(paymentRef, paymentData);
@@ -324,6 +330,7 @@ export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ succ
     return { success: false, error: 'An unknown error occurred while applying the payment.' };
   }
 }
+
 
 
 

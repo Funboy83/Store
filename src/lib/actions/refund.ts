@@ -51,7 +51,7 @@ export async function processRefundExchange(payload: ProcessRefundExchangePayloa
             const creditToApply = exchangeItems.length > 0 ? Math.min(totalCredit, exchangeTotal) : 0;
             const remainingCreditAfterExchange = totalCredit - creditToApply;
             
-            const creditNoteData: Omit<CreditNote, 'id' | 'createdAt'> = {
+            const creditNoteData: Omit<CreditNote, 'id'> = {
                 originalInvoiceId: originalInvoice.id,
                 customerId: customer.id,
                 issueDate: new Date().toISOString().split('T')[0],
@@ -68,6 +68,7 @@ export async function processRefundExchange(payload: ProcessRefundExchangePayloa
             for (const item of returnedItems) {
                 if (!item.isCustom && item.inventoryId) {
                     const productRef = doc(dataDocRef, `${INVENTORY_COLLECTION}/${item.inventoryId}`);
+                    // A better approach would be to check if product exists before updating
                     transaction.update(productRef, { status: 'Available' });
                 }
             }
@@ -130,18 +131,15 @@ export async function processRefundExchange(payload: ProcessRefundExchangePayloa
                         checkAmount: 0
                     },
                     [], // Refunds aren't applied "to" an invoice
-                    'refund'
+                    'refund',
+                    undefined,
+                    creditNoteRef.id // Link the refund to the credit note
                 );
                 // Link refund payment to the credit note for audit trail
-                transaction.update(creditNoteRef, { refundPaymentId: refundPaymentId, status: 'fully_used' });
+                transaction.update(creditNoteRef, { refundPaymentId: refundPaymentId, status: 'refunded' });
             }
 
             // === 6. Update Customer Debt ===
-            // This is the net change in what the customer owes the store.
-            // A positive value means their debt increases.
-            // A negative value means their debt decreases (or they get credit).
-            // finalBalance = new items total - returned items total
-            // totalNewPayment = cash/card they just paid
             const debtChange = finalBalance - totalNewPayment;
             transaction.update(customerRef, { debt: increment(debtChange) });
         });

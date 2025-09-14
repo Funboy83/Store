@@ -113,6 +113,7 @@ export type Payment = {
     appliedToInvoices: string[];
     tenderDetails: TenderDetail[];
     notes?: string;
+    sourceCreditNoteId?: string;
 };
 
 export type PaymentDetail = Omit<Payment, 'appliedToInvoices'> & {
@@ -159,7 +160,7 @@ export type CreditNote = {
   items: InvoiceItem[];
   totalCredit: number;
   remainingCredit: number;
-  status: 'available' | 'partially_used' | 'fully_used';
+  status: 'available' | 'partially_used' | 'fully_used' | 'refunded';
   newExchangeInvoiceId?: string;
   refundPaymentId?: string;
 };
