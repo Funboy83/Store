@@ -117,7 +117,16 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive, showRefu
                           {invoice.isEdited && <Badge variant="secondary">Edited</Badge>}
                            {invoice.relatedCreditNoteId && (
                             <Link href={`/dashboard/credit-notes/${invoice.relatedCreditNoteId}`}>
-                              <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600 cursor-pointer">Returned</Badge>
+                              <Badge 
+                                variant="destructive" 
+                                className="bg-orange-500 hover:bg-orange-600 cursor-pointer"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setQuickViewInvoice(invoice);
+                                }}
+                              >
+                                Returned
+                              </Badge>
                             </Link>
                            )}
                         </div>
