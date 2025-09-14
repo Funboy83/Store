@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
-import { PlusCircle, Trash2, Loader2, Banknote, CreditCard } from 'lucide-react';
+import { PlusCircle, Trash2, Loader2, Banknote, CreditCard, Tag } from 'lucide-react';
 import { ItemTable } from './item-table';
 import { InventoryPicker } from '../invoices/inventory-picker';
 import { useToast } from '@/hooks/use-toast';
@@ -86,6 +86,37 @@ export function RefundWorkspace({ originalInvoice, customer, inventory }: Refund
         }
     };
 
+    const handleAddCustomItem = () => {
+        const newItem: InvoiceItem = {
+          id: `custom-${Date.now()}`,
+          productName: '',
+          description: 'Custom item',
+          quantity: 1,
+          unitPrice: 0,
+          total: 0,
+          isCustom: true,
+        };
+        setExchangeItems(prev => [...prev, newItem]);
+    };
+
+    const handleItemChange = (itemId: string, field: keyof InvoiceItem, value: string | number) => {
+        setExchangeItems(prev => prev.map(item => {
+        if (item.id === itemId) {
+            const updatedItem = { ...item };
+            const numValue = Number(value) || 0;
+            
+            if (field === 'productName') {
+                updatedItem.productName = String(value);
+            } else if (field === 'total') {
+                updatedItem.total = numValue;
+                updatedItem.unitPrice = numValue; // Assume quantity is 1 for custom items in this context
+            }
+            return updatedItem;
+        }
+        return item;
+        }));
+    };
+
     const totalCredit = useMemo(() => returnedItems.reduce((acc, item) => acc + item.total, 0), [returnedItems]);
     const exchangeTotal = useMemo(() => exchangeItems.reduce((acc, item) => acc + item.total, 0), [exchangeItems]);
     const finalBalance = useMemo(() => exchangeTotal - totalCredit, [exchangeTotal, totalCredit]);
@@ -122,6 +153,7 @@ export function RefundWorkspace({ originalInvoice, customer, inventory }: Refund
                     <Card>
                         <CardHeader>
                             <CardTitle>1. Select Items to Return</CardTitle>
+                             <CardDescription>From invoice {originalInvoice.invoiceNumber}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {originalInvoice.items.map(item => (
@@ -137,7 +169,7 @@ export function RefundWorkspace({ originalInvoice, customer, inventory }: Refund
                                     />
                                     <div className="flex-grow">
                                         <p className="font-semibold">{item.productName}</p>
-                                        <p className="text-xs text-muted-foreground">${item.total.toFixed(2)}</p>
+                                        <p className="text-xs text-muted-foreground">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(item.total)}</p>
                                     </div>
                                 </label>
                             ))}
@@ -149,12 +181,20 @@ export function RefundWorkspace({ originalInvoice, customer, inventory }: Refund
                             <CardTitle>2. Add Items for Exchange</CardTitle>
                         </CardHeader>
                         <CardContent>
-                             <ItemTable items={exchangeItems} onRemove={(id) => setExchangeItems(prev => prev.filter(i => i.id !== id))} />
+                             <ItemTable 
+                                items={exchangeItems} 
+                                onRemove={(id) => setExchangeItems(prev => prev.filter(i => i.id !== id))}
+                                onItemChange={handleItemChange}
+                             />
                         </CardContent>
-                        <CardFooter>
+                        <CardFooter className="gap-2">
+                             <Button variant="outline" onClick={handleAddCustomItem}>
+                                <PlusCircle className="mr-2 h-4 w-4"/>
+                                Add Custom Item
+                            </Button>
                             <Button variant="outline" onClick={() => setIsPickerOpen(true)}>
                                 <PlusCircle className="mr-2 h-4 w-4"/>
-                                Add Items from Inventory
+                                Add From Inventory
                             </Button>
                         </CardFooter>
                     </Card>
@@ -175,13 +215,13 @@ export function RefundWorkspace({ originalInvoice, customer, inventory }: Refund
                                     )}
                                     {exchangeItems.map(item => (
                                         <div key={item.id} className="flex justify-between items-center text-card-foreground">
-                                            <span>{item.productName}</span>
+                                            <span>{item.productName || 'New Item'}</span>
                                             <span className="font-medium">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(item.total)}</span>
                                         </div>
                                     ))}
                                     {totalCredit > 0 && (
                                         <div className="flex justify-between items-center text-green-600 border-t border-dashed pt-2">
-                                            <span className="font-medium">Credit from Return</span>
+                                            <span className="font-medium flex items-center gap-2"><Tag className="h-4 w-4"/>Credit from Return</span>
                                             <span className="font-semibold">-{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(totalCredit)}</span>
                                         </div>
                                     )}
