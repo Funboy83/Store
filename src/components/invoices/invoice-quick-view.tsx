@@ -15,13 +15,14 @@ interface InvoiceQuickViewProps {
 
 export function InvoiceQuickView({ invoice, showRefundExchangeButton = false }: InvoiceQuickViewProps) {
   const { toast } = useToast();
+  const canRefund = invoice.status === 'Paid';
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-end gap-2">
         {showRefundExchangeButton && (
           <Link href={`/dashboard/invoices/${invoice.id}/refund`} passHref>
-             <Button variant="outline">
+             <Button variant="outline" disabled={!canRefund}>
                 <Repeat className="mr-2 h-4 w-4" />
                 Refund / Exchange
             </Button>

@@ -20,6 +20,7 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
 
   const isEdited = history.length > 1;
   const canEdit = invoice.status === 'Unpaid';
+  const canRefund = invoice.status === 'Paid';
 
   return (
     <div className="flex flex-col gap-4">
@@ -44,10 +45,12 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
                     Edit Invoice
                 </Button>
             </Link>
-             <Button variant="destructive" disabled>
-                <Undo2 className="mr-2 h-4 w-4" />
-                Refund
-            </Button>
+             <Link href={`/dashboard/invoices/${invoice.id}/refund`} passHref>
+                <Button variant="destructive" disabled={!canRefund}>
+                    <Undo2 className="mr-2 h-4 w-4" />
+                    Refund / Exchange
+                </Button>
+            </Link>
         </div>
       </div>
       <InvoicePreview invoice={invoice} isEdited={isEdited} />
