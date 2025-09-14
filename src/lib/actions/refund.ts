@@ -4,7 +4,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, doc, runTransaction, serverTimestamp, writeBatch, getDoc, increment, DocumentReference } from 'firebase/firestore';
+import { collection, doc, runTransaction, serverTimestamp, getDoc, increment, DocumentReference } from 'firebase/firestore';
 import type { Invoice, InvoiceItem, Customer, CreditNote, Product } from '@/lib/types';
 import { _createInvoiceWithItems, getLatestInvoiceNumber } from './invoice';
 import { _createPaymentWithinTransaction } from './payment';
@@ -21,8 +21,11 @@ interface ProcessRefundExchangePayload {
     returnedItems: InvoiceItem[];
     exchangeItems: InvoiceItem[];
     customer: Customer;
-    paymentMade: number; // Amount of NEW money customer is paying
-    paymentMethod: 'cash' | 'card'; // Simplified for this example
+    paymentMade: {
+        cash: number;
+        card: number;
+    };
+    refundMethod?: 'Cash' | 'Card';
 }
 
 export async function processRefundExchange(payload: ProcessRefundExchangePayload): Promise<{ success: boolean; error?: string }> {
@@ -30,11 +33,12 @@ export async function processRefundExchange(payload: ProcessRefundExchangePayloa
         return { success: false, error: 'Firebase is not configured.' };
     }
 
-    const { originalInvoice, returnedItems, exchangeItems, customer, paymentMade, paymentMethod } = payload;
+    const { originalInvoice, returnedItems, exchangeItems, customer, paymentMade, refundMethod } = payload;
     
     const totalCredit = returnedItems.reduce((acc, item) => acc + item.total, 0);
     const exchangeTotal = exchangeItems.reduce((acc, item) => acc + item.total, 0);
     const finalBalance = exchangeTotal - totalCredit;
+    const totalNewPayment = paymentMade.cash + paymentMade.card;
 
     try {
         await runTransaction(db, async (transaction) => {
@@ -44,129 +48,101 @@ export async function processRefundExchange(payload: ProcessRefundExchangePayloa
 
             // === 1. Create the Credit Note ===
             const creditNoteRef = doc(collection(dataDocRef, CREDIT_NOTES_COLLECTION));
-            const creditNoteData: Omit<CreditNote, 'id'> = {
+            const creditToApply = exchangeItems.length > 0 ? Math.min(totalCredit, exchangeTotal) : 0;
+            const remainingCreditAfterExchange = totalCredit - creditToApply;
+            
+            const creditNoteData: Omit<CreditNote, 'id' | 'createdAt'> = {
                 originalInvoiceId: originalInvoice.id,
                 customerId: customer.id,
                 issueDate: new Date().toISOString().split('T')[0],
                 items: returnedItems,
                 totalCredit: totalCredit,
-                remainingCredit: totalCredit,
-                status: 'available',
+                remainingCredit: remainingCreditAfterExchange,
+                status: remainingCreditAfterExchange > 0 ? 'available' : 'fully_used',
             };
             transaction.set(creditNoteRef, creditNoteData);
 
-            // Link original invoice to this credit note
             transaction.update(originalInvoiceRef, { relatedCreditNoteId: creditNoteRef.id });
 
             // === 2. Handle Inventory for Returned Items ===
             for (const item of returnedItems) {
                 if (!item.isCustom && item.inventoryId) {
                     const productRef = doc(dataDocRef, `${INVENTORY_COLLECTION}/${item.inventoryId}`);
-                    // Assuming items are returned in sellable condition.
                     transaction.update(productRef, { status: 'Available' });
                 }
             }
             
             let newInvoiceRef: DocumentReference | null = null;
+            let finalAmountPaidOnNewInvoice = 0;
 
             if (exchangeItems.length > 0) {
-                // === 3A. Create New Invoice for Exchange Items ===
-                const newInvoiceNumber = await getLatestInvoiceNumber(); // Must be read before transaction
+                // === 3. Create New Invoice for Exchange Items ===
+                const newInvoiceNumber = await getLatestInvoiceNumber();
                 newInvoiceRef = doc(collection(dataDocRef, INVOICES_COLLECTION));
+                finalAmountPaidOnNewInvoice = creditToApply + totalNewPayment;
 
-                const creditToApply = Math.min(totalCredit, exchangeTotal);
-                
+                const newInvoiceStatus: Invoice['status'] = finalAmountPaidOnNewInvoice >= exchangeTotal ? 'Paid' : (finalAmountPaidOnNewInvoice > 0 ? 'Partial' : 'Unpaid');
+
                 const newInvoiceData: Omit<Invoice, 'id' | 'createdAt'> = {
                     invoiceNumber: String(newInvoiceNumber),
                     customerId: customer.id,
                     customerName: originalInvoice.customerName,
-                    subtotal: exchangeTotal,
-                    tax: 0,
-                    discount: 0,
-                    total: exchangeTotal,
+                    subtotal: exchangeTotal, tax: 0, discount: 0, total: exchangeTotal,
                     issueDate: new Date().toISOString().split('T')[0],
                     dueDate: new Date().toISOString().split('T')[0],
-                    status: 'Draft', // Will be updated shortly
-                    amountPaid: 0, // Will be updated shortly
-                    paymentIds: [],
+                    status: newInvoiceStatus,
+                    amountPaid: finalAmountPaidOnNewInvoice,
+                    paymentIds: [], // Will be populated next
                     relatedCreditNoteId: creditNoteRef.id,
                 };
                 
-                // This replaces the complex `_createInvoiceWithItems` call inside a transaction
-                transaction.set(newInvoiceRef, { ...newInvoiceData, createdAt: serverTimestamp() });
-                for(const item of exchangeItems) {
-                    const itemRef = doc(collection(newInvoiceRef, 'invoice_items'));
-                    transaction.set(itemRef, item);
-                    if(!item.isCustom && item.inventoryId) {
-                        transaction.update(doc(dataDocRef, `${INVENTORY_COLLECTION}/${item.inventoryId}`), { status: 'Sold' });
-                    }
-                }
-                const historyRef = doc(collection(newInvoiceRef, 'edit_history'));
-                transaction.set(historyRef, {
-                    timestamp: serverTimestamp(), user: 'admin_user', changes: { initialCreation: { from: null, to: 'Exchange Invoice Created' } }
-                });
+                await _createInvoiceWithItems(transaction, { invoiceData: newInvoiceData, items: exchangeItems, customer });
+                transaction.update(creditNoteRef, { newExchangeInvoiceId: newInvoiceRef.id, status: 'fully_used' });
 
-
-                // === 4A. Apply Credit as a "StoreCredit" Payment ===
+                // === 4. Link Payments to New Invoice ===
+                const paymentIds: string[] = [];
                 if (creditToApply > 0) {
-                    const storeCreditPaymentRef = doc(collection(dataDocRef, PAYMENTS_COLLECTION));
-                    transaction.set(storeCreditPaymentRef, {
-                        customerId: customer.id, paymentDate: serverTimestamp(), recordedBy: 'admin_user',
-                        amountPaid: creditToApply, type: 'payment', appliedToInvoices: [newInvoiceRef.id],
-                        tenderDetails: [{ method: 'StoreCredit', amount: creditToApply }]
-                    });
-
-                    // Update invoice with this payment
-                    transaction.update(newInvoiceRef, { 
-                        paymentIds: [storeCreditPaymentRef.id],
-                        amountPaid: creditToApply,
-                        status: creditToApply < exchangeTotal ? 'Partial' : 'Paid'
-                    });
+                    const storeCreditPaymentId = await _createPaymentWithinTransaction(
+                        transaction, customer.id, creditToApply, 
+                        { storeCreditAmount: creditToApply, cashAmount: 0, checkAmount: 0, cardAmount: 0 },
+                        [newInvoiceRef.id]
+                    );
+                    paymentIds.push(storeCreditPaymentId);
                 }
-                
-                // Update credit note status
-                transaction.update(creditNoteRef, {
-                    newExchangeInvoiceId: newInvoiceRef.id,
-                    remainingCredit: totalCredit - creditToApply,
-                    status: (totalCredit - creditToApply) > 0 ? 'partially_used' : 'fully_used'
-                });
+                if (totalNewPayment > 0) {
+                     const newPaymentId = await _createPaymentWithinTransaction(
+                        transaction, customer.id, totalNewPayment, 
+                        { cashAmount: paymentMade.cash, cardAmount: paymentMade.card, checkAmount: 0 },
+                        [newInvoiceRef.id]
+                    );
+                    paymentIds.push(newPaymentId);
+                }
+                transaction.update(newInvoiceRef, { paymentIds });
             }
-
-            // === 5. Handle Final Payment/Refund ===
-            const remainingCreditAfterExchange = totalCredit - (exchangeItems.length > 0 ? Math.min(totalCredit, exchangeTotal) : 0);
-
-            if (finalBalance > 0 && paymentMade > 0) { // Customer owes and paid some/all
-                const newPaymentRef = doc(collection(dataDocRef, PAYMENTS_COLLECTION));
-                transaction.set(newPaymentRef, {
-                    customerId: customer.id, paymentDate: serverTimestamp(), recordedBy: 'admin_user',
-                    amountPaid: paymentMade, type: 'payment', appliedToInvoices: newInvoiceRef ? [newInvoiceRef.id] : [],
-                    tenderDetails: [{ method: paymentMethod === 'cash' ? 'Cash' : 'Card/Zelle/Wire', amount: paymentMade }]
-                });
-
-                if (newInvoiceRef) {
-                    const currentAmountPaidOnNewInvoice = Math.min(totalCredit, exchangeTotal);
-                    const finalAmountPaid = currentAmountPaidOnNewInvoice + paymentMade;
-                    transaction.update(newInvoiceRef, { 
-                        paymentIds: [
-                            ...(newInvoiceData.paymentIds), 
-                            newInvoiceRef.id // This seems wrong, should be payment id. Correcting.
-                        ],
-                        amountPaid: finalAmountPaid,
-                        status: finalAmountPaid >= exchangeTotal ? 'Paid' : 'Partial'
-                    });
-                }
-            } else if (remainingCreditAfterExchange > 0) { // Refund is due
-                const refundRef = doc(collection(dataDocRef, PAYMENTS_COLLECTION));
-                transaction.set(refundRef, {
-                    customerId: customer.id, paymentDate: serverTimestamp(), recordedBy: 'admin_user',
-                    amountPaid: remainingCreditAfterExchange, type: 'refund', appliedToInvoices: [originalInvoice.id],
-                    tenderDetails: [{ method: 'Cash', amount: remainingCreditAfterExchange }] // Assuming cash refund
-                });
-                transaction.update(creditNoteRef, { refundPaymentId: refundRef.id });
+            
+            // === 5. Handle Final Refund if Due ===
+            if (remainingCreditAfterExchange > 0 && refundMethod) {
+                const refundPaymentId = await _createPaymentWithinTransaction(
+                    transaction, customer.id, remainingCreditAfterExchange,
+                    { 
+                        cashAmount: refundMethod === 'Cash' ? remainingCreditAfterExchange : 0, 
+                        cardAmount: refundMethod === 'Card' ? remainingCreditAfterExchange : 0,
+                        checkAmount: 0
+                    },
+                    [], // Refunds aren't applied "to" an invoice
+                    'refund'
+                );
+                // Link refund payment to the credit note for audit trail
+                transaction.update(creditNoteRef, { refundPaymentId: refundPaymentId, status: 'fully_used' });
             }
 
             // === 6. Update Customer Debt ===
-            const debtChange = finalBalance - paymentMade;
+            // This is the net change in what the customer owes the store.
+            // A positive value means their debt increases.
+            // A negative value means their debt decreases (or they get credit).
+            // finalBalance = new items total - returned items total
+            // totalNewPayment = cash/card they just paid
+            const debtChange = finalBalance - totalNewPayment;
             transaction.update(customerRef, { debt: increment(debtChange) });
         });
 

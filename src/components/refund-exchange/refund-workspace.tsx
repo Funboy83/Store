@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 const PaymentInput = ({ label, icon: Icon, value, onChange, disabled }: { label: string, icon: React.ElementType, value: number, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, disabled?: boolean }) => (
@@ -52,6 +53,7 @@ export function RefundWorkspace({ originalInvoice, customer, inventory }: Refund
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     
     const [payments, setPayments] = useState({ cash: 0, card: 0 });
+    const [refundMethod, setRefundMethod] = useState<'Cash' | 'Card'>('Cash');
 
     const handlePaymentChange = (method: 'cash' | 'card', value: string) => {
         setPayments(prev => ({...prev, [method]: parseFloat(value) || 0 }));
@@ -101,22 +103,16 @@ export function RefundWorkspace({ originalInvoice, customer, inventory }: Refund
 
     const handleItemChange = (itemId: string, field: keyof InvoiceItem, value: string | number) => {
         setExchangeItems(prev => prev.map(item => {
-        if (item.id === itemId) {
-            const updatedItem = { ...item };
-
-            if (field === 'productName') {
-                updatedItem.productName = String(value);
-            } else {
-                 const numValue = Number(value) || 0;
-                (updatedItem as any)[field] = numValue;
+            if (item.id === itemId) {
+                const updatedItem = { ...item, [field]: value };
+                if (updatedItem.isCustom) {
+                    const quantity = Number(updatedItem.quantity) || 0;
+                    const unitPrice = Number(updatedItem.unitPrice) || 0;
+                    updatedItem.total = quantity * unitPrice;
+                }
+                return updatedItem;
             }
-
-            if (updatedItem.isCustom) {
-                 updatedItem.total = updatedItem.quantity * updatedItem.unitPrice;
-            }
-            return updatedItem;
-        }
-        return item;
+            return item;
         }));
     };
 
@@ -136,7 +132,11 @@ export function RefundWorkspace({ originalInvoice, customer, inventory }: Refund
                 returnedItems,
                 exchangeItems,
                 customer,
-                paymentMade: payments.cash + payments.card,
+                paymentMade: {
+                    cash: payments.cash,
+                    card: payments.card,
+                },
+                refundMethod: finalBalance < 0 ? refundMethod : undefined,
             });
 
             if (result.success) {
@@ -245,9 +245,21 @@ export function RefundWorkspace({ originalInvoice, customer, inventory }: Refund
                             )}
 
                             {finalBalance < 0 && (
-                                <div className="pt-4 border-t">
-                                    <h3 className="font-semibold text-foreground mb-2">Confirm Refund</h3>
-                                    <p className="text-sm text-muted-foreground">Finalizing will create a refund record for the amount due to the customer.</p>
+                                <div className="space-y-3 pt-4 border-t">
+                                    <h3 className="font-semibold text-foreground mb-2">Record Refund</h3>
+                                     <p className="text-sm text-muted-foreground mb-3">Select the method used to return the funds to the customer.</p>
+                                     <div>
+                                        <Label htmlFor="refundMethod">Refund Method</Label>
+                                        <Select value={refundMethod} onValueChange={(value: 'Cash' | 'Card') => setRefundMethod(value)}>
+                                            <SelectTrigger id="refundMethod" className="mt-1">
+                                                <SelectValue placeholder="Select refund method" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Cash">Cash</SelectItem>
+                                                <SelectItem value="Card">Return to Card</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                     </div>
                                 </div>
                             )}
                         </CardContent>
