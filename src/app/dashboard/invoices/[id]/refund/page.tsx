@@ -1,16 +1,19 @@
 
 import { getInvoiceById } from "@/lib/actions/invoice";
+import { getInventory } from "@/lib/actions/inventory";
 import { notFound } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { InvoicePreview } from "@/components/invoices/preview";
+import { RefundWorkspace } from "@/components/refund-exchange/refund-workspace";
 
 export default async function RefundPage({ params }: { params: { id: string } }) {
-    const invoice = await getInvoiceById(params.id);
+    const [invoice, inventory] = await Promise.all([
+        getInvoiceById(params.id),
+        getInventory(),
+    ]);
 
-    if (!invoice) {
+    if (!invoice || !invoice.customer) {
         notFound();
     }
 
@@ -28,25 +31,12 @@ export default async function RefundPage({ params }: { params: { id: string } })
                     <p className="text-muted-foreground">For Invoice {invoice.invoiceNumber}</p>
                 </div>
             </div>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Refund & Exchange Workspace</CardTitle>
-                    <CardDescription>
-                        This is the area where you will select items to return, add new items for an exchange, and finalize the transaction.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="text-center py-12 border-2 border-dashed rounded-lg">
-                        <p className="text-muted-foreground">Full refund & exchange UI coming soon.</p>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <div>
-                <h2 className="text-lg font-semibold mb-2">Original Invoice Preview</h2>
-                <InvoicePreview invoice={invoice} />
-            </div>
+            
+            <RefundWorkspace 
+                originalInvoice={invoice}
+                customer={invoice.customer}
+                inventory={inventory}
+            />
         </div>
     );
 }

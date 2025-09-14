@@ -9,6 +9,7 @@
 
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -78,8 +79,8 @@ export type Invoice = {
   createdAt: any;
   amountPaid: number;
   paymentIds: string[];
-  relatedCreditNoteId?: string; // For invoices created from an exchange
-  relatedInvoiceId?: string; // For invoices that have been refunded/exchanged against
+  relatedCreditNoteId?: string;
+  relatedInvoiceId?: string;
 };
 
 export type InvoiceDetail = Omit<Invoice, 'customerId' | 'customerName'> & {
@@ -153,7 +154,7 @@ export type CreditNote = {
   customerId: string;
   issueDate: string;
   items: InvoiceItem[];
-  totalCredit: number; // Should be a positive value representing the credit amount
+  totalCredit: number;
   newExchangeInvoiceId?: string;
   refundPaymentId?: string;
 };
