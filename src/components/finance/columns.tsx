@@ -42,10 +42,10 @@ function AppliedToCell({ row }: { row: any }) {
     if (payment.type === 'refund') {
         if (payment.sourceCreditNoteId) {
             return (
-                <Link href={`/dashboard/credit-notes/${payment.sourceCreditNoteId}`} passHref>
-                    <Button variant="link" className="p-0 h-auto font-normal text-destructive">
-                        Refund for {payment.sourceCreditNoteId}
-                    </Button>
+                 <Link href={`/dashboard/credit-notes/${payment.sourceCreditNoteId}`} passHref>
+                    <Badge variant="destructive" className="cursor-pointer hover:bg-destructive/80">
+                        Refund
+                    </Badge>
                 </Link>
             );
         }
