@@ -3,6 +3,7 @@
 
 
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -101,8 +102,9 @@ export async function _createPaymentWithinTransaction(
   batch: WriteBatch,
   customerId: string,
   totalPaid: number,
-  amounts: { cashAmount: number; checkAmount: number; cardAmount: number },
+  amounts: { cashAmount: number; checkAmount: number; cardAmount: number; storeCreditAmount?: number },
   appliedInvoiceIds: string[],
+  type: 'payment' | 'refund' = 'payment',
   notes?: string
 ): Promise<string> {
     const dataDocRef = doc(db, DATA_PATH);
@@ -112,13 +114,15 @@ export async function _createPaymentWithinTransaction(
     if (amounts.cashAmount > 0) tenderDetails.push({ method: 'Cash', amount: amounts.cashAmount });
     if (amounts.checkAmount > 0) tenderDetails.push({ method: 'Check', amount: amounts.checkAmount });
     if (amounts.cardAmount > 0) tenderDetails.push({ method: 'Card/Zelle/Wire', amount: amounts.cardAmount });
+    if (amounts.storeCreditAmount && amounts.storeCreditAmount > 0) tenderDetails.push({ method: 'StoreCredit', amount: amounts.storeCreditAmount });
+
 
     const paymentData: any = {
         customerId: customerId,
         paymentDate: serverTimestamp(),
         recordedBy: 'admin_user', // Hardcoded user
         amountPaid: totalPaid,
-        type: 'payment',
+        type: type,
         appliedToInvoices: appliedInvoiceIds,
         tenderDetails: tenderDetails,
     };
@@ -215,6 +219,7 @@ export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ succ
         totalPaid,
         { cashAmount, checkAmount, cardAmount },
         appliedInvoiceIds,
+        'payment',
         notes
       );
 
@@ -316,6 +321,7 @@ export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ succ
     return { success: false, error: 'An unknown error occurred while applying the payment.' };
   }
 }
+
 
 
 

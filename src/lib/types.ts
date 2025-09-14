@@ -10,6 +10,7 @@
 
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -155,6 +156,8 @@ export type CreditNote = {
   issueDate: string;
   items: InvoiceItem[];
   totalCredit: number;
+  remainingCredit: number;
+  status: 'available' | 'partially_used' | 'fully_used';
   newExchangeInvoiceId?: string;
   refundPaymentId?: string;
 };
