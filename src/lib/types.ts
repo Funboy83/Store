@@ -12,6 +12,7 @@
 
 
 
+
 export type Product = {
   id: string;
   imei: string;
@@ -161,4 +162,8 @@ export type CreditNote = {
   status: 'available' | 'partially_used' | 'fully_used';
   newExchangeInvoiceId?: string;
   refundPaymentId?: string;
+};
+
+export type CreditNoteDetail = CreditNote & {
+    customerName: string;
 };

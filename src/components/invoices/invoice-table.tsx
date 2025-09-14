@@ -115,7 +115,11 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive, showRefu
                         <div className="flex items-center gap-2">
                           {invoice.status !== 'Voided' && <Badge variant="default" className="bg-green-600 hover:bg-green-700">Active</Badge>}
                           {invoice.isEdited && <Badge variant="secondary">Edited</Badge>}
-                           {invoice.relatedCreditNoteId && <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">Returned</Badge>}
+                           {invoice.relatedCreditNoteId && (
+                            <Link href={`/dashboard/credit-notes/${invoice.relatedCreditNoteId}`}>
+                              <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600 cursor-pointer">Returned</Badge>
+                            </Link>
+                           )}
                         </div>
                       </TableCell>
                       <TableCell>{invoice.issueDate}</TableCell>
