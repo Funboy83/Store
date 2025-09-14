@@ -103,13 +103,16 @@ export function RefundWorkspace({ originalInvoice, customer, inventory }: Refund
         setExchangeItems(prev => prev.map(item => {
         if (item.id === itemId) {
             const updatedItem = { ...item };
-            const numValue = Number(value) || 0;
-            
+
             if (field === 'productName') {
                 updatedItem.productName = String(value);
-            } else if (field === 'total') {
-                updatedItem.total = numValue;
-                updatedItem.unitPrice = numValue; // Assume quantity is 1 for custom items in this context
+            } else {
+                 const numValue = Number(value) || 0;
+                (updatedItem as any)[field] = numValue;
+            }
+
+            if (updatedItem.isCustom) {
+                 updatedItem.total = updatedItem.quantity * updatedItem.unitPrice;
             }
             return updatedItem;
         }

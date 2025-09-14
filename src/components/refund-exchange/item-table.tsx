@@ -18,6 +18,8 @@ export function ItemTable({ items, onRemove, onItemChange }: ItemTableProps) {
       <TableHeader>
         <TableRow>
           <TableHead>Product</TableHead>
+          <TableHead className="w-[80px]">Qty</TableHead>
+          <TableHead className="w-[120px]">Unit Price</TableHead>
           <TableHead className="text-right w-[120px]">Total</TableHead>
           {onRemove && <TableHead className="w-[50px]"></TableHead>}
         </TableRow>
@@ -25,14 +27,14 @@ export function ItemTable({ items, onRemove, onItemChange }: ItemTableProps) {
       <TableBody>
         {items.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={onRemove ? 3 : 2} className="text-center h-24">
+            <TableCell colSpan={onRemove ? 5 : 4} className="text-center h-24">
               No items yet.
             </TableCell>
           </TableRow>
         ) : (
           items.map(item => (
             <TableRow key={item.id}>
-              <TableCell className='space-y-1'>
+              <TableCell className='space-y-1 align-top'>
                  <Input 
                     value={item.productName} 
                     readOnly={!item.isCustom}
@@ -42,19 +44,41 @@ export function ItemTable({ items, onRemove, onItemChange }: ItemTableProps) {
                 />
                 {item.description && <p className="text-xs text-muted-foreground">{item.description}</p>}
               </TableCell>
-              <TableCell className="text-right font-medium align-top">
+               <TableCell className="align-top">
                 {item.isCustom ? (
-                    <Input 
-                        type="number"
-                        step="0.01"
-                        value={item.total}
-                        onChange={e => onItemChange?.(item.id, 'total', e.target.value)}
-                        className="text-right h-8"
-                        placeholder="0.00"
-                    />
+                  <Input
+                    type="number"
+                    value={item.quantity}
+                    onChange={(e) => onItemChange?.(item.id, 'quantity', e.target.value)}
+                    className="text-right h-8"
+                    placeholder="1"
+                  />
                 ) : (
-                    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(item.total)
+                  <div className="text-right h-8 flex items-center justify-end pr-3">
+                    {item.quantity}
+                  </div>
                 )}
+              </TableCell>
+               <TableCell className="align-top">
+                {item.isCustom ? (
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={item.unitPrice}
+                    onChange={(e) => onItemChange?.(item.id, 'unitPrice', e.target.value)}
+                    className="text-right h-8"
+                    placeholder="0.00"
+                  />
+                ) : (
+                  <div className="text-right h-8 flex items-center justify-end pr-3">
+                    {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(item.unitPrice)}
+                  </div>
+                )}
+              </TableCell>
+              <TableCell className="text-right font-medium align-top">
+                 <div className="h-8 flex items-center justify-end pr-3">
+                    {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(item.total)}
+                 </div>
               </TableCell>
               {onRemove && (
                 <TableCell className='align-top'>
