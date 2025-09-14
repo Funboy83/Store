@@ -81,7 +81,7 @@ export const columns: ColumnDef<PaymentDetail>[] = [
   {
     id: "appliedTo",
     header: "Applied to",
-    cell: ({ row }) => {
+    cell: function AppliedToCell({ row }) {
         const payment = row.original as PaymentDetail;
         const [quickViewInvoice, setQuickViewInvoice] = useState<InvoiceDetail | null>(null);
 
