@@ -20,10 +20,12 @@ export function InvoiceQuickView({ invoice, showRefundExchangeButton = false }: 
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-end gap-2">
         {showRefundExchangeButton && (
-           <Button variant="outline" onClick={() => toast({ title: 'Coming Soon!', description: 'Full refund/exchange functionality will be available in a future update.'})}>
-              <Repeat className="mr-2 h-4 w-4" />
-              Refund / Exchange
-          </Button>
+          <Link href={`/dashboard/invoices/${invoice.id}/refund`} passHref>
+             <Button variant="outline">
+                <Repeat className="mr-2 h-4 w-4" />
+                Refund / Exchange
+            </Button>
+          </Link>
         )}
         <Link href={`/dashboard/invoices/${invoice.id}`} passHref>
           <Button variant="outline">
