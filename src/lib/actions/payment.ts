@@ -101,7 +101,7 @@ export async function getPayments(): Promise<PaymentDetail[]> {
 export async function _createPaymentWithinTransaction(
   batch: WriteBatch,
   customerId: string,
-  totalPaid: number,
+  totalAmount: number,
   amounts: { cashAmount: number; checkAmount: number; cardAmount: number; storeCreditAmount?: number },
   appliedInvoiceIds: string[],
   type: 'payment' | 'refund' = 'payment',
@@ -110,10 +110,13 @@ export async function _createPaymentWithinTransaction(
     const dataDocRef = doc(db, DATA_PATH);
     const paymentRef = doc(collection(dataDocRef, PAYMENTS_COLLECTION));
 
+    const isRefund = type === 'refund';
+    const sign = isRefund ? -1 : 1;
+
     const tenderDetails: TenderDetail[] = [];
-    if (amounts.cashAmount > 0) tenderDetails.push({ method: 'Cash', amount: amounts.cashAmount });
-    if (amounts.checkAmount > 0) tenderDetails.push({ method: 'Check', amount: amounts.checkAmount });
-    if (amounts.cardAmount > 0) tenderDetails.push({ method: 'Card/Zelle/Wire', amount: amounts.cardAmount });
+    if (amounts.cashAmount > 0) tenderDetails.push({ method: 'Cash', amount: amounts.cashAmount * sign });
+    if (amounts.checkAmount > 0) tenderDetails.push({ method: 'Check', amount: amounts.checkAmount * sign });
+    if (amounts.cardAmount > 0) tenderDetails.push({ method: 'Card/Zelle/Wire', amount: amounts.cardAmount * sign });
     if (amounts.storeCreditAmount && amounts.storeCreditAmount > 0) tenderDetails.push({ method: 'StoreCredit', amount: amounts.storeCreditAmount });
 
 
@@ -121,7 +124,7 @@ export async function _createPaymentWithinTransaction(
         customerId: customerId,
         paymentDate: serverTimestamp(),
         recordedBy: 'admin_user', // Hardcoded user
-        amountPaid: totalPaid,
+        amountPaid: totalAmount * sign,
         type: type,
         appliedToInvoices: appliedInvoiceIds,
         tenderDetails: tenderDetails,
@@ -321,6 +324,7 @@ export async function applyPayment(payload: ApplyPaymentPayload): Promise<{ succ
     return { success: false, error: 'An unknown error occurred while applying the payment.' };
   }
 }
+
 
 
 
