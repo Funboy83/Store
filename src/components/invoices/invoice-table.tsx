@@ -38,21 +38,12 @@ import { InvoiceQuickView } from './invoice-quick-view';
 interface InvoiceTableProps {
     invoices: InvoiceDetail[];
     title?: string;
-    onArchive?: (invoice: InvoiceDetail) => void;
     showRefundInQuickView?: boolean;
 }
 
-export function InvoiceTable({ invoices, title = "Invoices", onArchive, showRefundInQuickView = false }: InvoiceTableProps) {
+export function InvoiceTable({ invoices, title = "Invoices", showRefundInQuickView = false }: InvoiceTableProps) {
   const { toast } = useToast();
   const [quickViewInvoice, setQuickViewInvoice] = useState<InvoiceDetail | null>(null);
-
-  const handleArchiveClick = (invoice: InvoiceDetail) => {
-    if (onArchive) {
-        onArchive(invoice);
-    } else {
-        toast({ title: "Archive function not provided."});
-    }
-  };
 
   const getCustomerName = (invoice: Invoice | InvoiceDetail) => {
     if ('customer' in invoice && invoice.customer) {
@@ -116,14 +107,10 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive, showRefu
                           {invoice.status !== 'Voided' && <Badge variant="default" className="bg-green-600 hover:bg-green-700">Active</Badge>}
                           {invoice.isEdited && <Badge variant="secondary">Edited</Badge>}
                            {invoice.relatedCreditNoteId && (
-                            <Link href={`/dashboard/credit-notes/${invoice.relatedCreditNoteId}`}>
+                            <Link href={`/dashboard/wholesale/credit-notes/${invoice.relatedCreditNoteId}`}>
                               <Badge 
                                 variant="destructive" 
                                 className="bg-orange-500 hover:bg-orange-600 cursor-pointer"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  setQuickViewInvoice(invoice);
-                                }}
                               >
                                 Returned
                               </Badge>
@@ -146,20 +133,12 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive, showRefu
                               <DropdownMenuItem onSelect={() => setQuickViewInvoice(invoice)}>
                                 View Invoice
                               </DropdownMenuItem>
-                              <DropdownMenuItem asChild disabled={invoice.status === 'Paid' || invoice.status === 'Partial'}>
-                                  <Link href={`/dashboard/invoices/${invoice.id}/edit`}>Edit Invoice</Link>
+                              <DropdownMenuItem asChild>
+                                  <Link href={`/dashboard/wholesale/invoices/${invoice.id}`}>View Full Details</Link>
                               </DropdownMenuItem>
-                              {onArchive && (
-                                  <>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem 
-                                      className="text-destructive"
-                                      disabled={invoice.status === 'Paid' || invoice.status === 'Partial'}
-                                      onSelect={() => handleArchiveClick(invoice as InvoiceDetail)}>
-                                      Void Invoice
-                                  </DropdownMenuItem>
-                                  </>
-                              )}
+                              <DropdownMenuItem asChild disabled={invoice.status === 'Paid' || invoice.status === 'Partial'}>
+                                  <Link href={`/dashboard/wholesale/invoices/${invoice.id}/edit`}>Edit Invoice</Link>
+                              </DropdownMenuItem>
                           </DropdownMenuContent>
                           </DropdownMenu>
                       </TableCell>

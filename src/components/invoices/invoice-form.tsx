@@ -236,7 +236,7 @@ export function InvoiceForm({ invoice, inventory, customers }: InvoiceFormProps)
 
         if (result.success) {
           toast({ title: 'Invoice Updated!', description: `Invoice ${invoiceNumber} has been successfully updated.` });
-          router.push(`/dashboard/invoices/${invoice.id}`);
+          router.push(`/dashboard/wholesale/invoices/${invoice.id}`);
         } else {
           toast({ title: 'Error', description: result.error || 'Failed to update invoice.', variant: 'destructive' });
         }
@@ -268,7 +268,7 @@ export function InvoiceForm({ invoice, inventory, customers }: InvoiceFormProps)
 
         if (result.success) {
           toast({ title: 'Invoice Sent!', description: `Invoice ${invoiceNumber} has been created.` });
-          router.push('/dashboard/invoices');
+          router.push('/dashboard/wholesale/invoices');
         } else {
           toast({ title: 'Error', description: result.error, variant: 'destructive' });
         }
