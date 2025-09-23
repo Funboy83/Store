@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore, enableNetwork, connectFirestoreEmulator } from 'firebase/firestore';
+import { getAuth, Auth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,6 +13,7 @@ const firebaseConfig = {
 
 let app: FirebaseApp;
 let db: Firestore;
+let auth: Auth;
 
 // Check if all required Firebase config values are present
 const isConfigured = Object.values(firebaseConfig).every(
@@ -26,6 +28,7 @@ if (isConfigured) {
       app = getApp();
     }
     db = getFirestore(app);
+    auth = getAuth(app);
     
     // Enable offline persistence for better performance
     if (typeof window !== 'undefined') {
@@ -40,4 +43,4 @@ if (isConfigured) {
   );
 }
 
-export { db, isConfigured, app };
+export { db, isConfigured, app, auth };
