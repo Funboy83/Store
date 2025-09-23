@@ -1,16 +1,19 @@
 import type {NextConfig} from 'next';
 
-// Main configuration - using Firebase App Hosting approach
+// Configuration for static export (traditional Firebase Hosting)
 const nextConfig: NextConfig = {
+  output: 'export',
   trailingSlash: true,
   skipTrailingSlashRedirect: true,
+  distDir: 'out',
   typescript: {
-    ignoreBuildErrors: true, // Temporarily ignore for deployment
+    ignoreBuildErrors: true, // Ignore TS errors for now
   },
   eslint: {
-    ignoreDuringBuilds: true, // Temporarily ignore for deployment
+    ignoreDuringBuilds: true, // Ignore ESLint for now
   },
   images: {
+    unoptimized: true, // Required for static export
     remotePatterns: [
       {
         protocol: 'https',

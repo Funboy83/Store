@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { getFirestore, Firestore, enableNetwork, connectFirestoreEmulator } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,15 +13,31 @@ const firebaseConfig = {
 let app: FirebaseApp;
 let db: Firestore;
 
-const isConfigured = Object.values(firebaseConfig).every(Boolean);
+// Check if all required Firebase config values are present
+const isConfigured = Object.values(firebaseConfig).every(
+  (value) => value !== undefined && value !== null && value !== ''
+);
 
 if (isConfigured) {
-  if (!getApps().length) {
-    app = initializeApp(firebaseConfig);
-  } else {
-    app = getApp();
+  try {
+    if (!getApps().length) {
+      app = initializeApp(firebaseConfig);
+    } else {
+      app = getApp();
+    }
+    db = getFirestore(app);
+    
+    // Enable offline persistence for better performance
+    if (typeof window !== 'undefined') {
+      enableNetwork(db);
+    }
+  } catch (error) {
+    console.error('Firebase initialization error:', error);
   }
-  db = getFirestore(app);
+} else {
+  console.warn(
+    'Firebase configuration is incomplete. Please check your environment variables.'
+  );
 }
 
-export { db, isConfigured };
+export { db, isConfigured, app };

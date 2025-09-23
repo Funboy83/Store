@@ -78,19 +78,18 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
       } as Customer);
     });
 
-    const invoiceDetails: InvoiceDetail[] = [];
-
-    for (const invoiceDoc of invoiceSnapshot.docs) {
+    // Fetch all subcollections in parallel using Promise.all
+    const invoicePromises = invoiceSnapshot.docs.map(async (invoiceDoc) => {
       const invoiceData = invoiceDoc.data() as Invoice;
-
       const createdAt = invoiceData.createdAt?.toDate ? invoiceData.createdAt.toDate().toISOString() : new Date().toISOString();
-      
-      const itemsCollectionRef = collection(invoiceDoc.ref, 'invoice_items');
-      const itemsSnapshot = await getDocs(itemsCollectionRef);
-      const items = itemsSnapshot.docs.map(itemDoc => ({ id: itemDoc.id, ...itemDoc.data() } as InvoiceItem));
 
-      const historyCollectionRef = collection(invoiceDoc.ref, 'edit_history');
-      const historySnapshot = await getDocs(historyCollectionRef);
+      // Fetch items and history in parallel
+      const [itemsSnapshot, historySnapshot] = await Promise.all([
+        getDocs(collection(invoiceDoc.ref, 'invoice_items')),
+        getDocs(collection(invoiceDoc.ref, 'edit_history'))
+      ]);
+
+      const items = itemsSnapshot.docs.map(itemDoc => ({ id: itemDoc.id, ...itemDoc.data() } as InvoiceItem));
       const isEdited = historySnapshot.size > 1;
 
       let customer: Customer | undefined;
@@ -104,15 +103,20 @@ export async function getInvoices(): Promise<InvoiceDetail[]> {
       }
       
       if (customer) {
-        const invoiceBase = { id: invoiceDoc.id, ...invoiceData, createdAt } as Invoice;
-        invoiceDetails.push({
+        const invoiceBase = { ...invoiceData, id: invoiceDoc.id, createdAt } as Invoice;
+        return {
           ...invoiceBase,
           customer,
           items,
           isEdited
-        });
+        } as InvoiceDetail;
       }
-    }
+      return null;
+    });
+
+    // Wait for all invoice processing to complete
+    const invoiceResults = await Promise.all(invoicePromises);
+    const invoiceDetails = invoiceResults.filter((invoice): invoice is InvoiceDetail => invoice !== null);
     
     const statusOrder = ['Unpaid', 'Partial', 'Paid', 'Draft', 'Overdue'];
     invoiceDetails.sort((a, b) => {

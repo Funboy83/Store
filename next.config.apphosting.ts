@@ -1,14 +1,15 @@
 import type {NextConfig} from 'next';
 
-// Main configuration - using Firebase App Hosting approach
+// Configuration for Firebase App Hosting (full Next.js features)
 const nextConfig: NextConfig = {
+  // No static export - use server-side rendering
   trailingSlash: true,
   skipTrailingSlashRedirect: true,
   typescript: {
-    ignoreBuildErrors: true, // Temporarily ignore for deployment
+    ignoreBuildErrors: true, // Ignore TS errors for now
   },
   eslint: {
-    ignoreDuringBuilds: true, // Temporarily ignore for deployment
+    ignoreDuringBuilds: true, // Ignore ESLint for now
   },
   images: {
     remotePatterns: [

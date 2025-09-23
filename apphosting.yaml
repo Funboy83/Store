@@ -1,7 +1,23 @@
-# Settings to manage and configure a Firebase App Hosting backend.
-# https://firebase.google.com/docs/app-hosting/configure
+# Firebase App Hosting Configuration
+# This file is for Firebase App Hosting (backend/full-stack apps)
+# For static web hosting, use firebase.json instead
 
 runConfig:
-  # Increase this value if you'd like to automatically spin up
-  # more instances in response to increased traffic.
-  maxInstances: 1
+  # CPU and memory allocation
+  cpu: 1
+  memory: 512MB
+  
+  # Scaling configuration
+  minInstances: 0
+  maxInstances: 10
+  
+  # Environment variables (if needed for server-side functionality)
+  env:
+    NODE_ENV: production
+
+# Build configuration
+buildConfig:
+  runtime: nodejs20
+  commands:
+    - npm ci
+    - npm run build

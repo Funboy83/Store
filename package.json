@@ -9,7 +9,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "lint:fix": "next lint --fix",
+    "typecheck": "tsc --noEmit",
+    "config": "config-manager.bat",
+    "deploy": "deploy.bat",
+    "firebase:hosting": "npm run build && firebase deploy --only hosting",
+    "firebase:apphosting": "npm run build && firebase deploy --only apphosting",
+    "firebase:serve": "npm run build && firebase serve",
+    "clean": "if exist .next rmdir /s /q .next && if exist out rmdir /s /q out && if exist node_modules\\.cache rmdir /s /q node_modules\\.cache"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",

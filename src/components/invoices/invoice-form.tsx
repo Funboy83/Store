@@ -188,13 +188,26 @@ export function InvoiceForm({ invoice, inventory, customers }: InvoiceFormProps)
     }));
   };
 
-  const subtotal = useMemo(() => items.reduce((acc, item) => acc + item.total, 0), [items]);
-  const taxAmount = useMemo(() => subtotal * (taxRate / 100), [subtotal, taxRate]);
-  const discountAmount = useMemo(() => subtotal * (discount / 100), [subtotal, discount]);
-  const total = useMemo(() => subtotal + taxAmount - discountAmount, [subtotal, taxAmount, discountAmount]);
+  // Memoize expensive calculations
+  const calculations = useMemo(() => {
+    const subtotal = items.reduce((acc, item) => acc + item.total, 0);
+    const taxAmount = subtotal * (taxRate / 100);
+    const discountAmount = subtotal * (discount / 100);
+    const total = subtotal + taxAmount - discountAmount;
+    const totalPaid = (isCashPayment ? cashAmount : 0) + (isCardPayment ? cardAmount : 0);
+    const amountDue = total - totalPaid;
+    
+    return {
+      subtotal,
+      taxAmount,
+      discountAmount,
+      total,
+      totalPaid,
+      amountDue
+    };
+  }, [items, taxRate, discount, isCashPayment, cashAmount, isCardPayment, cardAmount]);
 
-  const totalPaid = useMemo(() => (isCashPayment ? cashAmount : 0) + (isCardPayment ? cardAmount : 0), [isCashPayment, cashAmount, isCardPayment, cardAmount]);
-  const amountDue = useMemo(() => total - totalPaid, [total, totalPaid]);
+  const { subtotal, taxAmount, discountAmount, total, totalPaid, amountDue } = calculations;
   
   
   const handleSave = () => {

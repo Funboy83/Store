@@ -36,9 +36,19 @@ export default function InvoicesPage() {
 
   const fetchAndSetInvoices = async () => {
     setLoading(true);
-    const fetchedInvoices = await getInvoices();
-    setInvoices(fetchedInvoices);
-    setLoading(false);
+    try {
+      const fetchedInvoices = await getInvoices();
+      setInvoices(fetchedInvoices);
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load invoices. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
