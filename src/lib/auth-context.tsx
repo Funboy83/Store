@@ -47,14 +47,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    let redirectTimeout: NodeJS.Timeout;
+    
     if (!isConfigured) {
+      console.warn('Firebase is not configured properly. Check your environment variables.');
       setLoading(false);
-      // If Firebase is not configured, redirect to login app
-      window.location.href = AUTH_CONFIG.getLoginUrl();
-      return;
+      
+      // Delay redirect to prevent immediate redirects on page load
+      redirectTimeout = setTimeout(() => {
+        window.location.href = AUTH_CONFIG.getLoginUrl();
+      }, 2000);
+      
+      return () => clearTimeout(redirectTimeout);
     }
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log('Auth state changed:', user ? 'User authenticated' : 'No user');
       setUser(user);
       setLoading(false);
       

@@ -1,20 +1,25 @@
-'use client';
-
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Menu, LogOut, Shield } from 'lucide-react';
-import { useAuth } from '@/lib/auth-context';
+import { Menu, LogOut } from 'lucide-react';
+// import { useAuth } from '@/lib/auth-context'; // Commented out for development
 
 interface HeaderProps {
   onToggleSidebar: () => void;
 }
 
 export function Header({ onToggleSidebar }: HeaderProps) {
-  const { user, logout, isAdmin, userRole } = useAuth();
+  // const { user, logout } = useAuth(); // Commented out for development
+  
+  // Mock user data for development
+  const mockUser = {
+    displayName: 'John Doe',
+    email: 'john@example.com',
+    photoURL: null
+  };
 
-  const getUserDisplayName = () => {
-    return user?.displayName || user?.email?.split('@')[0] || 'User';
+  const handleLogout = () => {
+    // Mock logout for development
+    alert('Logout clicked - functionality bypassed for development');
   };
 
   return (
@@ -29,36 +34,23 @@ export function Header({ onToggleSidebar }: HeaderProps) {
         <span className="sr-only">Toggle Sidebar</span>
       </Button>
       <div className="flex items-center gap-4">
-        <div className="flex flex-col items-end hidden sm:block">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-700">
-              {getUserDisplayName()}
-            </span>
-            {isAdmin && (
-              <Badge variant="secondary" className="flex items-center gap-1 text-xs">
-                <Shield className="h-3 w-3" />
-                Admin
-              </Badge>
-            )}
-          </div>
-          <span className="text-xs text-slate-500 capitalize">
-            {userRole} Account
-          </span>
-        </div>
+        <span className="font-semibold text-slate-700 hidden sm:inline">
+          Welcome, {mockUser?.displayName || mockUser?.email || 'Developer'}!
+        </span>
         <Button
-          variant="outline"
-          size="sm"
-          onClick={logout}
-          className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-          title="Logout"
+          variant="ghost"
+          size="icon"
+          onClick={handleLogout}
+          className="text-gray-600 hover:text-gray-800"
+          title="Logout (Development Mode)"
         >
-          <LogOut className="h-4 w-4" />
-          <span className="hidden sm:inline">Logout</span>
+          <LogOut className="h-5 w-5" />
+          <span className="sr-only">Logout</span>
         </Button>
-         <Avatar className="h-10 w-10">
-            <AvatarImage src={user?.photoURL || "https://picsum.photos/seed/user/40/40"} />
-            <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-              {getUserDisplayName().charAt(0).toUpperCase()}
+         <Avatar>
+            <AvatarImage src={mockUser?.photoURL || "https://picsum.photos/seed/user/40/40"} />
+            <AvatarFallback>
+              {mockUser?.displayName?.charAt(0) || mockUser?.email?.charAt(0) || 'D'}
             </AvatarFallback>
         </Avatar>
       </div>

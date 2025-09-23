@@ -5,7 +5,7 @@ import { MainSidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
-import { ProtectedRoute } from '@/components/auth/protected-route';
+// import { ProtectedRoute } from '@/components/auth/protected-route'; // Commented out for development
 
 export default function DashboardLayout({
   children,
@@ -20,16 +20,14 @@ export default function DashboardLayout({
   }, []);
 
   return (
-    <ProtectedRoute>
-      <div className="flex h-screen bg-gray-100">
-        <MainSidebar isCollapsed={isSidebarCollapsed} />
-        <div className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out")}>
-          <Header onToggleSidebar={toggleSidebar} />
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-6 sm:p-10">
-            {children}
-          </main>
-        </div>
+    <div className="flex h-screen bg-gray-100">
+      <MainSidebar isCollapsed={isSidebarCollapsed} />
+      <div className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out")}>
+        <Header onToggleSidebar={toggleSidebar} />
+        <main className="flex-1 overflow-x-hidden overflow-y-auto p-6 sm:p-10">
+          {children}
+        </main>
       </div>
-    </ProtectedRoute>
+    </div>
   );
 }

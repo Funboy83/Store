@@ -1,12 +1,12 @@
 // Authentication configuration
 export const AUTH_CONFIG = {
   // Update this with your deployed login app URL
-  loginAppUrl: 'https://general-managerment.web.app', // Your Firebase hosted login app
+  loginAppUrl: 'http://localhost:5173', // Your login app dev server
   
   // Optionally set different URLs for different environments
   loginAppUrls: {
     development: 'http://localhost:5173', // Your login app dev server
-    production: 'https://general-managerment.web.app', // Your Firebase hosted login app
+    production: 'https://your-login-app-url.com', // Your deployed login app
   },
   
   // Get the appropriate login URL based on environment
