@@ -1,11 +1,29 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, CreditCard, Users, Activity } from "lucide-react";
+import { DollarSign, CreditCard, Users, Package } from "lucide-react";
+import type { DashboardStats } from "@/lib/actions/dashboard";
 
-export function StatsCards() {
-    const totalRevenue = 5231.89;
-    const subscriptions = 2350;
-    const sales = 12234;
-    const activeNow = 573;
+interface StatsCardsProps {
+    stats: DashboardStats;
+}
+
+export function StatsCards({ stats }: StatsCardsProps) {
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
+        }).format(amount);
+    };
+
+    const formatGrowth = (growth: number | undefined) => {
+        if (growth === undefined) return "No data";
+        const sign = growth > 0 ? "+" : "";
+        return `${sign}${growth.toFixed(1)}%`;
+    };
+
+    const getGrowthColor = (growth: number | undefined) => {
+        if (growth === undefined) return "text-muted-foreground";
+        return growth >= 0 ? "text-green-600" : "text-red-600";
+    };
 
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -17,9 +35,9 @@ export function StatsCards() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${totalRevenue.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">
-                  +20.1% from last month
+                <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
+                <p className={`text-xs ${getGrowthColor(stats.revenueGrowth)}`}>
+                  {formatGrowth(stats.revenueGrowth)} from last month
                 </p>
               </CardContent>
             </Card>
@@ -29,33 +47,33 @@ export function StatsCards() {
                 <CreditCard className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">+{sales.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">
-                  +19% from last month
+                <div className="text-2xl font-bold">{stats.totalSales.toLocaleString()}</div>
+                <p className={`text-xs ${getGrowthColor(stats.salesGrowth)}`}>
+                  {formatGrowth(stats.salesGrowth)} from last month
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">New Customers</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">+{subscriptions.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">
-                  +180.1% from last month
+                <div className="text-2xl font-bold">{stats.totalCustomers.toLocaleString()}</div>
+                <p className={`text-xs ${getGrowthColor(stats.customersGrowth)}`}>
+                  {formatGrowth(stats.customersGrowth)} from last month
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Now</CardTitle>
-                <Activity className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Available Inventory</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">+{activeNow}</div>
+                <div className="text-2xl font-bold">{stats.totalInventory.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">
-                  +201 since last hour
+                  Items in stock
                 </p>
               </CardContent>
             </Card>
