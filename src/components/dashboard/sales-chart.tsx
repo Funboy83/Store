@@ -2,17 +2,38 @@
 
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MOCK_SALES_DATA } from '@/lib/mock-data';
+import type { SalesChartData } from '@/lib/actions/dashboard';
 
-export function SalesChart() {
+interface SalesChartProps {
+  data: SalesChartData[];
+}
+
+export function SalesChart({ data }: SalesChartProps) {
+  const formatTooltipValue = (value: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(value);
+  };
+
+  const formatYAxisValue = (value: number) => {
+    if (value >= 1000) {
+      return `$${(value / 1000).toFixed(0)}K`;
+    }
+    return `$${value}`;
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Sales Overview</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Monthly revenue for {new Date().getFullYear()}
+        </p>
       </CardHeader>
       <CardContent className="pl-2">
         <ResponsiveContainer width="100%" height={350}>
-          <BarChart data={MOCK_SALES_DATA}>
+          <BarChart data={data}>
             <XAxis
               dataKey="month"
               stroke="#888888"
@@ -25,7 +46,7 @@ export function SalesChart() {
               fontSize={12}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(value) => `$${value / 1000}K`}
+              tickFormatter={formatYAxisValue}
             />
             <Tooltip
               cursor={{ fill: 'hsl(var(--accent) / 0.2)' }}
@@ -34,10 +55,16 @@ export function SalesChart() {
                 border: '1px solid hsl(var(--border))',
                 borderRadius: 'var(--radius)'
               }}
+              formatter={(value: number) => [formatTooltipValue(value), 'Revenue']}
             />
             <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
+        {data.length === 0 && (
+          <div className="flex items-center justify-center h-[350px] text-muted-foreground">
+            No sales data available
+          </div>
+        )}
       </CardContent>
     </Card>
   );

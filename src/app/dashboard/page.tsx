@@ -1,12 +1,13 @@
 import { StatsCards } from '@/components/dashboard/stats-cards';
 import { SalesChart } from '@/components/dashboard/sales-chart';
 import { RecentSales } from '@/components/dashboard/recent-sales';
-import { getDashboardStats, getRecentSales } from '@/lib/actions/dashboard';
+import { getDashboardStats, getRecentSales, getSalesChartData } from '@/lib/actions/dashboard';
 
 export default async function DashboardPage() {
-  const [stats, recentSales] = await Promise.all([
+  const [stats, recentSales, salesChartData] = await Promise.all([
     getDashboardStats(),
-    getRecentSales(5)
+    getRecentSales(5),
+    getSalesChartData()
   ]);
 
   return (
@@ -15,7 +16,7 @@ export default async function DashboardPage() {
         <StatsCards stats={stats} />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <div className="lg:col-span-4">
-                <SalesChart />
+                <SalesChart data={salesChartData} />
             </div>
             <div className="lg:col-span-3">
                 <RecentSales sales={recentSales} totalSalesCount={stats.totalSales} />

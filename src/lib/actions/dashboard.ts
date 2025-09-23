@@ -27,6 +27,67 @@ export interface RecentSale {
   date: string;
 }
 
+export interface SalesChartData {
+  month: string;
+  revenue: number;
+}
+
+export async function getSalesChartData(): Promise<SalesChartData[]> {
+  if (!isConfigured) {
+    return [];
+  }
+
+  try {
+    const dataDocRef = doc(db, DATA_PATH);
+    const invoicesCollectionRef = collection(dataDocRef, INVOICES_COLLECTION);
+
+    // Get all paid invoices
+    const invoicesSnapshot = await getDocs(invoicesCollectionRef);
+    
+    // Filter paid invoices and group by month
+    const monthlyRevenue = new Map<string, number>();
+    
+    // Initialize last 12 months
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    
+    // Initialize all months to 0
+    months.forEach(month => {
+      monthlyRevenue.set(month, 0);
+    });
+
+    invoicesSnapshot.docs.forEach(doc => {
+      const invoice = doc.data() as any;
+      
+      // Only count paid and partial invoices
+      if (invoice.status === 'Paid' || invoice.status === 'Partial') {
+        const invoiceDate = invoice.createdAt?.toDate ? invoice.createdAt.toDate() : new Date();
+        
+        // Only include invoices from current year
+        if (invoiceDate.getFullYear() === currentYear) {
+          const monthName = months[invoiceDate.getMonth()];
+          const revenue = invoice.amountPaid || invoice.total || 0;
+          
+          const currentRevenue = monthlyRevenue.get(monthName) || 0;
+          monthlyRevenue.set(monthName, currentRevenue + revenue);
+        }
+      }
+    });
+
+    // Convert to array format for chart
+    const chartData: SalesChartData[] = months.map(month => ({
+      month,
+      revenue: Math.round(monthlyRevenue.get(month) || 0)
+    }));
+
+    return chartData;
+  } catch (error) {
+    console.error('Error fetching sales chart data:', error);
+    return [];
+  }
+}
+
 export async function getRecentSales(limitCount: number = 5): Promise<RecentSale[]> {
   if (!isConfigured) {
     return [];
