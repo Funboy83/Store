@@ -1,3 +1,12 @@
+import { db, isConfigured } from '@/lib/firebase';
+import { doc, collection, query, where, orderBy, limit, getDocs, getDoc, startAfter } from 'firebase/firestore';
+import { InvoiceDetail, Invoice, InvoiceItem, Customer } from '@/lib/types';
+
+// Constants
+const DATA_PATH = "store-data";
+const INVOICES_COLLECTION = "invoices";
+const CUSTOMERS_COLLECTION = "customers";
+
 // Add this to your invoice actions for better performance
 export async function getInvoicesPaginated(
   pageSize: number = 20,

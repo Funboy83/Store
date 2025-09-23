@@ -6,9 +6,9 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp, writeBatch, doc, getDoc, collectionGroup, deleteDoc, where, updateDoc, increment, DocumentReference } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp, writeBatch, doc, getDoc, collectionGroup, deleteDoc, where, updateDoc, increment, DocumentReference, WriteBatch } from 'firebase/firestore';
 import { summarizeInvoice } from '@/ai/flows/invoice-summary';
-import type { Invoice, InvoiceItem, Product, Customer, InvoiceDetail, InvoiceHistory, EditHistoryEntry, Payment, TenderDetail } from '@/lib/types';
+import type { Invoice, InvoiceItem, Product, Customer, InvoiceDetail, InvoiceHistory, EditHistoryEntry, Payment, TenderDetail, ProductHistory } from '@/lib/types';
 import { getInventory } from './inventory';
 import { _createPaymentWithinTransaction } from './payment';
 
@@ -192,8 +192,8 @@ export async function getInvoiceById(id: string): Promise<InvoiceDetail | null> 
 
 
         return {
-            id: invoiceSnap.id,
             ...invoiceData,
+            id: invoiceSnap.id,
             createdAt,
             customer,
             items,
@@ -532,7 +532,7 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
     const historyItemsSnap = await getDocs(q);
 
     for (const docSnap of historyItemsSnap.docs) {
-      const historyItem = docSnap.data() as InvoiceHistory;
+      const historyItem = docSnap.data() as ProductHistory;
       
       const { status, amount, movedAt, customerId, customerName, invoiceId, ...originalProduct } = historyItem;
 
