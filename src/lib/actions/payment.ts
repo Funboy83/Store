@@ -10,7 +10,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, doc, runTransaction, serverTimestamp, getDocs, where, query, orderBy, increment, WriteBatch, collectionGroup, getDoc } from 'firebase/firestore';
+import { collection, doc, runTransaction, serverTimestamp, getDocs, where, query, orderBy, increment, WriteBatch, writeBatch, collectionGroup, getDoc } from 'firebase/firestore';
 import type { Invoice, Customer, TenderDetail, Payment, PaymentDetail, InvoiceDetail, InvoiceItem } from '@/lib/types';
 import { getCustomers } from './customers';
 
@@ -77,8 +77,8 @@ export async function getPayments(): Promise<PaymentDetail[]> {
       const appliedToInvoices = (await Promise.all(appliedToInvoicesPromises)).filter((inv): inv is InvoiceDetail => inv !== null);
 
       return { 
-        id: paymentDoc.id, 
         ...data,
+        id: paymentDoc.id, 
         paymentDate: paymentDate.toISOString(),
         customerName: customer ? customer.name : 'N/A',
         appliedToInvoices,
