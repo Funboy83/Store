@@ -26,6 +26,7 @@ interface AddableComboboxProps {
   fetchOptions: () => Promise<string[]>;
   addOption: (value: string) => Promise<{ success: boolean; error?: string }>;
   error?: string[];
+  onChange?: (value: string) => void;
 }
 
 const ADD_NEW_VALUE = '__add_new__';
@@ -36,6 +37,7 @@ export function AddableCombobox({
   fetchOptions,
   addOption,
   error,
+  onChange,
 }: AddableComboboxProps) {
   const { toast } = useToast();
   const [options, setOptions] = useState<string[]>([]);
@@ -68,6 +70,9 @@ export function AddableCombobox({
       setIsDialogOpen(true);
     } else {
       setSelectedValue(value);
+      if (onChange) {
+        onChange(value);
+      }
     }
   };
 
@@ -80,6 +85,9 @@ export function AddableCombobox({
         setSelectedValue(newItemValue);
         setIsDialogOpen(false);
         setNewItemValue('');
+        if (onChange) {
+          onChange(newItemValue);
+        }
         toast({ title: 'Success', description: `New ${label.toLowerCase()} added.` });
       } else {
         toast({
