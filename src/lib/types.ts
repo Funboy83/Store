@@ -404,3 +404,20 @@ export type Supplier = {
   paymentTerms?: string;
   taxId?: string;
 };
+
+// Field Template Types for Pre-defined Custom Fields
+export type FieldType = 'Text' | 'Number' | 'Yes/No' | 'Dropdown';
+
+export type FieldTemplate = {
+  id: string;
+  fieldName: string;
+  label: string;
+  fieldType: FieldType;
+  required?: boolean;
+  options?: string[]; // Only used for Dropdown type
+  createdAt: string;
+  updatedAt: string;
+};
+
+// Custom field value that can be different types
+export type CustomFieldValue = string | number | boolean;

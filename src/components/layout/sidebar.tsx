@@ -69,6 +69,14 @@ const inventorySubItems = [
   }
 ];
 
+const settingsSubItems = [
+  {
+    href: '/dashboard/settings/custom-fields',
+    icon: Package,
+    label: 'Custom Fields',
+  }
+];
+
 const settingsNavItem = {
     href: '/dashboard/settings',
     icon: Settings,
@@ -83,6 +91,9 @@ export function MainSidebar({ isCollapsed }: MainSidebarProps) {
   const pathname = usePathname();
   const [isInventoryExpanded, setIsInventoryExpanded] = useState(
     pathname.startsWith('/dashboard/inventory') || pathname.startsWith('/dashboard/parts')
+  );
+  const [isSettingsExpanded, setIsSettingsExpanded] = useState(
+    pathname.startsWith('/dashboard/settings')
   );
 
   const renderNavItem = (item: typeof mainNavItems[0]) => {
@@ -162,6 +173,62 @@ export function MainSidebar({ isCollapsed }: MainSidebarProps) {
     );
   };
 
+  const renderSettingsSection = () => {
+    const isSettingsActive = pathname.startsWith('/dashboard/settings');
+    
+    return (
+      <div key="settings">
+        <div
+          className={cn(
+            'flex items-center p-3 rounded-lg cursor-pointer transition-colors',
+            isCollapsed ? 'justify-center' : '',
+            isSettingsActive
+              ? 'bg-indigo-600 text-white'
+              : 'hover:bg-slate-800'
+          )}
+          onClick={() => !isCollapsed && setIsSettingsExpanded(!isSettingsExpanded)}
+          title="Settings"
+        >
+          <Settings className="h-7 w-7 shrink-0" />
+          {!isCollapsed && (
+            <>
+              <span className="ml-4 font-medium flex-1">Settings</span>
+              {isSettingsExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </>
+          )}
+        </div>
+        
+        {!isCollapsed && isSettingsExpanded && (
+          <div className="ml-4 mt-1 space-y-1">
+            {settingsSubItems.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              return (
+                <Link href={item.href} key={item.href} passHref>
+                  <div
+                    className={cn(
+                      'flex items-center p-2 rounded-lg cursor-pointer transition-colors pl-8',
+                      isActive
+                        ? 'bg-indigo-500 text-white'
+                        : 'hover:bg-slate-700'
+                    )}
+                    title={item.label}
+                  >
+                    <item.icon className="h-5 w-5 shrink-0" />
+                    <span className="ml-3 text-sm font-medium">{item.label}</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <aside
       className={cn(
@@ -178,7 +245,7 @@ export function MainSidebar({ isCollapsed }: MainSidebarProps) {
             {renderInventorySection()}
         </nav>
         <div className="px-4">
-            {renderNavItem(settingsNavItem)}
+            {renderSettingsSection()}
         </div>
       </div>
     </aside>
