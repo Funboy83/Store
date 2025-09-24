@@ -66,10 +66,8 @@ export default function EditPartPage({ params }: EditPartPageProps) {
       setPart(partData);
       setFormData({
         name: partData.name,
-        category: partData.category,
         partNumber: partData.partNumber || '',
         brand: partData.brand || '',
-        model: partData.model || '',
         condition: partData.condition,
         quantity: partData.quantity,
         minQuantity: partData.minQuantity,
@@ -78,7 +76,7 @@ export default function EditPartPage({ params }: EditPartPageProps) {
         supplier: partData.supplier || '',
         location: partData.location || '',
         notes: partData.notes || '',
-        compatibility: partData.compatibility || []
+        customFields: partData.customFields || {}
       });
       setInitialLoading(false);
     };
@@ -90,22 +88,12 @@ export default function EditPartPage({ params }: EditPartPageProps) {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const addCompatibleModel = (model: string) => {
-    if (model && !formData.compatibility.includes(model)) {
-      const updated = [...formData.compatibility, model];
-      setFormData(prev => ({ ...prev, compatibility: updated }));
-    }
-  };
-
-  const removeCompatibleModel = (model: string) => {
-    const updated = formData.compatibility.filter((m: string) => m !== model);
-    setFormData(prev => ({ ...prev, compatibility: updated }));
-  };
+  // Removed compatibility functions since compatibility field was removed
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!part || !formData.name || !formData.category || !formData.condition) {
+    if (!part || !formData.name || !formData.condition) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields.",
@@ -119,10 +107,8 @@ export default function EditPartPage({ params }: EditPartPageProps) {
     try {
       const result = await updatePart(part.id, {
         name: formData.name,
-        category: formData.category as PartCategory,
         partNumber: formData.partNumber || undefined,
         brand: formData.brand || undefined,
-        model: formData.model || undefined,
         condition: formData.condition as PartCondition,
         quantity: formData.quantity,
         minQuantity: formData.minQuantity,
@@ -130,8 +116,7 @@ export default function EditPartPage({ params }: EditPartPageProps) {
         price: formData.price,
         supplier: formData.supplier || undefined,
         location: formData.location || undefined,
-        notes: formData.notes || undefined,
-        compatibility: formData.compatibility
+        notes: formData.notes || undefined
       });
 
       if (result.success) {
@@ -214,26 +199,6 @@ export default function EditPartPage({ params }: EditPartPageProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="category">Category *</Label>
-                <Select
-                  value={formData.category}
-                  onValueChange={(value) => handleInputChange('category', value)}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PART_CATEGORIES.map(category => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="partNumber">Part Number</Label>
                 <Input
                   id="partNumber"
@@ -250,16 +215,6 @@ export default function EditPartPage({ params }: EditPartPageProps) {
                   value={formData.brand}
                   onChange={(e) => handleInputChange('brand', e.target.value)}
                   placeholder="e.g., Apple, Samsung"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="model">Model</Label>
-                <Input
-                  id="model"
-                  value={formData.model}
-                  onChange={(e) => handleInputChange('model', e.target.value)}
-                  placeholder="Specific model if applicable"
                 />
               </div>
 
@@ -361,37 +316,11 @@ export default function EditPartPage({ params }: EditPartPageProps) {
               />
             </div>
 
-            <div className="space-y-4">
-              <Label>Compatible Phone Models</Label>
-              <div className="flex gap-2">
-                <Select value="" onValueChange={addCompatibleModel}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Add compatible phone model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PHONE_MODELS.filter(model => !formData.compatibility.includes(model)).map(model => (
-                      <SelectItem key={model} value={model}>
-                        {model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {formData.compatibility.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {formData.compatibility.map((model: string) => (
-                    <Badge key={model} variant="secondary" className="flex items-center gap-1">
-                      {model}
-                      <X 
-                        className="h-3 w-3 cursor-pointer" 
-                        onClick={() => removeCompatibleModel(model)}
-                      />
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Custom Fields Editor */}
+            <CustomFieldsEditor
+              customFields={formData.customFields}
+              onChange={(customFields) => handleInputChange('customFields', customFields)}
+            />
 
             <div className="flex justify-end space-x-4 pt-4">
               <Button variant="outline" type="button" asChild>
