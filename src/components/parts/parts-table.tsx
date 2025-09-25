@@ -75,29 +75,40 @@ export function PartsTable({ parts }: PartsTableProps) {
           </TableHeader>
           <TableBody>
             {parts.map((part) => {
-              const isLowStock = part.quantity <= part.minQuantity;
-              const isOutOfStock = part.quantity === 0;
+              const isLowStock = part.totalQuantityInStock <= part.minQuantity;
+              const isOutOfStock = part.totalQuantityInStock === 0;
               
               return (
                 <TableRow key={part.id}>
                   <TableCell>
                     <div className="flex items-center space-x-2">
-                      <div>
+                      <div className="flex-1">
                         <div className="font-medium">{part.name}</div>
                         {part.partNumber && (
                           <div className="text-sm text-muted-foreground">
                             PN: {part.partNumber}
                           </div>
                         )}
+                        {part.customFields && Object.keys(part.customFields).length > 0 && (
+                          <div className="mt-1 space-y-0.5">
+                            {Object.entries(part.customFields).map(([key, value]) => (
+                              <div key={key} className="text-xs text-muted-foreground">
+                                <span className="font-medium">{key}:</span> {value}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      {isOutOfStock && (
-                        <Badge variant="destructive" className="text-xs">
-                          Out of Stock
-                        </Badge>
-                      )}
-                      {isLowStock && !isOutOfStock && (
-                        <AlertTriangle className="h-4 w-4 text-orange-500" />
-                      )}
+                      <div className="flex items-center space-x-2">
+                        {isOutOfStock && (
+                          <Badge variant="destructive" className="text-xs">
+                            Out of Stock
+                          </Badge>
+                        )}
+                        {isLowStock && !isOutOfStock && (
+                          <AlertTriangle className="h-4 w-4 text-orange-500" />
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -128,24 +139,32 @@ export function PartsTable({ parts }: PartsTableProps) {
                   <TableCell>
                     <div className="flex items-center space-x-1">
                       <span className={isOutOfStock ? 'text-red-600' : isLowStock ? 'text-orange-600' : ''}>
-                        {part.quantity}
+                        {part.totalQuantityInStock}
                       </span>
                       {part.minQuantity > 0 && (
                         <span className="text-muted-foreground text-sm">
                           / {part.minQuantity} min
                         </span>
                       )}
+                      {part.batches.length > 1 && (
+                        <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
+                          {part.batches.length} batches
+                        </span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className="font-medium">${part.cost}</span>
+                    <div>
+                      <span className="font-medium">${part.avgCost.toFixed(2)}</span>
+                      <div className="text-xs text-muted-foreground">avg cost</div>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div>
                       <span className="font-medium">${part.price}</span>
-                      {part.price > part.cost && (
+                      {part.price > part.avgCost && (
                         <div className="text-xs text-green-600">
-                          +${(part.price - part.cost).toFixed(2)} margin
+                          +${(part.price - part.avgCost).toFixed(2)} margin
                         </div>
                       )}
                     </div>

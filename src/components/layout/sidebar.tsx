@@ -66,6 +66,11 @@ const inventorySubItems = [
     href: '/dashboard/parts',
     icon: Package,
     label: 'Manage Parts',
+  },
+  {
+    href: '/dashboard/restock',
+    icon: Truck,
+    label: 'Restock Inventory',
   }
 ];
 
@@ -90,7 +95,7 @@ interface MainSidebarProps {
 export function MainSidebar({ isCollapsed }: MainSidebarProps) {
   const pathname = usePathname();
   const [isInventoryExpanded, setIsInventoryExpanded] = useState(
-    pathname.startsWith('/dashboard/inventory') || pathname.startsWith('/dashboard/parts')
+    pathname.startsWith('/dashboard/inventory') || pathname.startsWith('/dashboard/parts') || pathname.startsWith('/dashboard/restock')
   );
   const [isSettingsExpanded, setIsSettingsExpanded] = useState(
     pathname.startsWith('/dashboard/settings')
@@ -118,7 +123,7 @@ export function MainSidebar({ isCollapsed }: MainSidebarProps) {
   };
 
   const renderInventorySection = () => {
-    const isInventoryActive = pathname.startsWith('/dashboard/inventory') || pathname.startsWith('/dashboard/parts');
+    const isInventoryActive = pathname.startsWith('/dashboard/inventory') || pathname.startsWith('/dashboard/parts') || pathname.startsWith('/dashboard/restock');
     
     return (
       <div key="inventory">

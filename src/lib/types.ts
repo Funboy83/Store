@@ -352,6 +352,54 @@ export type PartCondition =
   | 'Used - Good'
   | 'Used - Fair';
 
+// Batch tracking for FIFO inventory management
+export type PartBatch = {
+  batchId: string;
+  purchaseDate: string;
+  quantity: number;
+  costPrice: number;
+  supplier?: string;
+  notes?: string;
+};
+
+// Result type for FIFO batch consumption
+export type BatchConsumptionResult = {
+  success: boolean;
+  costPrice?: number;
+  batchId?: string;
+  remainingQuantity?: number;
+  error?: string;
+};
+
+// Purchase Order Types for Restock System
+export type PurchaseOrderItem = {
+  partId: string;
+  partName: string;
+  partNumber?: string;
+  brand?: string;
+  model?: string;
+  condition?: string;
+  customFields?: Record<string, string>;
+  quantityReceived: number;
+  costPerItem: number;
+  totalCost: number;
+};
+
+export type PurchaseOrder = {
+  id: string;
+  supplierId?: string;
+  supplierName?: string;
+  purchaseDate: string;
+  referenceNumber?: string; // Invoice number from supplier
+  items: PurchaseOrderItem[];
+  totalItems: number;
+  totalCost: number;
+  status: 'draft' | 'committed' | 'cancelled';
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Part = {
   id: string;
   name: string;
@@ -361,11 +409,11 @@ export type Part = {
   model?: string;
   compatibility?: string[]; // Array of compatible phone models
   condition: PartCondition;
-  quantity: number;
+  batches: PartBatch[]; // FIFO batch tracking system
+  totalQuantityInStock: number; // Calculated sum for easy display
   minQuantity: number; // For low stock alerts
-  cost: number; // How much we paid
+  avgCost: number; // Average cost across all batches for reference
   price: number; // How much we sell for
-  supplier?: string;
   location?: string; // Where it's stored
   notes?: string;
   customFields?: Record<string, string>; // Flexible key-value pairs for unique attributes
@@ -378,8 +426,9 @@ export type PartHistory = {
   partId: string;
   type: 'purchase' | 'sale' | 'use' | 'return' | 'adjustment';
   quantity: number;
-  cost?: number;
-  price?: number;
+  batchId?: string; // Which batch was affected
+  costPrice?: number; // Actual cost from the specific batch
+  sellPrice?: number;
   jobId?: string; // If used in a repair job
   customerId?: string;
   notes?: string;

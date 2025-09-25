@@ -2,7 +2,7 @@
 
 import { db, isConfigured } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, getDocs, query, orderBy, updateDoc, getDoc } from 'firebase/firestore';
-import { RepairJob, JobStatus, DeviceCondition } from '@/lib/types';
+import { RepairJob, JobStatus, DeviceCondition, UsedPart } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 
 const DATA_PATH = 'cellphone-inventory-system/data';
@@ -138,6 +138,15 @@ export async function updateRepairJobStatus(jobId: string, status: JobStatus): P
     const dataDocRef = doc(db, DATA_PATH);
     const jobRef = doc(dataDocRef, `${REPAIR_JOBS_COLLECTION}/${jobId}`);
     
+    // Get the current job data to check previous status and parts used
+    const jobDoc = await getDoc(jobRef);
+    if (!jobDoc.exists()) {
+      return { success: false, error: 'Job not found.' };
+    }
+
+    const currentJob = jobDoc.data() as RepairJob;
+    const previousStatus = currentJob.status;
+
     const updateData: any = {
       status,
       updatedAt: serverTimestamp(),
@@ -148,16 +157,197 @@ export async function updateRepairJobStatus(jobId: string, status: JobStatus): P
       updateData.completedAt = serverTimestamp();
     }
 
+    // Set paid date if marking as paid
+    if (status === 'Paid') {
+      updateData.paidAt = serverTimestamp();
+      updateData.isPaid = true;
+    }
+
     await updateDoc(jobRef, updateData);
+
+    // AUTOMATIC INVENTORY DEDUCTION
+    // Trigger inventory deduction when job status changes to 'Completed' or 'Paid'
+    const shouldDeductInventory = (status === 'Completed' || status === 'Paid') && 
+                                 previousStatus !== 'Completed' && 
+                                 previousStatus !== 'Paid';
+
+    if (shouldDeductInventory && currentJob.usedParts && currentJob.usedParts.length > 0) {
+      console.log(`🔄 FIFO Inventory Deduction for job ${currentJob.jobId} - ${currentJob.usedParts.length} parts used`);
+      
+      // Import FIFO consumption function
+      const { consumePartFromOldestBatch } = await import('./parts');
+      
+      const inventoryErrors: string[] = [];
+      const actualCosts: Array<{ partId: string; actualCost: number; batchId: string }> = [];
+      
+      for (const usedPart of currentJob.usedParts) {
+        try {
+          console.log(`📦 Processing ${usedPart.quantity} x ${usedPart.partName} (ID: ${usedPart.partId})`);
+          
+          // Use FIFO consumption to deduct from oldest batch first
+          const consumeResult = await consumePartFromOldestBatch(
+            usedPart.partId,
+            usedPart.quantity,
+            currentJob.id,
+            `Used in repair job ${currentJob.jobId} (${currentJob.customerName})`
+          );
+
+          if (!consumeResult.success) {
+            inventoryErrors.push(`Failed to deduct inventory for ${usedPart.partName}: ${consumeResult.error}`);
+          } else {
+            // Track the actual cost from the specific batch used
+            if (consumeResult.costPrice && consumeResult.batchId) {
+              actualCosts.push({
+                partId: usedPart.partId,
+                actualCost: consumeResult.costPrice,
+                batchId: consumeResult.batchId
+              });
+            }
+            
+            console.log(`✅ FIFO Deducted ${usedPart.quantity} x ${usedPart.partName} from batch ${consumeResult.batchId} at cost $${consumeResult.costPrice}`);
+            console.log(`📊 Remaining inventory: ${consumeResult.remainingQuantity} units`);
+          }
+        } catch (error) {
+          console.error(`Error deducting inventory for part ${usedPart.partName}:`, error);
+          inventoryErrors.push(`Error processing ${usedPart.partName}: ${error}`);
+        }
+      }
+
+      // Log any inventory errors but don't fail the status update
+      if (inventoryErrors.length > 0) {
+        console.error('Inventory deduction errors:', inventoryErrors);
+        // You could optionally return a warning here, but we'll let the status update succeed
+      }
+    }
 
     // Revalidate pages
     revalidatePath('/dashboard/repairs');
     revalidatePath('/dashboard/jobs');
+    revalidatePath('/dashboard/parts'); // Also revalidate parts page since inventory changed
 
     return { success: true };
   } catch (error) {
     console.error('Error updating repair job status:', error);
     return { success: false, error: 'Failed to update job status.' };
+  }
+}
+
+// Function to add a part to a repair job
+export async function addPartToJob(
+  jobId: string, 
+  partId: string, 
+  quantity: number = 1
+): Promise<{ success: boolean; error?: string }> {
+  if (!isConfigured) {
+    return { success: false, error: 'Firebase is not configured.' };
+  }
+
+  try {
+    // Get the job and part data
+    const job = await getRepairJobById(jobId);
+    if (!job) {
+      return { success: false, error: 'Job not found.' };
+    }
+
+    // Import getPart function
+    const { getPart } = await import('./parts');
+    const partResult = await getPart(partId);
+    if (!partResult.success || !partResult.part) {
+      return { success: false, error: 'Part not found.' };
+    }
+    const part = partResult.part;
+
+    // Check if part is already added to this job
+    const existingPartIndex = job.usedParts?.findIndex((up: UsedPart) => up.partId === partId) ?? -1;
+    
+    let updatedUsedParts: UsedPart[];
+    
+    if (existingPartIndex >= 0) {
+      // Update existing part quantity
+      updatedUsedParts = [...(job.usedParts || [])];
+      updatedUsedParts[existingPartIndex].quantity += quantity;
+      updatedUsedParts[existingPartIndex].total = updatedUsedParts[existingPartIndex].quantity * updatedUsedParts[existingPartIndex].price;
+    } else {
+      // Add new part
+      const newUsedPart: UsedPart = {
+        partId: part.id,
+        partName: part.name,
+        quantity: quantity,
+        cost: part.avgCost, // Use average cost for estimation
+        price: part.price,
+        total: quantity * part.price,
+      };
+      updatedUsedParts = [...(job.usedParts || []), newUsedPart];
+    }
+
+    // Update the job with the new parts list
+    const dataDocRef = doc(db, DATA_PATH);
+    const jobRef = doc(dataDocRef, `${REPAIR_JOBS_COLLECTION}/${jobId}`);
+    
+    await updateDoc(jobRef, {
+      usedParts: updatedUsedParts,
+      updatedAt: serverTimestamp(),
+    });
+
+    revalidatePath('/dashboard/jobs');
+    revalidatePath(`/dashboard/jobs/${jobId}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error adding part to job:', error);
+    return { success: false, error: 'Failed to add part to job.' };
+  }
+}
+
+// Function to remove a part from a repair job
+export async function removePartFromJob(
+  jobId: string, 
+  partId: string, 
+  quantityToRemove: number = 1
+): Promise<{ success: boolean; error?: string }> {
+  if (!isConfigured) {
+    return { success: false, error: 'Firebase is not configured.' };
+  }
+
+  try {
+    const job = await getRepairJobById(jobId);
+    if (!job) {
+      return { success: false, error: 'Job not found.' };
+    }
+    const existingPartIndex = job.usedParts?.findIndex((up: UsedPart) => up.partId === partId) ?? -1;
+    
+    if (existingPartIndex === -1) {
+      return { success: false, error: 'Part not found in job.' };
+    }
+
+    let updatedUsedParts = [...(job.usedParts || [])];
+    const currentPart = updatedUsedParts[existingPartIndex];
+    
+    if (currentPart.quantity <= quantityToRemove) {
+      // Remove part entirely
+      updatedUsedParts.splice(existingPartIndex, 1);
+    } else {
+      // Reduce quantity
+      updatedUsedParts[existingPartIndex].quantity -= quantityToRemove;
+      updatedUsedParts[existingPartIndex].total = updatedUsedParts[existingPartIndex].quantity * updatedUsedParts[existingPartIndex].price;
+    }
+
+    // Update the job
+    const dataDocRef = doc(db, DATA_PATH);
+    const jobRef = doc(dataDocRef, `${REPAIR_JOBS_COLLECTION}/${jobId}`);
+    
+    await updateDoc(jobRef, {
+      usedParts: updatedUsedParts,
+      updatedAt: serverTimestamp(),
+    });
+
+    revalidatePath('/dashboard/jobs');
+    revalidatePath(`/dashboard/jobs/${jobId}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error removing part from job:', error);
+    return { success: false, error: 'Failed to remove part from job.' };
   }
 }
 

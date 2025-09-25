@@ -9,13 +9,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { createPart } from '@/lib/actions/parts';
-import { getSuppliers } from '@/lib/actions/suppliers';
 import { getBrandOptions, addBrandOption } from '@/lib/actions/options';
-import { PartCondition, Supplier } from '@/lib/types';
+import { PartCondition } from '@/lib/types';
 import { ArrowLeft, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
-import { AddSupplierForm } from '@/components/suppliers/add-supplier-form';
 import { CustomFieldsEditor } from '@/components/inventory/custom-fields-editor';
 import { AddableCombobox } from '@/components/inventory/addable-combobox';
 
@@ -27,43 +25,20 @@ export default function AddPartPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [isAddSupplierOpen, setIsAddSupplierOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
     partNumber: '',
     brand: '',
     condition: '' as PartCondition | '',
-    quantity: 0,
     minQuantity: 5,
-    cost: 0,
     price: 0,
-    supplier: '',
     location: '',
     notes: '',
     customFields: {} as Record<string, string>
   });
 
-  // Load suppliers on component mount
-  useEffect(() => {
-    const loadSuppliers = async () => {
-      const supplierList = await getSuppliers();
-      setSuppliers(supplierList);
-    };
-    loadSuppliers();
-  }, []);
 
-  // Refresh suppliers when add supplier form closes
-  useEffect(() => {
-    if (!isAddSupplierOpen) {
-      const loadSuppliers = async () => {
-        const supplierList = await getSuppliers();
-        setSuppliers(supplierList);
-      };
-      loadSuppliers();
-    }
-  }, [isAddSupplierOpen]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -89,11 +64,10 @@ export default function AddPartPage() {
         partNumber: formData.partNumber || undefined,
         brand: formData.brand && formData.brand !== 'none' ? formData.brand : undefined,
         condition: formData.condition as PartCondition,
-        quantity: formData.quantity,
         minQuantity: formData.minQuantity,
-        cost: formData.cost,
         price: formData.price,
-        supplier: formData.supplier && formData.supplier !== 'none' ? formData.supplier : undefined,
+        initialQuantity: 0, // New parts start with 0 stock - must use restock page
+        initialCost: 0, // No cost until first restock
         location: formData.location || undefined,
         notes: formData.notes || undefined,
         customFields: Object.keys(formData.customFields).length > 0 ? formData.customFields : undefined
@@ -190,17 +164,6 @@ export default function AddPartPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="quantity">Quantity in Stock</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  min="0"
-                  value={formData.quantity}
-                  onChange={(e) => handleInputChange('quantity', parseInt(e.target.value) || 0)}
-                />
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="minQuantity">Minimum Stock Level</Label>
                 <Input
                   id="minQuantity"
@@ -209,18 +172,25 @@ export default function AddPartPage() {
                   value={formData.minQuantity}
                   onChange={(e) => handleInputChange('minQuantity', parseInt(e.target.value) || 0)}
                 />
+                <p className="text-sm text-muted-foreground">
+                  Alert threshold for low stock notifications
+                </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="cost">Unit Cost ($)</Label>
-                <Input
-                  id="cost"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.cost}
-                  onChange={(e) => handleInputChange('cost', parseFloat(e.target.value) || 0)}
-                />
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">!</span>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-900">Stock Management</h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                      New parts are created with zero stock. Use the <strong>Restock Inventory</strong> page to add initial stock and costs.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -235,36 +205,7 @@ export default function AddPartPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="supplier">Supplier</Label>
-                <div className="flex gap-2">
-                  <Select
-                    value={formData.supplier}
-                    onValueChange={(value) => handleInputChange('supplier', value)}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Select supplier" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No supplier</SelectItem>
-                      {suppliers.map((supplier) => (
-                        <SelectItem key={supplier.id} value={supplier.name}>
-                          {supplier.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setIsAddSupplierOpen(true)}
-                    title="Add new supplier"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+
 
               <div className="space-y-2">
                 <Label htmlFor="location">Storage Location</Label>
@@ -305,10 +246,7 @@ export default function AddPartPage() {
         </CardContent>
       </Card>
 
-      <AddSupplierForm
-        open={isAddSupplierOpen}
-        onOpenChange={setIsAddSupplierOpen}
-      />
+
     </div>
   );
 }
