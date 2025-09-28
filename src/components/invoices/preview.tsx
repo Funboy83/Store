@@ -2,6 +2,7 @@
 
 "use client"
 
+import { useState } from "react"
 import {
   Card,
   CardContent,
@@ -21,9 +22,10 @@ import {
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import type { InvoiceDetail } from "@/lib/types"
-import { Printer, Wallet } from "lucide-react"
+import { Printer, Wallet, Edit3 } from "lucide-react"
 import { Logo } from "../logo"
 import { Badge } from "../ui/badge"
+import { InteractivePrintModal } from "./interactive-print-modal"
 
 interface InvoicePreviewProps {
   invoice: InvoiceDetail;
@@ -31,8 +33,14 @@ interface InvoicePreviewProps {
 }
 
 export function InvoicePreview({ invoice, isEdited = false }: InvoicePreviewProps) {
+  const [isInteractivePrintModalOpen, setIsInteractivePrintModalOpen] = useState(false);
+  
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleInteractivePrint = () => {
+    setIsInteractivePrintModalOpen(true);
   };
 
   const getStatusVariant = (status?: InvoiceDetail['status']) => {
@@ -55,9 +63,13 @@ export function InvoicePreview({ invoice, isEdited = false }: InvoicePreviewProp
     <>
       <div className="flex items-center gap-4 print:hidden">
         <div className="flex-1" />
+        <Button onClick={handleInteractivePrint} variant="default">
+          <Edit3 className="mr-2 h-4 w-4" />
+          Interactive Print
+        </Button>
         <Button onClick={handlePrint} variant="outline">
           <Printer className="mr-2 h-4 w-4" />
-          Print / Save PDF
+          Quick Print
         </Button>
       </div>
       
@@ -185,6 +197,12 @@ export function InvoicePreview({ invoice, isEdited = false }: InvoicePreviewProp
             </div>
         </CardFooter>
       </Card>
+      
+      <InteractivePrintModal
+        invoice={invoice}
+        isOpen={isInteractivePrintModalOpen}
+        onClose={() => setIsInteractivePrintModalOpen(false)}
+      />
     </>
   );
 }

@@ -4,8 +4,9 @@ import { db, isConfigured } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, getDocs, query, orderBy, updateDoc, getDoc } from 'firebase/firestore';
 import { RepairJob, JobStatus, DeviceCondition, UsedPart } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
+import { getLatestInvoiceNumber } from '@/lib/actions/invoice';
 
-const DATA_PATH = 'cellphone-inventory-system/data';
+const DATA_PATH = 'app-data/cellsmart-data';
 const REPAIR_JOBS_COLLECTION = 'repair-jobs';
 
 interface CreateRepairJobData {
@@ -22,22 +23,134 @@ interface CreateRepairJobData {
   priority: 'Low' | 'Medium' | 'High' | 'Urgent';
 }
 
+export async function getNextJobNumber(): Promise<number> {
+  if (!isConfigured) {
+    return 100; // Start from 100
+  }
+
+  try {
+    const dataDocRef = doc(db, DATA_PATH);
+    const repairJobsRef = collection(dataDocRef, REPAIR_JOBS_COLLECTION);
+    const snapshot = await getDocs(repairJobsRef);
+
+    if (snapshot.empty) {
+      return 100; // Start from 100 for first job
+    }
+
+    let maxNumber = 99; // Start below 100
+    snapshot.docs.forEach(docSnapshot => {
+      const jobData = docSnapshot.data();
+      if (jobData.jobId) {
+        const currentNumber = parseInt(jobData.jobId, 10);
+        if (!isNaN(currentNumber) && currentNumber > maxNumber) {
+          maxNumber = currentNumber;
+        }
+      }
+    });
+
+    return maxNumber + 1;
+  } catch (error) {
+    console.error('Error fetching latest job number:', error);
+    return 100; // Fallback to starting number
+  }
+}
+
+export async function getNextJobPaymentNumber(): Promise<string> {
+  if (!isConfigured) {
+    return 'Job-100'; // Start from Job-100
+  }
+
+  try {
+    // Check existing payment records in the finance system
+    const dataDocRef = doc(db, DATA_PATH);
+    const paymentsRef = collection(dataDocRef, 'payments');
+    const snapshot = await getDocs(paymentsRef);
+
+    if (snapshot.empty) {
+      return 'Job-100'; // Start from Job-100 for first payment
+    }
+
+    let maxNumber = 99; // Start below 100
+    snapshot.docs.forEach(docSnapshot => {
+      const paymentData = docSnapshot.data();
+      if (paymentData.paymentId && paymentData.paymentId.startsWith('Job-')) {
+        // Extract number from Job-XXX format
+        const numberPart = paymentData.paymentId.replace('Job-', '');
+        const currentNumber = parseInt(numberPart, 10);
+        if (!isNaN(currentNumber) && currentNumber > maxNumber) {
+          maxNumber = currentNumber;
+        }
+      }
+    });
+
+    return `Job-${maxNumber + 1}`;
+  } catch (error) {
+    console.error('Error fetching latest job payment number:', error);
+    return 'Job-100'; // Fallback to starting number
+  }
+}
+
+export async function getNextRepairInvoiceNumber(): Promise<string> {
+  if (!isConfigured) {
+    return 'REP-100'; // Start from REP-100
+  }
+
+  try {
+    const dataDocRef = doc(db, DATA_PATH);
+    const invoicesCollectionRef = collection(dataDocRef, 'invoices');
+    const snapshot = await getDocs(invoicesCollectionRef);
+
+    if (snapshot.empty) {
+      return 'REP-100'; // Start from REP-100 for first repair invoice
+    }
+
+    let maxNumber = 99; // Start below 100
+    snapshot.docs.forEach(docSnapshot => {
+      const invoiceData = docSnapshot.data();
+      if (invoiceData.invoiceNumber && invoiceData.invoiceNumber.startsWith('REP-')) {
+        // Extract number from REP-XXX format
+        const numberPart = invoiceData.invoiceNumber.replace('REP-', '');
+        const currentNumber = parseInt(numberPart, 10);
+        if (!isNaN(currentNumber) && currentNumber > maxNumber) {
+          maxNumber = currentNumber;
+        }
+      }
+    });
+
+    return `REP-${maxNumber + 1}`;
+  } catch (error) {
+    console.error('Error fetching latest repair invoice number:', error);
+    return 'REP-100'; // Fallback to starting number
+  }
+}
+
 export async function createRepairJob(data: CreateRepairJobData): Promise<{ success: boolean; jobId?: string; error?: string }> {
   if (!isConfigured) {
     return { success: false, error: 'Firebase is not configured.' };
   }
 
   try {
-    // Generate job ID (format: REP-YYYYMMDD-XXXX)
-    const today = new Date();
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    const jobId = `REP-${dateStr}-${randomNum}`;
+    // Generate sequential job ID starting from 100
+    const jobNumber = await getNextJobNumber();
+    const jobId = `${jobNumber}`;
+
+    // Look for existing customer by phone number
+    let customerId = '';
+    try {
+      const { findCustomerByPhone } = await import('./customers');
+      const existingCustomer = await findCustomerByPhone(data.customerPhone);
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+        console.log(`🔗 Linked repair job to existing customer: ${existingCustomer.name} (${existingCustomer.id})`);
+      }
+    } catch (error) {
+      console.warn('Error looking up customer by phone:', error);
+    }
 
     // Create the repair job document
     const repairJob: Omit<RepairJob, 'id'> = {
       jobId,
-      customerId: '', // We'll update this if we link to existing customer
+      customerId, // Now properly linked to existing customer if found
       customerName: data.customerName,
       customerPhone: data.customerPhone,
       deviceMake: data.deviceMake,
@@ -77,6 +190,7 @@ export async function createRepairJob(data: CreateRepairJobData): Promise<{ succ
     revalidatePath('/dashboard/repairs');
     revalidatePath('/dashboard/jobs');
     revalidatePath('/dashboard/repair-customers');
+    revalidatePath('/dashboard/customers'); // Update customer job counts
 
     return { success: true, jobId };
   } catch (error) {
@@ -94,9 +208,8 @@ export async function getRepairJobs(): Promise<RepairJob[]> {
   try {
     const dataDocRef = doc(db, DATA_PATH);
     const repairJobsRef = collection(dataDocRef, REPAIR_JOBS_COLLECTION);
-    const q = query(repairJobsRef, orderBy('createdAt', 'desc'));
     
-    const snapshot = await getDocs(q);
+    const snapshot = await getDocs(repairJobsRef);
     const jobs: RepairJob[] = snapshot.docs.map(doc => {
       const data = doc.data();
       
@@ -120,6 +233,13 @@ export async function getRepairJobs(): Promise<RepairJob[]> {
       };
       
       return convertedData as unknown as RepairJob;
+    });
+
+    // Sort by createdAt descending (newest first) client-side
+    jobs.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
     });
 
     return jobs;
@@ -229,6 +349,95 @@ export async function updateRepairJobStatus(jobId: string, status: JobStatus): P
   } catch (error) {
     console.error('Error updating repair job status:', error);
     return { success: false, error: 'Failed to update job status.' };
+  }
+}
+
+// Function to update general job details (not just status)
+export async function updateRepairJob(
+  jobId: string, 
+  updates: Partial<Pick<RepairJob, 'problemDescription' | 'estimatedCost' | 'actualCost' | 'laborCost' | 'status' | 'technicianNotes' | 'internalNotes'>>
+): Promise<{ success: boolean; error?: string }> {
+  if (!isConfigured) {
+    return { success: false, error: 'Firebase is not configured.' };
+  }
+
+  try {
+    const dataDocRef = doc(db, DATA_PATH);
+    const jobRef = doc(dataDocRef, `${REPAIR_JOBS_COLLECTION}/${jobId}`);
+    
+    // Get current job to check status change
+    const jobDoc = await getDoc(jobRef);
+    if (!jobDoc.exists()) {
+      return { success: false, error: 'Job not found.' };
+    }
+
+    const currentJob = jobDoc.data() as RepairJob;
+    const previousStatus = currentJob.status;
+
+    const updateData: any = {
+      ...updates,
+      updatedAt: serverTimestamp(),
+    };
+
+    // Set completion date if status is being changed to completed
+    if (updates.status === 'Completed' && previousStatus !== 'Completed') {
+      updateData.completedAt = serverTimestamp();
+    }
+
+    // Set paid date if status is being changed to paid
+    if (updates.status === 'Paid' && previousStatus !== 'Paid') {
+      updateData.paidAt = serverTimestamp();
+      updateData.isPaid = true;
+    }
+
+    await updateDoc(jobRef, updateData);
+
+    // Handle inventory deduction if status changed to Completed or Paid
+    if (updates.status && (updates.status === 'Completed' || updates.status === 'Paid') && 
+        previousStatus !== 'Completed' && previousStatus !== 'Paid') {
+      
+      if (currentJob.usedParts && currentJob.usedParts.length > 0) {
+        console.log(`🔄 FIFO Inventory Deduction for job ${currentJob.jobId} - ${currentJob.usedParts.length} parts used`);
+        
+        const { consumePartFromOldestBatch } = await import('./parts');
+        const inventoryErrors: string[] = [];
+        
+        for (const usedPart of currentJob.usedParts) {
+          try {
+            console.log(`📦 Processing ${usedPart.quantity} x ${usedPart.partName} (ID: ${usedPart.partId})`);
+            
+            const consumeResult = await consumePartFromOldestBatch(
+              usedPart.partId,
+              usedPart.quantity,
+              currentJob.id,
+              `Used in repair job ${currentJob.jobId} (${currentJob.customerName})`
+            );
+
+            if (!consumeResult.success) {
+              inventoryErrors.push(`Failed to deduct inventory for ${usedPart.partName}: ${consumeResult.error}`);
+            } else {
+              console.log(`✅ FIFO Deducted ${usedPart.quantity} x ${usedPart.partName} from batch ${consumeResult.batchId} at cost $${consumeResult.costPrice}`);
+            }
+          } catch (error) {
+            console.error(`Error deducting inventory for part ${usedPart.partName}:`, error);
+            inventoryErrors.push(`Error processing ${usedPart.partName}: ${error}`);
+          }
+        }
+
+        if (inventoryErrors.length > 0) {
+          console.error('Inventory deduction errors:', inventoryErrors);
+        }
+      }
+    }
+
+    revalidatePath('/dashboard/repairs');
+    revalidatePath('/dashboard/jobs');
+    revalidatePath(`/dashboard/jobs/${jobId}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating repair job:', error);
+    return { success: false, error: 'Failed to update job.' };
   }
 }
 
@@ -423,5 +632,217 @@ export async function getRepairJobById(jobId: string): Promise<RepairJob | null>
   } catch (error) {
     console.error('Error fetching repair job by ID:', error);
     return null;
+  }
+}
+
+// Interface for repair invoice data
+interface RepairInvoiceData {
+  jobId: string;
+  customerName: string;
+  customerPhone: string;
+  deviceMake: string;
+  deviceModel: string;
+  problemDescription: string;
+  laborCost: number;
+  partsCost: number;
+  totalAmount: number;
+  paymentMethod: 'cash' | 'credit_card' | 'zelle' | 'venmo';
+  cashAmount?: number;
+  cardAmount?: number;
+}
+
+export async function generateRepairInvoice(
+  jobId: string,
+  paymentData: {
+    paymentMethod: 'cash' | 'credit_card' | 'zelle' | 'venmo';
+    cashAmount?: number;
+    cardAmount?: number;
+  }
+): Promise<{ success: boolean; invoiceId?: string; error?: string }> {
+  if (!isConfigured) {
+    return { success: false, error: 'Firebase is not configured.' };
+  }
+
+  try {
+    // Get the repair job
+    const dataDocRef = doc(db, DATA_PATH);
+    const repairJobRef = doc(dataDocRef, `${REPAIR_JOBS_COLLECTION}/${jobId}`);
+    const jobDoc = await getDoc(repairJobRef);
+    
+    if (!jobDoc.exists()) {
+      return { success: false, error: 'Repair job not found.' };
+    }
+    
+    const job = { id: jobDoc.id, ...jobDoc.data() } as RepairJob;
+    
+    // Check if job status is "Ready for Pickup"
+    if (job.status !== 'Ready for Pickup') {
+      return { success: false, error: 'Invoice can only be generated for jobs with status "Ready for Pickup".' };
+    }
+    
+    // Calculate costs - Use selling price, not cost
+    const partsPrice = job.usedParts?.reduce((total, part) => total + (part.price * part.quantity), 0) || 0;
+    const partsCost = job.usedParts?.reduce((total, part) => total + (part.cost * part.quantity), 0) || 0; // Keep for profit calculation
+    const laborCost = job.laborCost || 0;
+    const totalAmount = partsPrice + laborCost;
+    const totalPayment = (paymentData.cashAmount || 0) + (paymentData.cardAmount || 0);
+    
+    // Validate payment amount
+    if (totalPayment < totalAmount) {
+      return { success: false, error: `Insufficient payment. Total due: $${totalAmount.toFixed(2)}, Received: $${totalPayment.toFixed(2)}` };
+    }
+    
+    // Create invoice data for finance system
+    const invoiceData = {
+      customerId: job.customerId || 'walk-in',
+      customerName: job.customerName,
+      customerPhone: job.customerPhone,
+      jobId: job.jobId,
+      deviceInfo: `${job.deviceMake} ${job.deviceModel}`,
+      problemDescription: job.problemDescription,
+      laborCost: laborCost,
+      partsCost: partsPrice, // Use selling price for customer invoice
+      subtotal: totalAmount,
+      tax: 0, // Add tax calculation if needed
+      total: totalAmount,
+      paymentMethod: paymentData.paymentMethod,
+      cashAmount: paymentData.cashAmount || 0,
+      cardAmount: paymentData.cardAmount || 0,
+      profit: totalAmount - partsCost - laborCost, // Profit = selling price - wholesale cost - labor
+      type: 'repair_service',
+      createdAt: new Date().toISOString(),
+    };
+    
+    // Generate repair invoice number with REP- prefix
+    const repairInvoiceNumber = await getNextRepairInvoiceNumber();
+    
+    // Add to invoices collection (finance system)
+    const invoicesRef = collection(dataDocRef, 'invoices');
+    const invoiceDoc = await addDoc(invoicesRef, {
+      ...invoiceData,
+      invoiceNumber: repairInvoiceNumber,
+      issueDate: new Date().toISOString().split('T')[0],
+      dueDate: new Date().toISOString().split('T')[0], // Same day for repair jobs
+      createdAt: serverTimestamp(),
+      status: 'Paid',
+      amountPaid: totalAmount,
+      paymentIds: [], // Will be updated after payment record creation
+      items: [
+        {
+          id: '1',
+          productName: `Repair Service - ${job.deviceMake} ${job.deviceModel}`,
+          description: job.problemDescription,
+          quantity: 1,
+          unitPrice: laborCost,
+          total: laborCost,
+          isCustom: true,
+        },
+        ...job.usedParts?.map((part, index) => ({
+          id: `part_${index + 2}`,
+          productName: part.partName,
+          description: `Replacement part - ${part.brand || ''} ${part.model || ''}`.trim(),
+          quantity: part.quantity,
+          unitPrice: part.price, // Use selling price for customer invoice
+          total: part.price * part.quantity,
+          isCustom: false,
+        })) || []
+      ]
+    });
+    
+    // Create payment record in finance system with proper structure
+    const paymentId = await getNextJobPaymentNumber();
+    const paymentsRef = collection(dataDocRef, 'payments');
+    
+    // Build tender details based on payment method
+    const tenderDetails: { method: 'Cash' | 'Check' | 'Card/Zelle/Wire' | 'StoreCredit'; amount: number }[] = [];
+    if (paymentData.paymentMethod === 'cash' && (paymentData.cashAmount || 0) > 0) {
+      tenderDetails.push({ method: 'Cash', amount: paymentData.cashAmount || 0 });
+    }
+    if (paymentData.paymentMethod === 'credit_card' && (paymentData.cardAmount || 0) > 0) {
+      tenderDetails.push({ method: 'Card/Zelle/Wire', amount: paymentData.cardAmount || 0 });
+    }
+    if (paymentData.paymentMethod === 'zelle' || paymentData.paymentMethod === 'venmo') {
+      tenderDetails.push({ method: 'Card/Zelle/Wire', amount: totalAmount });
+    }
+    
+    const paymentRecord = await addDoc(paymentsRef, {
+      customerId: job.customerId || 'Aj0l1O2kJcvlF3J0uVMX', // Use walk-in customer ID if no customer
+      paymentDate: serverTimestamp(),
+      recordedBy: 'system_repair', // Indicate this is from repair system
+      amountPaid: totalAmount,
+      type: 'payment',
+      appliedToInvoices: [invoiceDoc.id],
+      tenderDetails: tenderDetails,
+      notes: `${paymentId}: Repair service payment for Job ${job.jobId} - ${job.deviceMake} ${job.deviceModel}`,
+      jobPaymentId: paymentId, // Custom field to track job payment ID
+      repairJobId: job.id // Link back to repair job
+    });
+    
+    // Update the invoice with the payment ID
+    await updateDoc(invoiceDoc, {
+      paymentIds: [paymentRecord.id]
+    });
+    
+    // Deduct parts inventory using FIFO method
+    if (job.usedParts && job.usedParts.length > 0) {
+      console.log(`🔄 FIFO Inventory Deduction for invoice generation - Job ${job.jobId} - ${job.usedParts.length} parts used`);
+      
+      const { consumePartFromOldestBatch } = await import('./parts');
+      const inventoryErrors: string[] = [];
+      
+      for (const usedPart of job.usedParts) {
+        try {
+          console.log(`📦 Deducting ${usedPart.quantity} x ${usedPart.partName} (ID: ${usedPart.partId})`);
+          
+          const consumeResult = await consumePartFromOldestBatch(
+            usedPart.partId,
+            usedPart.quantity,
+            job.id,
+            `Used in repair job ${job.jobId} - Invoice ${repairInvoiceNumber} (${job.customerName})`
+          );
+
+          if (!consumeResult.success) {
+            inventoryErrors.push(`Failed to deduct inventory for ${usedPart.partName}: ${consumeResult.error}`);
+            console.error(`❌ Failed to deduct ${usedPart.partName}: ${consumeResult.error}`);
+          } else {
+            console.log(`✅ Successfully deducted ${usedPart.quantity} x ${usedPart.partName} from batch ${consumeResult.batchId}`);
+            console.log(`📊 Remaining inventory: ${consumeResult.remainingQuantity} units`);
+          }
+        } catch (error) {
+          console.error(`Error deducting inventory for part ${usedPart.partName}:`, error);
+          inventoryErrors.push(`Error processing ${usedPart.partName}: ${error}`);
+        }
+      }
+
+      // Log any inventory errors but don't fail the invoice generation
+      if (inventoryErrors.length > 0) {
+        console.error('Inventory deduction errors during invoice generation:', inventoryErrors);
+      }
+    }
+    
+    // Update repair job status to Paid and mark as invoiced
+    await updateDoc(repairJobRef, {
+      status: 'Paid',
+      invoiceGenerated: true,
+      isPaid: true,
+      completedAt: serverTimestamp(),
+      invoiceId: invoiceDoc.id,
+      paymentId: paymentId,
+      updatedAt: serverTimestamp(),
+    });
+    
+    // Revalidate pages
+    revalidatePath('/dashboard/jobs');
+    revalidatePath('/dashboard/repair-customers');
+    revalidatePath('/dashboard/invoices');
+    revalidatePath('/dashboard/finance');
+    
+    return { 
+      success: true, 
+      invoiceId: repairInvoiceNumber, // Return the proper REP-XXX number instead of document ID
+    };
+  } catch (error) {
+    console.error('Error generating repair invoice:', error);
+    return { success: false, error: 'Failed to generate invoice.' };
   }
 }
