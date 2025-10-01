@@ -3,19 +3,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { getRepairCustomers } from '@/lib/repair-customer-integration';
-import { getJobsByCustomer } from '@/lib/mock-repair-data';
+import { getJobsByCustomerId } from '@/lib/actions/customers';
 import { Search, Phone, Plus, Eye, Users } from 'lucide-react';
 import Link from 'next/link';
+import { LinkJobsButton } from '@/components/repairs/link-jobs-button';
 
 export default async function RepairCustomersPage() {
-  // Get all repair customers
+  // Get all repair customers (already includes job counts in totalJobs)
   const repairCustomers = await getRepairCustomers();
   
-  // Get customers with their job counts
-  const customers = repairCustomers.map(customer => ({
-    ...customer,
-    jobHistory: getJobsByCustomer(customer.id),
-  }));
+  // Get customers with their real job history details from Firestore
+  const allCustomers = await Promise.all(
+    repairCustomers.map(async (customer) => {
+      const jobHistory = await getJobsByCustomerId(customer.id);
+      return {
+        ...customer,
+        jobHistory: jobHistory,
+      };
+    })
+  );
+
+  // Filter to only show customers with at least one job
+  const customers = allCustomers.filter(customer => 
+    customer.jobHistory.length > 0 || customer.totalJobs > 0
+  );
 
   return (
     <div className="p-6 space-y-6">
@@ -27,12 +38,15 @@ export default async function RepairCustomersPage() {
             Manage repair customers and view job history
           </p>
         </div>
-        <Button asChild>
-          <Link href="/dashboard/jobs/new">
-            <Plus className="h-4 w-4 mr-2" />
-            New Job
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <LinkJobsButton />
+          <Button asChild>
+            <Link href="/dashboard/jobs/new">
+              <Plus className="h-4 w-4 mr-2" />
+              New Job
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -56,7 +70,7 @@ export default async function RepairCustomersPage() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">{customer.name}</CardTitle>
                 <Badge variant="outline">
-                  {customer.jobHistory.length} jobs
+                  {customer.totalJobs || customer.jobHistory.length} jobs
                 </Badge>
               </div>
             </CardHeader>

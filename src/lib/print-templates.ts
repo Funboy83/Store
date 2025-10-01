@@ -446,9 +446,10 @@ export function generateInteractivePrintTemplate(invoice: InvoiceDetail): string
                 /*
                   We scale the content down to fit the page width and also reduce
                   vertical margins and padding to prevent it from flowing onto a second page.
+                  Use transform-origin center to keep content centered when scaling
                 */
                 transform: scale(0.8);
-                transform-origin: top left;
+                transform-origin: top center;
                 padding: 2rem !important; /* Reduced padding for print */
             }
 
