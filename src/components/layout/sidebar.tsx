@@ -53,6 +53,11 @@ const mainNavItems = [
     href: '/dashboard/refund-exchange',
     icon: ArrowLeftRight,
     label: 'Refund & Exchange',
+  },
+  {
+    href: '/dashboard/credit-notes',
+    icon: BarChart3,
+    label: 'Credit Notes',
   }
 ];
 
@@ -82,19 +87,25 @@ const settingsSubItems = [
   }
 ];
 
-const settingsSubItems = [
-  {
-    href: '/dashboard/settings/custom-fields',
-    icon: Package,
-    label: 'Custom Fields',
-  }
-];
-
 const settingsNavItem = {
     href: '/dashboard/settings',
     icon: Settings,
     label: 'Settings',
 };
+
+// Debug section (temporary)
+const debugNavItems = [
+  {
+    href: '/debug-inventory',
+    icon: LayoutGrid,
+    label: 'Debug Inventory',
+  },
+  {
+    href: '/debug-database-paths',
+    icon: LayoutGrid,
+    label: 'Database Paths',
+  }
+];
 
 interface MainSidebarProps {
   isCollapsed: boolean;
@@ -104,9 +115,6 @@ export function MainSidebar({ isCollapsed }: MainSidebarProps) {
   const pathname = usePathname();
   const [isInventoryExpanded, setIsInventoryExpanded] = useState(
     pathname.startsWith('/dashboard/inventory') || pathname.startsWith('/dashboard/parts') || pathname.startsWith('/dashboard/restock')
-  );
-  const [isSettingsExpanded, setIsSettingsExpanded] = useState(
-    pathname.startsWith('/dashboard/settings')
   );
   const [isSettingsExpanded, setIsSettingsExpanded] = useState(
     pathname.startsWith('/dashboard/settings')
@@ -262,6 +270,11 @@ export function MainSidebar({ isCollapsed }: MainSidebarProps) {
         </nav>
         <div className="px-4">
             {renderSettingsSection()}
+            
+            {/* Debug Section */}
+            <div className="mt-4 pt-4 border-t border-slate-700">
+              {debugNavItems.map(renderNavItem)}
+            </div>
         </div>
       </div>
     </aside>

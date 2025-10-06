@@ -8,7 +8,7 @@ import { collection, getDocs, query, orderBy, doc } from 'firebase/firestore';
 import type { ProductHistory, Customer } from '../types';
 import { getCustomers } from './customers';
 
-const DATA_PATH = 'cellphone-inventory-system/data';
+const DATA_PATH = 'app-data/cellsmart-data';
 const INVENTORY_HISTORY_COLLECTION = 'inventory_history';
 
 export async function getInventoryHistory(): Promise<ProductHistory[]> {

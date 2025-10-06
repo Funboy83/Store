@@ -83,7 +83,7 @@ export function InvoiceForm({ invoice, inventory, customers }: InvoiceFormProps)
     if (!isEditMode) {
       async function fetchInvoiceNumber() {
         const nextNumber = await getLatestInvoiceNumber();
-        setInvoiceNumber(String(nextNumber));
+        setInvoiceNumber(nextNumber);
       }
       fetchInvoiceNumber();
     }

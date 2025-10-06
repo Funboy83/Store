@@ -8,10 +8,11 @@ import { ArrowLeft, Edit, History, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { InvoicePreview } from "@/components/invoices/preview";
 
-export default async function InvoiceDetailsPage({ params }: { params: { id: string } }) {
+export default async function InvoiceDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const [invoice, history] = await Promise.all([
-    getInvoiceById(params.id),
-    getInvoiceEditHistory(params.id)
+    getInvoiceById(id),
+    getInvoiceEditHistory(id)
   ]);
 
   if (!invoice) {
@@ -19,7 +20,7 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
   }
 
   const isEdited = history.length > 1;
-  const canEdit = invoice.status === 'Unpaid';
+  const canEdit = invoice.status === 'Unpaid' || invoice.status === 'Draft';
   const canRefund = invoice.status === 'Paid';
 
   return (
@@ -33,19 +34,21 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
         </Link>
         <h1 className="text-2xl font-bold tracking-tight flex-1">Invoice Details</h1>
         <div className="flex items-center gap-2">
-            <Link href={`/dashboard/invoices/${invoice.id}/history`} passHref>
+            <Link href={`/dashboard/invoices/${id}/history`} passHref>
                 <Button variant="outline">
                     <History className="mr-2 h-4 w-4" />
                     View History
                 </Button>
             </Link>
-            <Link href={`/dashboard/invoices/${invoice.id}/edit`} passHref>
-                <Button disabled={!canEdit}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit Invoice
-                </Button>
-            </Link>
-             <Link href={`/dashboard/invoices/${invoice.id}/refund`} passHref>
+            {canEdit && (
+                <Link href={`/dashboard/invoices/${id}/edit`} passHref>
+                    <Button>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Invoice
+                    </Button>
+                </Link>
+            )}
+             <Link href={`/dashboard/invoices/${id}/refund`} passHref>
                 <Button variant="destructive" disabled={!canRefund}>
                     <Undo2 className="mr-2 h-4 w-4" />
                     Refund / Exchange

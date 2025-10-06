@@ -3,7 +3,7 @@
 import { db, isConfigured } from '@/lib/firebase';
 import { collection, getDocs, query, where, doc, orderBy, limit, Timestamp } from 'firebase/firestore';
 
-const DATA_PATH = 'cellphone-inventory-system/data';
+const DATA_PATH = 'app-data/cellsmart-data';
 const INVOICES_COLLECTION = 'invoices';
 const CUSTOMERS_COLLECTION = 'customers';
 const INVENTORY_COLLECTION = 'inventory';

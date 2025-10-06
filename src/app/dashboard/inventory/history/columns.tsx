@@ -36,8 +36,16 @@ export const columns: ColumnDef<ProductHistory>[] = [
     header: "Status",
     cell: ({ row }) => {
         const status = row.getValue("status") as string;
-        const variant = status === 'Sold' ? 'default' : 'secondary';
-        return <Badge variant={variant}>{status}</Badge>
+        const getStatusVariant = (status: string) => {
+          switch (status) {
+            case 'Sold': return 'default';
+            case 'Returned': return 'outline';
+            case 'Voided': return 'destructive';
+            case 'Deleted': return 'secondary';
+            default: return 'secondary';
+          }
+        };
+        return <Badge variant={getStatusVariant(status)}>{status}</Badge>
     }
   },
   {

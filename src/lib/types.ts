@@ -33,12 +33,13 @@ export type Product = {
 };
 
 export type ProductHistory = Product & {
-  status: 'Sold' | 'Deleted' | 'Voided';
+  status: 'Sold' | 'Deleted' | 'Voided' | 'Returned';
   amount: number;
   movedAt: any;
   customerId?: string;
   customerName?: string;
   invoiceId?: string;
+  creditNoteId?: string;
 };
 
 export type Customer = {
@@ -155,6 +156,7 @@ export type EditHistoryEntry = {
 
 export type CreditNote = {
   id: string;
+  creditNoteNumber?: string;
   originalInvoiceId: string;
   customerId: string;
   issueDate: string;

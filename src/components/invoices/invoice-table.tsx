@@ -40,11 +40,17 @@ interface InvoiceTableProps {
     title?: string;
     onArchive?: (invoice: InvoiceDetail) => void;
     showRefundInQuickView?: boolean;
+    hideRepairInvoices?: boolean;
 }
 
-export function InvoiceTable({ invoices, title = "Invoices", onArchive, showRefundInQuickView = false }: InvoiceTableProps) {
+export function InvoiceTable({ invoices, title = "Invoices", onArchive, showRefundInQuickView = false, hideRepairInvoices = false }: InvoiceTableProps) {
   const { toast } = useToast();
   const [quickViewInvoice, setQuickViewInvoice] = useState<InvoiceDetail | null>(null);
+
+  // Filter out repair invoices if requested
+  const filteredInvoices = hideRepairInvoices 
+    ? invoices.filter(invoice => invoice.invoiceNumber && !invoice.invoiceNumber.startsWith('REP-'))
+    : invoices;
 
   const handleArchiveClick = (invoice: InvoiceDetail) => {
     if (onArchive) {
@@ -99,12 +105,12 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive, showRefu
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {invoices.length === 0 ? (
+                {filteredInvoices.length === 0 ? (
                   <TableRow>
                       <TableCell colSpan={7} className="text-center h-24">No invoices found.</TableCell>
                   </TableRow>
                 ) : (
-                  invoices.map((invoice) => (
+                  filteredInvoices.map((invoice) => (
                     <TableRow key={invoice.id}>
                       <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                       <TableCell>{getCustomerName(invoice)}</TableCell>
@@ -146,15 +152,16 @@ export function InvoiceTable({ invoices, title = "Invoices", onArchive, showRefu
                               <DropdownMenuItem onSelect={() => setQuickViewInvoice(invoice)}>
                                 View Invoice
                               </DropdownMenuItem>
-                              <DropdownMenuItem asChild disabled={invoice.status === 'Paid' || invoice.status === 'Partial'}>
-                                  <Link href={`/dashboard/invoices/${invoice.id}/edit`}>Edit Invoice</Link>
-                              </DropdownMenuItem>
-                              {onArchive && (
+                              {invoice.status !== 'Paid' && (
+                                <DropdownMenuItem asChild>
+                                    <Link href={`/dashboard/invoices/${invoice.id}/edit`}>Edit Invoice</Link>
+                                </DropdownMenuItem>
+                              )}
+                              {onArchive && invoice.status !== 'Paid' && invoice.status !== 'Partial' && (
                                   <>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem 
                                       className="text-destructive"
-                                      disabled={invoice.status === 'Paid' || invoice.status === 'Partial'}
                                       onSelect={() => handleArchiveClick(invoice as InvoiceDetail)}>
                                       Void Invoice
                                   </DropdownMenuItem>

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { RepairJob, RepairInvoice } from '@/lib/types';
 import { format } from 'date-fns';
-import { Printer, Download, Mail, CheckCircle } from 'lucide-react';
+import { Download, Mail, CheckCircle } from 'lucide-react';
 
 interface RepairInvoiceViewProps {
   job: RepairJob;
@@ -22,10 +22,6 @@ export function RepairInvoiceView({ job, invoice }: RepairInvoiceViewProps) {
   const tax = subtotal * taxRate;
   const total = subtotal + tax;
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const handleMarkAsPaid = () => {
     // TODO: Implement payment marking
     console.log('Marking job as paid:', job.id);
@@ -37,10 +33,6 @@ export function RepairInvoiceView({ job, invoice }: RepairInvoiceViewProps) {
       <div className="flex items-center justify-between print:hidden">
         <h1 className="text-2xl font-bold">Invoice - {job.jobId}</h1>
         <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={handlePrint}>
-            <Printer className="h-4 w-4 mr-2" />
-            Print
-          </Button>
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" />
             Download PDF

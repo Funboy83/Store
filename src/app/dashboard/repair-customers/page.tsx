@@ -3,13 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { getRepairCustomers } from '@/lib/repair-customer-integration';
-import { getJobsByCustomerId } from '@/lib/actions/customers';
+import { getJobsByCustomerId } from '@/lib/actions/repair-jobs';
 import { Search, Phone, Plus, Eye, Users } from 'lucide-react';
 import Link from 'next/link';
 import { LinkJobsButton } from '@/components/repairs/link-jobs-button';
 
 export default async function RepairCustomersPage() {
-  // Get all repair customers (already includes job counts in totalJobs)
+  // Get all repair customers
   const repairCustomers = await getRepairCustomers();
   
   // Get customers with their real job history details from Firestore
@@ -25,7 +25,7 @@ export default async function RepairCustomersPage() {
 
   // Filter to only show customers with at least one job
   const customers = allCustomers.filter(customer => 
-    customer.jobHistory.length > 0 || customer.totalJobs > 0
+    customer.jobHistory.length > 0
   );
 
   return (
@@ -70,7 +70,7 @@ export default async function RepairCustomersPage() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">{customer.name}</CardTitle>
                 <Badge variant="outline">
-                  {customer.totalJobs || customer.jobHistory.length} jobs
+                  {customer.jobHistory.length} jobs
                 </Badge>
               </div>
             </CardHeader>

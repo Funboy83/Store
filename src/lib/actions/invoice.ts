@@ -40,7 +40,7 @@ export async function getInvoiceSummary(items: InvoiceItem[]): Promise<{ summary
   }
 }
 
-const DATA_PATH = 'cellphone-inventory-system/data';
+const DATA_PATH = 'app-data/cellsmart-data';
 const INVOICES_COLLECTION = 'invoices';
 const INVENTORY_COLLECTION = 'inventory';
 const INVENTORY_HISTORY_COLLECTION = 'inventory_history';
@@ -206,9 +206,9 @@ export async function getInvoiceById(id: string): Promise<InvoiceDetail | null> 
     }
 }
 
-export async function getLatestInvoiceNumber(): Promise<number> {
+export async function getLatestInvoiceNumber(): Promise<string> {
   if (!isConfigured) {
-    return 1000;
+    return 'SALE-1000';
   }
   try {
     const dataDocRef = doc(db, DATA_PATH);
@@ -216,24 +216,26 @@ export async function getLatestInvoiceNumber(): Promise<number> {
     const snapshot = await getDocs(invoicesCollectionRef);
 
     if (snapshot.empty) {
-      return 1000;
+      return 'SALE-1000';
     }
 
     let maxNumber = 999;
     snapshot.docs.forEach(doc => {
       const invoiceNumberStr = doc.data().invoiceNumber;
-      if (invoiceNumberStr) {
-        const currentNumber = parseInt(invoiceNumberStr, 10);
+      if (invoiceNumberStr && invoiceNumberStr.startsWith('SALE-')) {
+        // Extract number from SALE-XXX format
+        const numberPart = invoiceNumberStr.replace('SALE-', '');
+        const currentNumber = parseInt(numberPart, 10);
         if (!isNaN(currentNumber) && currentNumber > maxNumber) {
           maxNumber = currentNumber;
         }
       }
     });
 
-    return maxNumber + 1;
+    return `SALE-${maxNumber + 1}`;
   } catch (error) {
     console.error('Error fetching latest invoice number:', error);
-    return 1000; // Fallback in case of error
+    return 'SALE-1000'; // Fallback in case of error
   }
 }
 
@@ -267,12 +269,16 @@ export async function _createInvoiceWithItems(
 
     if (!item.isCustom && item.id) {
       const inventoryItemRef = doc(dataDocRef, `${INVENTORY_COLLECTION}/${item.id}`);
-      // Note: We expect the calling function to have verified inventory existence.
-      // In a real-world scenario, you might re-fetch here if not using a transaction.
+      
+      // Update inventory item status to 'Sold' instead of deleting it
+      batch.update(inventoryItemRef, {
+        status: 'Sold',
+        updatedAt: serverTimestamp()
+      });
+      
+      // Still create history record for tracking
       const productHistoryRef = doc(collection(dataDocRef, INVENTORY_HISTORY_COLLECTION));
       batch.set(productHistoryRef, {
-        // This assumes 'item' has enough product details, which might need adjustment.
-        // For now, we'll store what we have. A better approach might fetch the full product.
         ...item, // This is a simplification.
         id: item.id,
         imei: item.description?.split(' - ')[0] || 'N/A', // Assuming description has IMEI
@@ -283,7 +289,6 @@ export async function _createInvoiceWithItems(
         customerName: invoiceData.customerName || customer.name,
         invoiceId: invoiceRef.id,
       });
-      batch.delete(inventoryItemRef);
     }
   }
 
@@ -534,13 +539,16 @@ export async function archiveInvoice(invoice: InvoiceDetail): Promise<{ success:
     for (const docSnap of historyItemsSnap.docs) {
       const historyItem = docSnap.data() as ProductHistory;
       
-      const { status, amount, movedAt, customerId, customerName, invoiceId, ...originalProduct } = historyItem;
-
-      if (originalProduct.id && originalProduct.brand && originalProduct.model) {
-        const inventoryRef = doc(dataDocRef, `${INVENTORY_COLLECTION}/${originalProduct.id}`);
-        batch.set(inventoryRef, { ...originalProduct, status: 'Available' }); 
+      // Since we now keep items in inventory, just update their status back to Available
+      if (historyItem.id) {
+        const inventoryRef = doc(dataDocRef, `${INVENTORY_COLLECTION}/${historyItem.id}`);
+        batch.update(inventoryRef, { 
+          status: 'Available',
+          updatedAt: serverTimestamp()
+        }); 
       }
       
+      // Mark history entry as voided
       batch.update(docSnap.ref, { status: 'Voided' });
     }
 

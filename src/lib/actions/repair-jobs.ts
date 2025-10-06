@@ -1,7 +1,7 @@
 'use server';
 
 import { db, isConfigured } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, doc, getDocs, query, orderBy, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDocs, query, orderBy, updateDoc, getDoc, where } from 'firebase/firestore';
 import { RepairJob, JobStatus, DeviceCondition, UsedPart } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { getLatestInvoiceNumber } from '@/lib/actions/invoice';
@@ -245,6 +245,58 @@ export async function getRepairJobs(): Promise<RepairJob[]> {
     return jobs;
   } catch (error) {
     console.error('Error fetching repair jobs:', error);
+    return [];
+  }
+}
+
+export async function getJobsByCustomerId(customerId: string): Promise<RepairJob[]> {
+  if (!isConfigured) {
+    // Return mock data for development
+    return [];
+  }
+
+  try {
+    const dataDocRef = doc(db, DATA_PATH);
+    const repairJobsRef = collection(dataDocRef, REPAIR_JOBS_COLLECTION);
+    
+    // Query for jobs where customerId matches
+    const q = query(repairJobsRef, where("customerId", "==", customerId));
+    const snapshot = await getDocs(q);
+    
+    const jobs: RepairJob[] = snapshot.docs.map(doc => {
+      const data = doc.data();
+      
+      // Create a deep copy and convert all timestamps
+      const cleanData = JSON.parse(JSON.stringify(data, (key, value) => {
+        // Convert any Firestore timestamp to ISO string
+        if (value && typeof value === 'object' && value.seconds && value.nanoseconds) {
+          return new Date(value.seconds * 1000 + value.nanoseconds / 1000000).toISOString();
+        }
+        return value;
+      }));
+      
+      const convertedData = {
+        ...cleanData,
+        id: doc.id,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || cleanData.createdAt || new Date().toISOString(),
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || cleanData.updatedAt || new Date().toISOString(),
+        completedAt: data.completedAt?.toDate?.()?.toISOString() || cleanData.completedAt || '',
+        dateReceived: data.dateReceived?.toDate?.()?.toISOString() || cleanData.dateReceived || new Date().toISOString(),
+      };
+      
+      return convertedData as unknown as RepairJob;
+    });
+
+    // Sort by createdAt descending (newest first)
+    jobs.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
+    });
+
+    return jobs;
+  } catch (error) {
+    console.error('Error fetching repair jobs for customer:', error);
     return [];
   }
 }

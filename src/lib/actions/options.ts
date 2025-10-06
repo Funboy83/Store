@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { db, isConfigured } from '@/lib/firebase';
 import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, doc } from 'firebase/firestore';
 
-const OPTIONS_BASE_PATH = 'cellphone-inventory-system/data';
+const OPTIONS_BASE_PATH = 'app-data/cellsmart-data';
 
 async function getOptions(optionType: string): Promise<string[]> {
     if (!isConfigured) {

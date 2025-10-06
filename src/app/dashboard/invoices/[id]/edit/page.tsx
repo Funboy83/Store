@@ -8,9 +8,10 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
-export default async function EditInvoicePage({ params }: { params: { id: string } }) {
+export default async function EditInvoicePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const [invoice, inventory, customers] = await Promise.all([
-    getInvoiceById(params.id),
+    getInvoiceById(id),
     getInventory(),
     getCustomers(),
   ]);
@@ -19,10 +20,15 @@ export default async function EditInvoicePage({ params }: { params: { id: string
     notFound();
   }
 
+  // Prevent editing paid or partial invoices
+  if (invoice.status === 'Paid' || invoice.status === 'Partial') {
+    notFound();
+  }
+
   return (
     <div className="flex flex-col gap-4 h-full">
        <div className="flex items-center gap-4 print:hidden">
-        <Link href={`/dashboard/invoices/${invoice.id}`} passHref>
+        <Link href={`/dashboard/invoices/${id}`} passHref>
           <Button variant="outline" size="icon">
             <ArrowLeft className="h-4 w-4" />
             <span className="sr-only">Back to Invoice</span>

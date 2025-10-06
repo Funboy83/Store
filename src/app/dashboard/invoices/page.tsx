@@ -148,7 +148,7 @@ export default function InvoicesPage() {
           </CardContent>
         </Card>
       ) : (
-        <InvoiceTable invoices={filteredInvoices} onArchive={handleArchiveRequest} />
+        <InvoiceTable invoices={filteredInvoices} onArchive={handleArchiveRequest} hideRepairInvoices={true} />
       )}
       
       <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>

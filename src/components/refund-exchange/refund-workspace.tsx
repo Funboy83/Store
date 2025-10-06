@@ -34,7 +34,7 @@ export function RefundWorkspace({ originalInvoice, customer, inventory }: Refund
   const [isInventoryPickerOpen, setIsInventoryPickerOpen] = useState(false);
 
   const [paymentMade, setPaymentMade] = useState({ cash: 0, card: 0 });
-  const [refundMethod, setRefundMethod] = useState<'Cash' | 'Card'>('Cash');
+  const [refundMethod, setRefundMethod] = useState<'Cash' | 'Card' | 'StoreCredit'>('StoreCredit');
 
   const totalCredit = useMemo(() => returnedItems.reduce((acc, item) => acc + item.total, 0), [returnedItems]);
   const exchangeTotal = useMemo(() => exchangeItems.reduce((acc, item) => acc + item.total, 0), [exchangeItems]);
@@ -225,11 +225,12 @@ export function RefundWorkspace({ originalInvoice, customer, inventory }: Refund
                     <h3 className="font-semibold">Confirm Refund</h3>
                     <div className="space-y-2">
                         <Label htmlFor="refund-method">Refund Method</Label>
-                        <Select value={refundMethod} onValueChange={(value: 'Cash' | 'Card') => setRefundMethod(value)}>
+                        <Select value={refundMethod} onValueChange={(value: 'Cash' | 'Card' | 'StoreCredit') => setRefundMethod(value)}>
                             <SelectTrigger id="refund-method">
                                 <SelectValue placeholder="Select method" />
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="StoreCredit">Store Credit</SelectItem>
                                 <SelectItem value="Cash">Refund as Cash</SelectItem>
                                 <SelectItem value="Card">Return to Card</SelectItem>
                             </SelectContent>
@@ -237,6 +238,17 @@ export function RefundWorkspace({ originalInvoice, customer, inventory }: Refund
                     </div>
                 </div>
               )}
+              
+              {/* Info about what will be created */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+                <h4 className="font-semibold text-blue-900 text-sm mb-1">What will happen:</h4>
+                <ul className="text-xs text-blue-800 space-y-1">
+                  <li>• Credit Note created (with sequential number: CN-2000+)</li>
+                  <li>• Returned items status changed: Sold → Available</li>
+                  {exchangeItems.length > 0 && <li>• New Invoice created for exchange items</li>}
+                  {finalBalance < 0 && <li>• Refund payment record created</li>}
+                </ul>
+              </div>
             </CardContent>
             <CardFooter>
               <Button className="w-full" onClick={handleFinalize} disabled={isSaving || returnedItems.length === 0}>

@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
 
-const DATA_PATH = 'cellphone-inventory-system/data';
+const DATA_PATH = 'app-data/cellsmart-data';
 const CUSTOMERS_COLLECTION = 'customers';
 const INVOICES_COLLECTION = 'invoices';
 
@@ -170,5 +170,27 @@ export async function getCustomerDetails(id: string): Promise<{ customer: Custom
   } catch (error) {
     console.error('Error fetching customer details:', error);
     return null;
+  }
+}
+
+export async function linkUnlinkedRepairJobs(): Promise<{ success: boolean; linkedCount?: number; error?: string }> {
+  if (!isConfigured) {
+    return { success: false, error: 'Firebase is not configured.' };
+  }
+
+  try {
+    // This is a placeholder function for linking repair jobs to customers
+    // In a real implementation, you would:
+    // 1. Query for repair jobs that don't have linked customer IDs
+    // 2. Match them by phone number or other criteria to existing customers
+    // 3. Update the jobs with the correct customer references
+    
+    // For now, return a success response with 0 linked jobs
+    console.log('LinkUnlinkedRepairJobs called - functionality not fully implemented');
+    
+    return { success: true, linkedCount: 0 };
+  } catch (error) {
+    console.error('Error linking repair jobs:', error);
+    return { success: false, error: 'Failed to link repair jobs to customers.' };
   }
 }

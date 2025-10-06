@@ -22,7 +22,7 @@ interface ApplyPaymentPayload {
   notes?: string;
 }
 
-const DATA_PATH = 'cellphone-inventory-system/data';
+const DATA_PATH = 'app-data/cellsmart-data';
 const PAYMENTS_COLLECTION = 'payments';
 const INVOICES_COLLECTION = 'invoices';
 const CUSTOMERS_COLLECTION = 'customers';

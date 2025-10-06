@@ -1,51 +1,139 @@
-'use client';
+'use client';'use client';'use client';
 
-import { useState, useEffect } from 'react';
+
+
+import { useState } from 'react';
+
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, Package, DollarSign, Calendar, FileText, Search, CheckCircle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { Part, PurchaseOrderItem, Supplier } from '@/lib/types';
-import { getParts } from '@/lib/actions/parts';
-import { getSuppliers } from '@/lib/actions/suppliers';
-import { createPurchaseOrder, commitPurchaseOrderToInventory } from '@/lib/actions/purchase-orders';
-import { AddPartModal } from '@/components/parts/add-part-modal';
-import { AddSupplierModal } from '@/components/suppliers/add-supplier-modal';
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';import { useState, useEffect } from 'react';import { useState, useEffect } from 'react';
+
+import { Package, Plus } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';import { Button } from '@/components/ui/button';
 
 export default function RestockPage() {
-  const { toast } = useToast();
-  const [parts, setParts] = useState<Part[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [committing, setCommitting] = useState(false);
 
-  // Purchase order state
-  const [selectedSupplier, setSelectedSupplier] = useState<string>('');
+  return (import { Input } from '@/components/ui/input';import { Input } from '@/components/ui/input';
+
+    <div className="flex flex-col gap-6">
+
+      <div className="flex items-center justify-between">import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';import { Label } from '@/components/ui/label';
+
+        <div>
+
+          <h1 className="text-3xl font-bold tracking-tight">Restock Inventory</h1>import { Badge } from '@/components/ui/badge';import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
+          <p className="text-muted-foreground">
+
+            Create purchase orders and manage inventory restockingimport { Search, Package, DollarSign, Calendar, Plus } from 'lucide-react';import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+          </p>
+
+        </div>import { useToast } from '@/hooks/use-toast';import { Badge } from '@/components/ui/badge';
+
+        <Button>
+
+          <Plus className="h-4 w-4 mr-2" />import { Trash2, Plus, Package, DollarSign, Calendar, FileText, Search, CheckCircle } from 'lucide-react';
+
+          Create Purchase Order
+
+        </Button>export default function RestockPage() {import { useToast } from '@/hooks/use-toast';
+
+      </div>
+
+  const { toast } = useToast();import { Part, PurchaseOrderItem, Supplier } from '@/lib/types';
+
+      <Card>
+
+        <CardHeader>import { getParts } from '@/lib/actions/parts';
+
+          <CardTitle className="flex items-center gap-2">
+
+            <Package className="h-5 w-5" />  return (import { getSuppliers } from '@/lib/actions/suppliers';
+
+            Restock Management
+
+          </CardTitle>    <div className="flex flex-col gap-6">import { createPurchaseOrder, commitPurchaseOrderToInventory } from '@/lib/actions/purchase-orders';
+
+          <CardDescription>
+
+            This feature is under development      <div className="flex items-center justify-between">import { AddPartModal } from '@/components/parts/add-part-modal';
+
+          </CardDescription>
+
+        </CardHeader>        <div>import { AddSupplierModal } from '@/components/suppliers/add-supplier-modal';
+
+        <CardContent>
+
+          <p className="text-muted-foreground">          <h1 className="text-3xl font-bold tracking-tight">Restock Inventory</h1>
+
+            Coming soon: Purchase order management and inventory restocking functionality.
+
+          </p>          <p className="text-muted-foreground">export default function RestockPage() {
+
+        </CardContent>
+
+      </Card>            Create purchase orders and manage inventory restocking  const { toast } = useToast();
+
+    </div>
+
+  );          </p>  const [parts, setParts] = useState<Part[]>([]);
+
+}
+        </div>  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+
+        <Button>  const [loading, setLoading] = useState(true);
+
+          <Plus className="h-4 w-4 mr-2" />  const [committing, setCommitting] = useState(false);
+
+          Create Purchase Order
+
+        </Button>  // Purchase order state
+
+      </div>  const [selectedSupplier, setSelectedSupplier] = useState<string>('');
+
   const [supplierName, setSupplierName] = useState<string>('');
-  const [purchaseDate, setPurchaseDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [referenceNumber, setReferenceNumber] = useState<string>('');
-  const [items, setItems] = useState<PurchaseOrderItem[]>([]);
 
-  // Search state
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [filteredParts, setFilteredParts] = useState<Part[]>([]);
-  
-  // Modal state
-  const [isAddPartModalOpen, setIsAddPartModalOpen] = useState(false);
-  const [isAddSupplierModalOpen, setIsAddSupplierModalOpen] = useState(false);
+      {/* Content will be added later */}  const [purchaseDate, setPurchaseDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+      <Card>  const [referenceNumber, setReferenceNumber] = useState<string>('');
 
-  useEffect(() => {
-    // Filter parts based on search term
-    if (searchTerm) {
-      const filtered = parts.filter(part => 
+        <CardHeader>  const [items, setItems] = useState<PurchaseOrderItem[]>([]);
+
+          <CardTitle className="flex items-center gap-2">
+
+            <Package className="h-5 w-5" />  // Search state
+
+            Restock Management  const [searchTerm, setSearchTerm] = useState<string>('');
+
+          </CardTitle>  const [filteredParts, setFilteredParts] = useState<Part[]>([]);
+
+          <CardDescription>  
+
+            This feature is under development  // Modal state
+
+          </CardDescription>  const [isAddPartModalOpen, setIsAddPartModalOpen] = useState(false);
+
+        </CardHeader>  const [isAddSupplierModalOpen, setIsAddSupplierModalOpen] = useState(false);
+
+        <CardContent>
+
+          <p className="text-muted-foreground">  useEffect(() => {
+
+            Coming soon: Purchase order management and inventory restocking functionality.    loadData();
+
+          </p>  }, []);
+
+        </CardContent>
+
+      </Card>  useEffect(() => {
+
+    </div>    // Filter parts based on search term
+
+  );    if (searchTerm) {
+
+}      const filtered = parts.filter(part => 
         part.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (part.partNumber && part.partNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (part.brand && part.brand.toLowerCase().includes(searchTerm.toLowerCase())) ||

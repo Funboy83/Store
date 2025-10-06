@@ -39,7 +39,7 @@ export default async function CreditNoteDetailsPage({ params }: { params: { id: 
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Undo2 className="h-6 w-6 text-primary" />
-            Credit Note <span className="text-primary">{creditNote.id}</span>
+            Credit Note <span className="text-primary">{creditNote.creditNoteNumber || creditNote.id}</span>
           </h1>
           <p className="text-muted-foreground">For Customer: <Link href={`/dashboard/customers/${creditNote.customerId}`} className="font-semibold text-primary hover:underline">{creditNote.customerName}</Link></p>
         </div>

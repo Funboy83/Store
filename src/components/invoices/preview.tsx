@@ -22,10 +22,10 @@ import {
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import type { InvoiceDetail } from "@/lib/types"
-import { Printer, Wallet, Edit3 } from "lucide-react"
+import { Wallet, Edit3 } from "lucide-react"
 import { Logo } from "../logo"
 import { Badge } from "../ui/badge"
-import { InteractivePrintModal } from "./interactive-print-modal"
+import { PdfDownloadModal } from "./pdf-download-modal"
 
 interface InvoicePreviewProps {
   invoice: InvoiceDetail;
@@ -33,15 +33,13 @@ interface InvoicePreviewProps {
 }
 
 export function InvoicePreview({ invoice, isEdited = false }: InvoicePreviewProps) {
-  const [isInteractivePrintModalOpen, setIsInteractivePrintModalOpen] = useState(false);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   
-  const handlePrint = () => {
-    window.print();
+  const handlePdfDownload = () => {
+    setIsPdfModalOpen(true);
   };
 
-  const handleInteractivePrint = () => {
-    setIsInteractivePrintModalOpen(true);
-  };
+
 
   const getStatusVariant = (status?: InvoiceDetail['status']) => {
     switch (status) {
@@ -63,13 +61,9 @@ export function InvoicePreview({ invoice, isEdited = false }: InvoicePreviewProp
     <>
       <div className="flex items-center gap-4 print:hidden">
         <div className="flex-1" />
-        <Button onClick={handleInteractivePrint} variant="default">
+        <Button onClick={handlePdfDownload} variant="default">
           <Edit3 className="mr-2 h-4 w-4" />
-          Interactive Print
-        </Button>
-        <Button onClick={handlePrint} variant="outline">
-          <Printer className="mr-2 h-4 w-4" />
-          Quick Print
+          Download PDF
         </Button>
       </div>
       
@@ -198,10 +192,10 @@ export function InvoicePreview({ invoice, isEdited = false }: InvoicePreviewProp
         </CardFooter>
       </Card>
       
-      <InteractivePrintModal
+      <PdfDownloadModal
         invoice={invoice}
-        isOpen={isInteractivePrintModalOpen}
-        onClose={() => setIsInteractivePrintModalOpen(false)}
+        isOpen={isPdfModalOpen}
+        onClose={() => setIsPdfModalOpen(false)}
       />
     </>
   );

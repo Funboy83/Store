@@ -3,7 +3,7 @@ import { doc, collection, query, where, orderBy, limit, getDocs, getDoc, startAf
 import { InvoiceDetail, Invoice, InvoiceItem, Customer } from '@/lib/types';
 
 // Constants
-const DATA_PATH = "store-data";
+const DATA_PATH = "app-data/cellsmart-data";
 const INVOICES_COLLECTION = "invoices";
 const CUSTOMERS_COLLECTION = "customers";
 
