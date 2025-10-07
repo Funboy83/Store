@@ -1,10 +1,21 @@
 {
-  "name": "phone-store",
+  "name": "cellsmart-management",
   "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
+  "framework": "nextjs",
+  "buildCommand": "next build",
+  "outputDirectory": ".next",
+  "installCommand": "npm ci",
+  "devCommand": "next dev",
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
     }
-  ]
+  },
+  "regions": ["iad1"],
+  "github": {
+    "autoAlias": true
+  }
 }
