@@ -11,16 +11,32 @@ export function createBatch(
   quantity: number, 
   costPrice: number, 
   supplier?: string, 
-  notes?: string
+  notes?: string,
+  purchaseOrderId?: string,
+  referenceNumber?: string
 ): PartBatch {
-  return {
+  const batch: PartBatch = {
     batchId: generateBatchId(),
     purchaseDate: new Date().toISOString(),
     quantity,
     costPrice,
-    supplier,
-    notes
   };
+
+  // Only add optional fields if they have values
+  if (supplier !== undefined && supplier !== null) {
+    batch.supplier = supplier;
+  }
+  if (notes !== undefined && notes !== null) {
+    batch.notes = notes;
+  }
+  if (purchaseOrderId !== undefined && purchaseOrderId !== null) {
+    batch.purchaseOrderId = purchaseOrderId;
+  }
+  if (referenceNumber !== undefined && referenceNumber !== null) {
+    batch.referenceNumber = referenceNumber;
+  }
+
+  return batch;
 }
 
 export function calculateTotalQuantity(batches: PartBatch[]): number {

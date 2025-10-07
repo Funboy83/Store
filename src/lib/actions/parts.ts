@@ -58,17 +58,48 @@ export async function consumePartFromOldestBatch(
       };
     }
 
+    // Check if part has batches, if not create a legacy batch
+    if (!part.batches || part.batches.length === 0) {
+      if (part.totalQuantityInStock > 0) {
+        console.log(`Creating legacy batch for part ${partId} with ${part.totalQuantityInStock} units`);
+        const legacyBatch = createBatch(
+          part.totalQuantityInStock,
+          part.avgCost || 0,
+          'Legacy Stock',
+          'Migrated from old inventory system'
+        );
+        
+        // Update the part with the new batch
+        const dataDocRef = doc(db, DATA_PATH);
+        const partRef = doc(dataDocRef, PARTS_COLLECTION, partId);
+        await updateDoc(partRef, {
+          batches: [legacyBatch],
+          updatedAt: serverTimestamp()
+        });
+        
+        // Update our local part object
+        part.batches = [legacyBatch];
+      } else {
+        return { success: false, error: 'No batches available and no stock to migrate.' };
+      }
+    }
+
     // Find the oldest available batch
     const oldestBatch = findOldestAvailableBatch(part.batches);
     if (!oldestBatch) {
-      return { success: false, error: 'No available batches found.' };
+      const totalBatchQuantity = part.batches?.reduce((total, batch) => total + batch.quantity, 0) || 0;
+      return { 
+        success: false, 
+        error: `No available batches found. Total batch quantity: ${totalBatchQuantity}, Part stock: ${part.totalQuantityInStock}` 
+      };
     }
 
     // Check if the oldest batch has enough quantity
     if (oldestBatch.quantity < quantityToConsume) {
+      const totalAvailable = part.batches.reduce((total, batch) => total + batch.quantity, 0);
       return { 
         success: false, 
-        error: `Oldest batch only has ${oldestBatch.quantity} units, but ${quantityToConsume} requested. Multi-batch consumption not yet supported.` 
+        error: `Insufficient stock in oldest batch. Batch ${oldestBatch.batchId} has ${oldestBatch.quantity} units, but ${quantityToConsume} requested. Total available: ${totalAvailable}. Multi-batch consumption not yet supported.` 
       };
     }
 
@@ -192,13 +223,61 @@ export async function createPart(
   }
 }
 
+// Migration function to fix parts without proper batch data
+export async function migrateLegacyParts(): Promise<{ success: boolean; migratedCount: number; error?: string }> {
+  if (!isConfigured) {
+    return { success: false, migratedCount: 0, error: 'Firebase is not configured.' };
+  }
+
+  try {
+    const dataDocRef = doc(db, DATA_PATH);
+    const partsRef = collection(dataDocRef, PARTS_COLLECTION);
+    const snapshot = await getDocs(partsRef);
+    
+    let migratedCount = 0;
+    
+    for (const partDoc of snapshot.docs) {
+      const part = { id: partDoc.id, ...partDoc.data() } as Part;
+      
+      // Check if part needs migration (no batches but has stock)
+      if ((!part.batches || part.batches.length === 0) && part.totalQuantityInStock > 0) {
+        console.log(`Migrating part: ${part.name} (${part.id}) with ${part.totalQuantityInStock} units`);
+        
+        const legacyBatch = createBatch(
+          part.totalQuantityInStock,
+          part.avgCost || 0,
+          'Legacy Stock',
+          'Auto-migrated from old inventory system'
+        );
+        
+        await updateDoc(partDoc.ref, {
+          batches: [legacyBatch],
+          updatedAt: serverTimestamp()
+        });
+        
+        migratedCount++;
+      }
+    }
+    
+    revalidatePath('/dashboard/parts');
+    revalidatePath('/dashboard/inventory');
+    
+    return { success: true, migratedCount };
+  } catch (error) {
+    console.error('Error migrating legacy parts:', error);
+    return { success: false, migratedCount: 0, error: 'Failed to migrate legacy parts.' };
+  }
+}
+
 // Add Stock (Restock) - Creates a new batch
 export async function addPartStock(
   partId: string,
   quantity: number,
   costPrice: number,
   supplier?: string,
-  notes?: string
+  notes?: string,
+  purchaseOrderId?: string,
+  referenceNumber?: string
 ): Promise<{ success: boolean; error?: string; batchId?: string }> {
   if (!isConfigured) {
     return { success: false, error: 'Firebase is not configured.' };
@@ -214,7 +293,7 @@ export async function addPartStock(
     const part = partResult.part;
 
     // Create new batch
-    const newBatch = createBatch(quantity, costPrice, supplier, notes);
+    const newBatch = createBatch(quantity, costPrice, supplier, notes, purchaseOrderId, referenceNumber);
 
     // Add new batch to existing batches
     const updatedBatches = [...part.batches, newBatch];

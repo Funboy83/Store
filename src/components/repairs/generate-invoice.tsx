@@ -30,9 +30,9 @@ export function GenerateInvoiceDialog({ job, onInvoiceGenerated }: GenerateInvoi
 
   // Calculate costs
   const partsCost = job.usedParts?.reduce((total, part) => total + (part.price * part.quantity), 0) || 0;
-  const laborCost = job.laborCost || 0;
-  const totalAmount = partsCost + laborCost;
-  const profit = totalAmount - partsCost; // Labor is profit
+  const servicesCost = job.usedServices?.reduce((total, service) => total + service.total, 0) || 0;
+  const totalAmount = partsCost + servicesCost;
+  const profit = totalAmount - partsCost; // Services are profit (labor cost not deducted here)
 
   // Check if job is ready for invoice
   const canGenerateInvoice = job.status === 'Ready for Pickup';
@@ -86,7 +86,7 @@ export function GenerateInvoiceDialog({ job, onInvoiceGenerated }: GenerateInvoi
           customerPhone: job.customerPhone,
           deviceInfo: `${job.deviceMake} ${job.deviceModel}`,
           problemDescription: job.problemDescription,
-          laborCost: laborCost,
+          laborCost: servicesCost,
           partsCost: partsCost,
           totalAmount: totalAmount,
           paymentMethod: paymentMethod,
@@ -98,10 +98,22 @@ export function GenerateInvoiceDialog({ job, onInvoiceGenerated }: GenerateInvoi
             quantity: part.quantity,
             cost: part.price,
             total: part.price * part.quantity,
+          })) || [],
+          usedServices: job.usedServices?.map(service => ({
+            serviceName: service.serviceName,
+            quantity: service.quantity,
+            price: service.price,
+            total: service.total,
           })) || []
         };
         
-        printRepairInvoice(printData);
+        // Try to print the invoice
+        try {
+          printRepairInvoice(printData);
+        } catch (printError) {
+          console.error('Print error:', printError);
+          // Continue even if print fails
+        }
         
         toast({
           title: 'Invoice Generated!',
@@ -182,9 +194,20 @@ export function GenerateInvoiceDialog({ job, onInvoiceGenerated }: GenerateInvoi
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between">
-                <span>Labor Cost</span>
-                <span className="font-mono">${laborCost.toFixed(2)}</span>
+                <span>Services Cost</span>
+                <span className="font-mono">${servicesCost.toFixed(2)}</span>
               </div>
+              
+              {job.usedServices && job.usedServices.length > 0 && (
+                <div className="ml-4 space-y-1 text-sm text-muted-foreground">
+                  {job.usedServices.map((service, index) => (
+                    <div key={index} className="flex justify-between">
+                      <span>{service.serviceName} (x{service.quantity})</span>
+                      <span>${service.total.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               
               {job.usedParts && job.usedParts.length > 0 && (
                 <>

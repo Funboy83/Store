@@ -73,6 +73,11 @@ const inventorySubItems = [
     label: 'Manage Parts',
   },
   {
+    href: '/dashboard/services',
+    icon: Wrench,
+    label: 'Manage Services',
+  },
+  {
     href: '/dashboard/restock',
     icon: Truck,
     label: 'Restock Inventory',
@@ -84,6 +89,11 @@ const settingsSubItems = [
     href: '/dashboard/settings/custom-fields',
     icon: Package,
     label: 'Custom Fields',
+  },
+  {
+    href: '/dashboard/admin',
+    icon: Settings,
+    label: 'Admin Panel',
   }
 ];
 
@@ -114,7 +124,7 @@ interface MainSidebarProps {
 export function MainSidebar({ isCollapsed }: MainSidebarProps) {
   const pathname = usePathname();
   const [isInventoryExpanded, setIsInventoryExpanded] = useState(
-    pathname.startsWith('/dashboard/inventory') || pathname.startsWith('/dashboard/parts') || pathname.startsWith('/dashboard/restock')
+    pathname.startsWith('/dashboard/inventory') || pathname.startsWith('/dashboard/parts') || pathname.startsWith('/dashboard/services') || pathname.startsWith('/dashboard/restock')
   );
   const [isSettingsExpanded, setIsSettingsExpanded] = useState(
     pathname.startsWith('/dashboard/settings')
@@ -142,7 +152,7 @@ export function MainSidebar({ isCollapsed }: MainSidebarProps) {
   };
 
   const renderInventorySection = () => {
-    const isInventoryActive = pathname.startsWith('/dashboard/inventory') || pathname.startsWith('/dashboard/parts') || pathname.startsWith('/dashboard/restock');
+    const isInventoryActive = pathname.startsWith('/dashboard/inventory') || pathname.startsWith('/dashboard/parts') || pathname.startsWith('/dashboard/services') || pathname.startsWith('/dashboard/restock');
     
     return (
       <div key="inventory">

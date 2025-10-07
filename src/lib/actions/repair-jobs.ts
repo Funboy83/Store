@@ -137,8 +137,9 @@ export async function createRepairJob(data: CreateRepairJobData): Promise<{ succ
     // Look for existing customer by phone number
     let customerId = '';
     try {
-      const { findCustomerByPhone } = await import('./customers');
-      const existingCustomer = await findCustomerByPhone(data.customerPhone);
+      const { getCustomers } = await import('./customers');
+      const customers = await getCustomers();
+      const existingCustomer = customers.find(c => c.phone === data.customerPhone);
       if (existingCustomer) {
         customerId = existingCustomer.id;
         console.log(`🔗 Linked repair job to existing customer: ${existingCustomer.name} (${existingCustomer.id})`);
@@ -166,7 +167,8 @@ export async function createRepairJob(data: CreateRepairJobData): Promise<{ succ
       technicianNotes: [],
       internalNotes: [],
       usedParts: [],
-      laborCost: 0,
+      usedServices: [], // Initialize empty services array
+      laborCost: 0, // Legacy field - will be replaced by usedServices
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       estimatedCompletion: '',
@@ -317,6 +319,12 @@ export async function updateRepairJobStatus(jobId: string, status: JobStatus): P
     }
 
     const currentJob = jobDoc.data() as RepairJob;
+    
+    // Prevent editing paid jobs (unless transitioning to paid status)
+    if (currentJob.isPaid && status !== 'Paid') {
+      return { success: false, error: 'Cannot modify status of a paid job.' };
+    }
+    
     const previousStatus = currentJob.status;
 
     const updateData: any = {
@@ -407,7 +415,7 @@ export async function updateRepairJobStatus(jobId: string, status: JobStatus): P
 // Function to update general job details (not just status)
 export async function updateRepairJob(
   jobId: string, 
-  updates: Partial<Pick<RepairJob, 'problemDescription' | 'estimatedCost' | 'actualCost' | 'laborCost' | 'status' | 'technicianNotes' | 'internalNotes'>>
+  updates: Partial<Pick<RepairJob, 'problemDescription' | 'estimatedCost' | 'actualCost' | 'laborCost' | 'status' | 'technicianNotes' | 'internalNotes' | 'usedServices'>>
 ): Promise<{ success: boolean; error?: string }> {
   if (!isConfigured) {
     return { success: false, error: 'Firebase is not configured.' };
@@ -424,6 +432,11 @@ export async function updateRepairJob(
     }
 
     const currentJob = jobDoc.data() as RepairJob;
+    
+    // Prevent editing paid jobs
+    if (currentJob.isPaid) {
+      return { success: false, error: 'Cannot edit a paid job.' };
+    }
     const previousStatus = currentJob.status;
 
     const updateData: any = {
@@ -541,6 +554,28 @@ export async function addPartToJob(
       updatedUsedParts = [...(job.usedParts || []), newUsedPart];
     }
 
+    // Deduct inventory using FIFO method
+    console.log(`🔄 FIFO Inventory Deduction - Adding ${quantity} x ${part.name} to Job ${job.jobId}`);
+    
+    const { consumePartFromOldestBatch } = await import('./parts');
+    const consumeResult = await consumePartFromOldestBatch(
+      partId,
+      quantity,
+      job.id,
+      `Added to repair job ${job.jobId} - ${job.customerName}`
+    );
+
+    if (!consumeResult.success) {
+      console.error(`❌ Failed to deduct inventory for ${part.name}: ${consumeResult.error}`);
+      return { 
+        success: false, 
+        error: `Cannot add part: ${consumeResult.error}` 
+      };
+    }
+
+    console.log(`✅ Successfully deducted ${quantity} x ${part.name} from batch ${consumeResult.batchId}`);
+    console.log(`📊 Remaining inventory: ${consumeResult.remainingQuantity} units`);
+
     // Update the job with the new parts list
     const dataDocRef = doc(db, DATA_PATH);
     const jobRef = doc(dataDocRef, `${REPAIR_JOBS_COLLECTION}/${jobId}`);
@@ -552,6 +587,8 @@ export async function addPartToJob(
 
     revalidatePath('/dashboard/jobs');
     revalidatePath(`/dashboard/jobs/${jobId}`);
+    revalidatePath('/dashboard/inventory');
+    revalidatePath('/dashboard/parts');
 
     return { success: true };
   } catch (error) {
@@ -584,6 +621,31 @@ export async function removePartFromJob(
     let updatedUsedParts = [...(job.usedParts || [])];
     const currentPart = updatedUsedParts[existingPartIndex];
     
+    // Determine actual quantity to remove
+    const actualQuantityToRemove = Math.min(currentPart.quantity, quantityToRemove);
+    
+    // Restore inventory before updating job
+    console.log(`🔄 Restoring Inventory - Removing ${actualQuantityToRemove} x ${currentPart.partName} from Job ${job.jobId}`);
+    
+    const { addPartStock } = await import('./parts');
+    const restoreResult = await addPartStock(
+      partId,
+      actualQuantityToRemove,
+      currentPart.cost, // Use the cost that was recorded when the part was added
+      'Job Return', // Supplier field to indicate this is a return
+      `Removed from repair job ${job.jobId} - ${job.customerName}`
+    );
+
+    if (!restoreResult.success) {
+      console.error(`❌ Failed to restore inventory for ${currentPart.partName}: ${restoreResult.error}`);
+      return { 
+        success: false, 
+        error: `Cannot remove part: ${restoreResult.error}` 
+      };
+    }
+
+    console.log(`✅ Successfully restored ${actualQuantityToRemove} x ${currentPart.partName} to inventory`);
+
     if (currentPart.quantity <= quantityToRemove) {
       // Remove part entirely
       updatedUsedParts.splice(existingPartIndex, 1);
@@ -604,6 +666,8 @@ export async function removePartFromJob(
 
     revalidatePath('/dashboard/jobs');
     revalidatePath(`/dashboard/jobs/${jobId}`);
+    revalidatePath('/dashboard/inventory');
+    revalidatePath('/dashboard/parts');
 
     return { success: true };
   } catch (error) {
@@ -735,7 +799,8 @@ export async function generateRepairInvoice(
     // Calculate costs - Use selling price, not cost
     const partsPrice = job.usedParts?.reduce((total, part) => total + (part.price * part.quantity), 0) || 0;
     const partsCost = job.usedParts?.reduce((total, part) => total + (part.cost * part.quantity), 0) || 0; // Keep for profit calculation
-    const laborCost = job.laborCost || 0;
+    const servicesCost = job.usedServices?.reduce((total, service) => total + service.total, 0) || 0;
+    const laborCost = servicesCost || job.laborCost || 0; // Use services first, fallback to old laborCost
     const totalAmount = partsPrice + laborCost;
     const totalPayment = (paymentData.cashAmount || 0) + (paymentData.cardAmount || 0);
     
@@ -780,7 +845,18 @@ export async function generateRepairInvoice(
       amountPaid: totalAmount,
       paymentIds: [], // Will be updated after payment record creation
       items: [
-        {
+        // Add services as individual line items
+        ...job.usedServices?.map((service, index) => ({
+          id: `service_${index + 1}`,
+          productName: service.serviceName,
+          description: service.serviceDescription,
+          quantity: service.quantity,
+          unitPrice: service.price,
+          total: service.total,
+          isCustom: true,
+        })) || [],
+        // Fallback to generic labor if no services
+        ...((!job.usedServices || job.usedServices.length === 0) && laborCost > 0 ? [{
           id: '1',
           productName: `Repair Service - ${job.deviceMake} ${job.deviceModel}`,
           description: job.problemDescription,
@@ -788,11 +864,12 @@ export async function generateRepairInvoice(
           unitPrice: laborCost,
           total: laborCost,
           isCustom: true,
-        },
+        }] : []),
+        // Add parts
         ...job.usedParts?.map((part, index) => ({
           id: `part_${index + 2}`,
           productName: part.partName,
-          description: `Replacement part - ${part.brand || ''} ${part.model || ''}`.trim(),
+          description: `Replacement part`,
           quantity: part.quantity,
           unitPrice: part.price, // Use selling price for customer invoice
           total: part.price * part.quantity,
@@ -835,42 +912,9 @@ export async function generateRepairInvoice(
       paymentIds: [paymentRecord.id]
     });
     
-    // Deduct parts inventory using FIFO method
-    if (job.usedParts && job.usedParts.length > 0) {
-      console.log(`🔄 FIFO Inventory Deduction for invoice generation - Job ${job.jobId} - ${job.usedParts.length} parts used`);
-      
-      const { consumePartFromOldestBatch } = await import('./parts');
-      const inventoryErrors: string[] = [];
-      
-      for (const usedPart of job.usedParts) {
-        try {
-          console.log(`📦 Deducting ${usedPart.quantity} x ${usedPart.partName} (ID: ${usedPart.partId})`);
-          
-          const consumeResult = await consumePartFromOldestBatch(
-            usedPart.partId,
-            usedPart.quantity,
-            job.id,
-            `Used in repair job ${job.jobId} - Invoice ${repairInvoiceNumber} (${job.customerName})`
-          );
-
-          if (!consumeResult.success) {
-            inventoryErrors.push(`Failed to deduct inventory for ${usedPart.partName}: ${consumeResult.error}`);
-            console.error(`❌ Failed to deduct ${usedPart.partName}: ${consumeResult.error}`);
-          } else {
-            console.log(`✅ Successfully deducted ${usedPart.quantity} x ${usedPart.partName} from batch ${consumeResult.batchId}`);
-            console.log(`📊 Remaining inventory: ${consumeResult.remainingQuantity} units`);
-          }
-        } catch (error) {
-          console.error(`Error deducting inventory for part ${usedPart.partName}:`, error);
-          inventoryErrors.push(`Error processing ${usedPart.partName}: ${error}`);
-        }
-      }
-
-      // Log any inventory errors but don't fail the invoice generation
-      if (inventoryErrors.length > 0) {
-        console.error('Inventory deduction errors during invoice generation:', inventoryErrors);
-      }
-    }
+    // NOTE: Inventory deduction now happens when parts are added to jobs, not during invoice generation
+    // This prevents double deduction and ensures parts are reserved as soon as they're assigned to a job
+    console.log(`📋 Invoice generation for Job ${job.jobId} - Parts inventory was already deducted when parts were added to job`);
     
     // Update repair job status to Paid and mark as invoiced
     await updateDoc(repairJobRef, {

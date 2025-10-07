@@ -1,653 +1,518 @@
-'use client';'use client';'use client';
+'use client';
 
-
-
-import { useState } from 'react';
-
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AddPartModal } from '@/components/parts/add-part-modal';
+import { useToast } from '@/hooks/use-toast';
+import { Plus, Package, DollarSign, Calendar, FileText, Search, Trash2, Loader2, Info, ShoppingCart } from 'lucide-react';
+import { Part, Supplier, PurchaseOrderItem } from '@/lib/types';
+import { getParts } from '@/lib/actions/parts';
+import { getSuppliers } from '@/lib/actions/suppliers';
+import { createPurchaseOrder as createPO } from '@/lib/actions/purchase-orders';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';import { useState, useEffect } from 'react';import { useState, useEffect } from 'react';
-
-import { Package, Plus } from 'lucide-react';
-
-import { Button } from '@/components/ui/button';import { Button } from '@/components/ui/button';
+// Local type for restock items (different from PurchaseOrderItem)
+type RestockItem = {
+  partId: string;
+  partName: string;
+  quantity: number;
+  costPerItem: number;
+  totalCost: number;
+};
 
 export default function RestockPage() {
+  const { toast } = useToast();
+  
+  // State management
+  const [parts, setParts] = useState<Part[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [selectedSupplier, setSelectedSupplier] = useState<string>('');
+  const [referenceNumber, setReferenceNumber] = useState<string>('');
+  const [items, setItems] = useState<RestockItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [filteredParts, setFilteredParts] = useState<Part[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [creating, setCreating] = useState<boolean>(false);
+  
+  // Add Part Modal State
+  const [showNewPartModal, setShowNewPartModal] = useState<boolean>(false);
 
-  return (import { Input } from '@/components/ui/input';import { Input } from '@/components/ui/input';
+  // Load initial data
+  useEffect(() => {
+    loadData();
+  }, []);
 
-    <div className="flex flex-col gap-6">
-
-      <div className="flex items-center justify-between">import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';import { Label } from '@/components/ui/label';
-
-        <div>
-
-          <h1 className="text-3xl font-bold tracking-tight">Restock Inventory</h1>import { Badge } from '@/components/ui/badge';import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-
-          <p className="text-muted-foreground">
-
-            Create purchase orders and manage inventory restockingimport { Search, Package, DollarSign, Calendar, Plus } from 'lucide-react';import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
-          </p>
-
-        </div>import { useToast } from '@/hooks/use-toast';import { Badge } from '@/components/ui/badge';
-
-        <Button>
-
-          <Plus className="h-4 w-4 mr-2" />import { Trash2, Plus, Package, DollarSign, Calendar, FileText, Search, CheckCircle } from 'lucide-react';
-
-          Create Purchase Order
-
-        </Button>export default function RestockPage() {import { useToast } from '@/hooks/use-toast';
-
-      </div>
-
-  const { toast } = useToast();import { Part, PurchaseOrderItem, Supplier } from '@/lib/types';
-
-      <Card>
-
-        <CardHeader>import { getParts } from '@/lib/actions/parts';
-
-          <CardTitle className="flex items-center gap-2">
-
-            <Package className="h-5 w-5" />  return (import { getSuppliers } from '@/lib/actions/suppliers';
-
-            Restock Management
-
-          </CardTitle>    <div className="flex flex-col gap-6">import { createPurchaseOrder, commitPurchaseOrderToInventory } from '@/lib/actions/purchase-orders';
-
-          <CardDescription>
-
-            This feature is under development      <div className="flex items-center justify-between">import { AddPartModal } from '@/components/parts/add-part-modal';
-
-          </CardDescription>
-
-        </CardHeader>        <div>import { AddSupplierModal } from '@/components/suppliers/add-supplier-modal';
-
-        <CardContent>
-
-          <p className="text-muted-foreground">          <h1 className="text-3xl font-bold tracking-tight">Restock Inventory</h1>
-
-            Coming soon: Purchase order management and inventory restocking functionality.
-
-          </p>          <p className="text-muted-foreground">export default function RestockPage() {
-
-        </CardContent>
-
-      </Card>            Create purchase orders and manage inventory restocking  const { toast } = useToast();
-
-    </div>
-
-  );          </p>  const [parts, setParts] = useState<Part[]>([]);
-
-}
-        </div>  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-
-        <Button>  const [loading, setLoading] = useState(true);
-
-          <Plus className="h-4 w-4 mr-2" />  const [committing, setCommitting] = useState(false);
-
-          Create Purchase Order
-
-        </Button>  // Purchase order state
-
-      </div>  const [selectedSupplier, setSelectedSupplier] = useState<string>('');
-
-  const [supplierName, setSupplierName] = useState<string>('');
-
-      {/* Content will be added later */}  const [purchaseDate, setPurchaseDate] = useState<string>(new Date().toISOString().split('T')[0]);
-
-      <Card>  const [referenceNumber, setReferenceNumber] = useState<string>('');
-
-        <CardHeader>  const [items, setItems] = useState<PurchaseOrderItem[]>([]);
-
-          <CardTitle className="flex items-center gap-2">
-
-            <Package className="h-5 w-5" />  // Search state
-
-            Restock Management  const [searchTerm, setSearchTerm] = useState<string>('');
-
-          </CardTitle>  const [filteredParts, setFilteredParts] = useState<Part[]>([]);
-
-          <CardDescription>  
-
-            This feature is under development  // Modal state
-
-          </CardDescription>  const [isAddPartModalOpen, setIsAddPartModalOpen] = useState(false);
-
-        </CardHeader>  const [isAddSupplierModalOpen, setIsAddSupplierModalOpen] = useState(false);
-
-        <CardContent>
-
-          <p className="text-muted-foreground">  useEffect(() => {
-
-            Coming soon: Purchase order management and inventory restocking functionality.    loadData();
-
-          </p>  }, []);
-
-        </CardContent>
-
-      </Card>  useEffect(() => {
-
-    </div>    // Filter parts based on search term
-
-  );    if (searchTerm) {
-
-}      const filtered = parts.filter(part => 
+  // Filter parts based on search term
+  useEffect(() => {
+    if (searchTerm) {
+      const filtered = parts.filter(part => 
         part.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (part.partNumber && part.partNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (part.brand && part.brand.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (part.model && part.model.toLowerCase().includes(searchTerm.toLowerCase()))
+        (part.category && part.category.toLowerCase().includes(searchTerm.toLowerCase()))
       );
       setFilteredParts(filtered);
     } else {
-      setFilteredParts([]);
+      setFilteredParts(parts);
     }
   }, [searchTerm, parts]);
 
   const loadData = async () => {
     try {
+      setLoading(true);
+      
+      // Load actual parts and suppliers from the database
       const [partsData, suppliersData] = await Promise.all([
         getParts(),
         getSuppliers()
       ]);
+
       setParts(partsData);
       setSuppliers(suppliersData);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load data',
-        variant: 'destructive',
+        description: 'Failed to load parts and suppliers.',
+        variant: 'destructive'
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSupplierChange = (value: string) => {
-    setSelectedSupplier(value);
-    const supplier = suppliers.find(s => s.id === value);
-    setSupplierName(supplier?.name || '');
-  };
-
-  const addPartToOrder = (part: Part) => {
+  const addItemToPurchaseOrder = (part: Part) => {
     const existingItem = items.find(item => item.partId === part.id);
     
     if (existingItem) {
+      // Update quantity if item already exists
+      setItems(prev => prev.map(item => 
+        item.partId === part.id 
+          ? { ...item, quantity: item.quantity + 1, totalCost: (item.quantity + 1) * item.costPerItem }
+          : item
+      ));
+    } else {
+      // Add new item
+      const newItem: RestockItem = {
+        partId: part.id,
+        partName: part.name,
+        quantity: 1,
+        costPerItem: part.avgCost, // Use average cost as default
+        totalCost: part.avgCost
+      };
+      setItems(prev => [...prev, newItem]);
+    }
+
+    toast({
+      title: 'Item Added',
+      description: `${part.name} added to purchase order.`
+    });
+  };
+
+  const removeItemFromPurchaseOrder = (partId: string) => {
+    setItems(prev => prev.filter(item => item.partId !== partId));
+  };
+
+  const updateItemQuantity = (partId: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeItemFromPurchaseOrder(partId);
+      return;
+    }
+
+    setItems(prev => prev.map(item => 
+      item.partId === partId 
+        ? { ...item, quantity, totalCost: quantity * item.costPerItem }
+        : item
+    ));
+  };
+
+  const updateItemCost = (partId: string, costPerItem: number) => {
+    setItems(prev => prev.map(item => 
+      item.partId === partId 
+        ? { ...item, costPerItem, totalCost: item.quantity * costPerItem }
+        : item
+    ));
+  };
+
+  const getTotalCost = () => {
+    return items.reduce((total, item) => total + item.totalCost, 0);
+  };
+
+  const createPurchaseOrder = async () => {
+    if (!selectedSupplier || items.length === 0) {
       toast({
-        title: 'Already Added',
-        description: 'Part is already added to this order',
-        variant: 'destructive',
+        title: 'Error',
+        description: 'Please select a supplier and add items to the purchase order.',
+        variant: 'destructive'
       });
       return;
     }
 
-    const newItem: PurchaseOrderItem = {
-      partId: part.id,
-      partName: part.name,
-      partNumber: part.partNumber,
-      brand: part.brand,
-      model: part.model,
-      condition: part.condition,
-      customFields: part.customFields,
-      quantityReceived: 1,
-      costPerItem: part.avgCost || 0, // Default to current average cost or 0 for new parts
-      totalCost: part.avgCost || 0
-    };
-
-    setItems([...items, newItem]);
-    setSearchTerm('');
-    toast({
-      title: 'Part Added',
-      description: `Added ${part.name} to restock order`,
-    });
-  };
-
-  const handlePartCreated = (newPart: Part) => {
-    // Add the newly created part to the parts list
-    setParts(prevParts => [...prevParts, newPart]);
+    setCreating(true);
     
-    // Automatically add it to the restock order
-    addPartToOrder(newPart);
-  };
-
-  const handleSupplierCreated = (newSupplier: Supplier) => {
-    // Add the newly created supplier to the suppliers list
-    setSuppliers(prevSuppliers => [...prevSuppliers, newSupplier]);
-    
-    // Automatically select the new supplier
-    setSelectedSupplier(newSupplier.id);
-    setSupplierName(''); // Clear manual supplier name since we selected one
-    
-    toast({
-      title: 'Supplier Created',
-      description: `${newSupplier.name} has been added and selected`,
-    });
-  };
-
-  const updateItem = (index: number, field: keyof PurchaseOrderItem, value: number) => {
-    const updatedItems = [...items];
-    updatedItems[index] = { ...updatedItems[index], [field]: value };
-    
-    // Recalculate total cost
-    if (field === 'quantityReceived' || field === 'costPerItem') {
-      updatedItems[index].totalCost = updatedItems[index].quantityReceived * updatedItems[index].costPerItem;
-    }
-    
-    setItems(updatedItems);
-  };
-
-  const removeItem = (index: number) => {
-    const updatedItems = items.filter((_, i) => i !== index);
-    setItems(updatedItems);
-    toast({
-      title: 'Item Removed',
-      description: 'Item removed from order',
-    });
-  };
-
-  const calculateOrderTotals = () => {
-    const totalItems = items.reduce((sum, item) => sum + item.quantityReceived, 0);
-    const totalCost = items.reduce((sum, item) => sum + item.totalCost, 0);
-    return { totalItems, totalCost };
-  };
-
-  const handleCommitToInventory = async () => {
-    if (items.length === 0) {
-      toast({
-        title: 'No Items',
-        description: 'Please add at least one item to the order',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!supplierName.trim()) {
-      toast({
-        title: 'Missing Supplier',
-        description: 'Please select a supplier or enter supplier name',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setCommitting(true);
-
     try {
-      // Create the purchase order
-      const createResult = await createPurchaseOrder({
-        supplierId: selectedSupplier || undefined,
-        supplierName: supplierName.trim(),
-        purchaseDate,
-        referenceNumber: referenceNumber.trim() || undefined,
-        items,
-        notes: `Restock order created on ${new Date().toLocaleDateString()}`
+      // Convert RestockItems to PurchaseOrderItems
+      const purchaseOrderItems: PurchaseOrderItem[] = items.map(item => ({
+        partId: item.partId,
+        partName: item.partName,
+        quantityReceived: item.quantity,
+        costPerItem: item.costPerItem,
+        totalCost: item.totalCost
+      }));
+
+      // Find supplier name
+      const supplier = suppliers.find(s => s.id === selectedSupplier);
+      
+      const result = await createPO({
+        supplierId: selectedSupplier,
+        supplierName: supplier?.name || '',
+        purchaseDate: new Date().toISOString(),
+        referenceNumber: referenceNumber || undefined,
+        items: purchaseOrderItems,
+        notes: `Restock order created from dashboard`
       });
 
-      if (!createResult.success || !createResult.orderId) {
-        throw new Error(createResult.error || 'Failed to create purchase order');
+      if (result.success) {
+        toast({
+          title: 'Success',
+          description: `Purchase order created with ${items.length} items for $${getTotalCost().toFixed(2)}.`
+        });
+
+        // Reset form
+        setItems([]);
+        setReferenceNumber('');
+        setSelectedSupplier('');
+      } else {
+        throw new Error(result.error);
       }
-
-      // Commit to inventory immediately
-      const commitResult = await commitPurchaseOrderToInventory(createResult.orderId);
-
-      if (!commitResult.success) {
-        throw new Error(commitResult.error || 'Failed to commit to inventory');
-      }
-
-      toast({
-        title: 'Restock Complete',
-        description: `${commitResult.message || 'Successfully restocked inventory!'} (${items.length} items processed)`,
-      });
-
-      // Reset form
-      setItems([]);
-      setSelectedSupplier('');
-      setSupplierName('');
-      setReferenceNumber('');
-      setPurchaseDate(new Date().toISOString().split('T')[0]);
-
-      // Reload parts data to show updated quantities
-      await loadData();
-
     } catch (error) {
-      console.error('Error committing to inventory:', error);
+      console.error('Error creating purchase order:', error);
       toast({
-        title: 'Restock Failed',
-        description: `Failed to commit restock to inventory: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
-        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to create purchase order.',
+        variant: 'destructive'
       });
     } finally {
-      setCommitting(false);
+      setCreating(false);
     }
   };
 
-  const { totalItems, totalCost } = calculateOrderTotals();
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading restock data...</p>
-        </div>
-      </div>
-    );
-  }
+  const handlePartCreated = (part: Part) => {
+    // Reload parts to include the new part
+    loadData();
+    
+    // Automatically add the new part to the purchase order
+    addItemToPurchaseOrder(part);
+  };
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
+    <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Package className="h-8 w-8" />
-          Restock Inventory
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Record parts received from suppliers and update inventory with FIFO batch tracking
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Restock Inventory</h1>
+          <p className="text-muted-foreground">
+            Create purchase orders and manage inventory restocking
+          </p>
+        </div>
+        <Button onClick={createPurchaseOrder} disabled={items.length === 0 || creating}>
+          {creating ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Purchase Order
+            </>
+          )}
+        </Button>
       </div>
 
-      {/* Purchase Record Section */}
-      <Card className="mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column - Available Parts */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="h-5 w-5" />
+                    Available Parts
+                  </CardTitle>
+                  <CardDescription>
+                    Search and add parts that need restocking
+                  </CardDescription>
+                </div>
+                <Button 
+                  size="sm"
+                  onClick={() => setShowNewPartModal(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Part
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search parts..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              {/* Parts List */}
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {loading ? (
+                  <div className="flex items-center justify-center p-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span className="ml-2">Loading parts...</span>
+                  </div>
+                ) : filteredParts.length === 0 ? (
+                  <div className="text-center p-8 text-muted-foreground">
+                    {searchTerm ? 'No parts found matching your search.' : 'No parts available.'}
+                  </div>
+                ) : (
+                  filteredParts.map(part => (
+                  <div key={part.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium text-lg">{part.name}</div>
+                          {part.totalQuantityInStock <= part.minQuantity && (
+                            <Badge variant="destructive" className="text-xs">
+                              Low Stock
+                            </Badge>
+                          )}
+                          {part.batches.length > 1 && (
+                            <Badge variant="secondary" className="text-xs">
+                              {part.batches.length} batches
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Part #:</span>
+                            <span className="ml-1">{part.partNumber || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Category:</span>
+                            <span className="ml-1">{part.category || 'General'}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Brand:</span>
+                            <span className="ml-1">{part.brand || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Model:</span>
+                            <span className="ml-1">{part.model || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Condition:</span>
+                            <span className="ml-1">{part.condition}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Location:</span>
+                            <span className="ml-1">{part.location || 'N/A'}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-1">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                            <span className={`font-medium ${part.totalQuantityInStock <= part.minQuantity ? 'text-red-600' : ''}`}>
+                              {part.totalQuantityInStock}
+                            </span>
+                            <span className="text-muted-foreground">
+                              / {part.minQuantity} min
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <DollarSign className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium text-green-600">
+                              ${part.avgCost.toFixed(2)} avg
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">
+                              ${part.price.toFixed(2)} sell
+                            </span>
+                          </div>
+                        </div>
+
+                        {part.notes && (
+                          <div className="text-sm text-muted-foreground bg-muted/30 rounded p-2">
+                            <Info className="h-3 w-3 inline mr-1" />
+                            {part.notes}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <Button
+                        size="sm"
+                        onClick={() => addItemToPurchaseOrder(part)}
+                        className="ml-4"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column - Purchase Order */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Purchase Order
+              </CardTitle>
+              <CardDescription>
+                Configure your purchase order details
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Supplier Selection */}
+              <div className="space-y-2">
+                <Label>Supplier</Label>
+                <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select supplier..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map(supplier => (
+                      <SelectItem key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Reference Number */}
+              <div className="space-y-2">
+                <Label>Reference Number (Optional)</Label>
+                <Input
+                  placeholder="PO-2024-001"
+                  value={referenceNumber}
+                  onChange={(e) => setReferenceNumber(e.target.value)}
+                />
+              </div>
+
+              {/* Items List */}
+              <div className="space-y-2">
+                <Label>Items ({items.length})</Label>
+                <div className="border rounded-lg">
+                  {items.length === 0 ? (
+                    <div className="p-4 text-center text-muted-foreground">
+                      No items added to purchase order
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {items.map(item => (
+                        <div key={item.partId} className="p-3 flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="font-medium">{item.partName}</div>
+                            <div className="text-sm text-muted-foreground">
+                              ${item.costPerItem.toFixed(2)} each
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex flex-col gap-1">
+                              <Label className="text-xs">Qty</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => updateItemQuantity(item.partId, parseInt(e.target.value) || 0)}
+                                className="w-20"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <Label className="text-xs">Cost</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={item.costPerItem}
+                                onChange={(e) => updateItemCost(item.partId, parseFloat(e.target.value) || 0)}
+                                className="w-24"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1 items-end">
+                              <Label className="text-xs">Total</Label>
+                              <div className="font-medium min-w-20 text-right">
+                                ${item.totalCost.toFixed(2)}
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => removeItemFromPurchaseOrder(item.partId)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {/* Total */}
+                      <div className="p-3 bg-muted/50 font-medium flex justify-between">
+                        <span>Total</span>
+                        <span>${getTotalCost().toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Purchase Record Details
+            Next Steps
           </CardTitle>
-          <CardDescription>
-            Enter the details about this shipment from your supplier
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="supplier">Supplier</Label>
-            <Select value={selectedSupplier} onValueChange={handleSupplierChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select supplier" />
-              </SelectTrigger>
-              <SelectContent>
-                {suppliers.map((supplier) => (
-                  <SelectItem key={supplier.id} value={supplier.id}>
-                    {supplier.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex gap-2">
-              {!selectedSupplier && (
-                <Input
-                  placeholder="Or enter supplier name"
-                  value={supplierName}
-                  onChange={(e) => setSupplierName(e.target.value)}
-                  className="flex-1"
-                />
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsAddSupplierModalOpen(true)}
-                className="shrink-0"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                New
-              </Button>
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="purchaseDate">Purchase Date</Label>
-            <Input
-              id="purchaseDate"
-              type="date"
-              value={purchaseDate}
-              onChange={(e) => setPurchaseDate(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="referenceNumber">Reference/Invoice # (Optional)</Label>
-            <Input
-              id="referenceNumber"
-              placeholder="Supplier invoice number"
-              value={referenceNumber}
-              onChange={(e) => setReferenceNumber(e.target.value)}
-            />
-          </div>
-
-          <div className="flex items-end">
-            <div className="text-sm space-y-1">
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <Package className="h-4 w-4" />
-                <span>{totalItems} items</span>
-              </div>
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <DollarSign className="h-4 w-4" />
-                <span>${totalCost.toFixed(2)} total</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Add Parts Section */}
-      <Card className="mb-6">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5" />
-                Add Parts to Restock Order
-              </CardTitle>
-              <CardDescription>
-                Search for existing parts or create new ones to add to this restock order
-              </CardDescription>
-            </div>
-            <Button
-              variant="outline"
-              onClick={() => setIsAddPartModalOpen(true)}
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Create New Part
-            </Button>
-          </div>
         </CardHeader>
         <CardContent>
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search parts by name, part number, brand, or model..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-            
-            {/* Search Results */}
-            {searchTerm && (
-              <div className="absolute top-full left-0 right-0 bg-white border border-border rounded-md shadow-lg z-10 max-h-64 overflow-y-auto">
-                {filteredParts.length > 0 ? (
-                  filteredParts.map((part) => (
-                    <button
-                      key={part.id}
-                      onClick={() => addPartToOrder(part)}
-                      className="w-full p-3 text-left hover:bg-gray-50 border-b border-border last:border-0 focus:bg-gray-50 focus:outline-none"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="font-medium">{part.name}</div>
-                          {part.partNumber && (
-                            <div className="text-sm text-muted-foreground">PN: {part.partNumber}</div>
-                          )}
-                          <div className="text-sm text-muted-foreground">
-                            {part.brand && part.model ? `${part.brand} ${part.model}` : part.brand || part.model || 'No brand/model'}
-                          </div>
-                          {part.customFields && Object.keys(part.customFields).length > 0 && (
-                            <div className="mt-1 space-y-0.5">
-                              {Object.entries(part.customFields).map(([key, value]) => (
-                                <div key={key} className="text-xs text-muted-foreground">
-                                  <span className="font-medium">{key}:</span> {value}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <Badge variant="outline" className="text-xs">
-                            {part.totalQuantityInStock} in stock
-                          </Badge>
-                          <div className="text-sm text-muted-foreground mt-1">
-                            Avg: ${part.avgCost.toFixed(2)}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="p-3 text-center text-muted-foreground">
-                    No parts found matching &quot;{searchTerm}&quot;
-                    <Button 
-                      variant="link" 
-                      className="ml-2 p-0 h-auto"
-                      onClick={() => setIsAddPartModalOpen(true)}
-                    >
-                      + Create New Part
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
+          <p className="text-muted-foreground mb-4">
+            After creating your purchase order, you can manage it through the purchase orders section and commit it to inventory when items are received.
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => window.location.href = '/dashboard/suppliers'}>
+              Manage Suppliers
+            </Button>
+            <Button variant="outline" onClick={() => window.location.href = '/dashboard/parts'}>
+              View All Parts
+            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Order Items */}
-      {items.length > 0 && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Restock Items ({items.length})</CardTitle>
-            <CardDescription>
-              Review and adjust quantities and costs for each part
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {items.map((item, index) => (
-                <div key={item.partId} className="flex items-center gap-4 p-4 border border-border rounded-lg">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900 cursor-default">{item.partName}</h4>
-                    <div className="text-sm text-muted-foreground space-y-0.5 mt-1">
-                      {item.partNumber && (
-                        <div>PN: {item.partNumber}</div>
-                      )}
-                      {(item.brand || item.model) && (
-                        <div>{[item.brand, item.model].filter(Boolean).join(' ')}</div>
-                      )}
-                      {item.condition && (
-                        <div>Condition: {item.condition}</div>
-                      )}
-                      {item.customFields && Object.keys(item.customFields).length > 0 && (
-                        <div className="space-y-0.5">
-                          {Object.entries(item.customFields).map(([key, value]) => (
-                            <div key={key} className="text-xs">
-                              <span className="font-medium">{key}:</span> {value}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="w-24">
-                    <Label className="text-xs">Quantity</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={item.quantityReceived}
-                      onChange={(e) => updateItem(index, 'quantityReceived', parseInt(e.target.value) || 1)}
-                      className="text-center"
-                    />
-                  </div>
-
-                  <div className="w-28">
-                    <Label className="text-xs">Cost Each</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.costPerItem}
-                      onChange={(e) => updateItem(index, 'costPerItem', parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-
-                  <div className="w-28">
-                    <Label className="text-xs">Total</Label>
-                    <div className="p-2 bg-gray-50 rounded text-center font-medium">
-                      ${item.totalCost.toFixed(2)}
-                    </div>
-                  </div>
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeItem(index)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Summary & Commit */}
-      {items.length > 0 && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h3 className="text-lg font-semibold">Order Summary</h3>
-                <p className="text-muted-foreground">
-                  {totalItems} total items • ${totalCost.toFixed(2)} total cost
-                </p>
-              </div>
-              <Button 
-                size="lg"
-                onClick={handleCommitToInventory}
-                disabled={committing || items.length === 0}
-                className="gap-2"
-              >
-                {committing ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Committing...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4" />
-                    Commit Stock to Inventory
-                  </>
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      
-      <AddPartModal 
-        open={isAddPartModalOpen}
-        onOpenChange={setIsAddPartModalOpen}
+      {/* Add Part Modal */}
+      <AddPartModal
+        open={showNewPartModal}
+        onOpenChange={setShowNewPartModal}
         onPartCreated={handlePartCreated}
-      />
-      
-      <AddSupplierModal 
-        open={isAddSupplierModalOpen}
-        onOpenChange={setIsAddSupplierModalOpen}
-        onSupplierCreated={handleSupplierCreated}
       />
     </div>
   );

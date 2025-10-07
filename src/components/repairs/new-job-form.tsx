@@ -8,8 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DeviceCondition, RepairJob, Customer } from '@/lib/types';
-import { Save, Phone, Mail, Search, Plus, AlertCircle } from 'lucide-react';
+import { DeviceCondition, RepairJob, Customer, UsedPart, UsedService, Service } from '@/lib/types';
+import { Save, Phone, Mail, Search, Plus, AlertCircle, Wrench, Package } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { AddableCombobox } from '@/components/inventory/addable-combobox';
 import { getBrandOptions, addBrandOption } from '@/lib/actions/options';
@@ -69,6 +69,10 @@ export function NewJobForm() {
   const [estimatedCost, setEstimatedCost] = useState('');
   const [selectedConditions, setSelectedConditions] = useState<DeviceCondition[]>([]);
   const [priority, setPriority] = useState<'Low' | 'Medium' | 'High' | 'Urgent'>('Medium');
+
+  // Parts and Services state
+  const [usedParts, setUsedParts] = useState<UsedPart[]>([]);
+  const [usedServices, setUsedServices] = useState<UsedService[]>([]);
 
   const [customerSuggestions, setCustomerSuggestions] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);

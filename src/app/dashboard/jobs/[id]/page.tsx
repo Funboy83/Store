@@ -1,4 +1,4 @@
-import { JobDetailView } from '@/components/repairs/job-detail-view';
+import { JobDetailWrapper } from './job-detail-wrapper';
 import { getRepairJobById } from '@/lib/actions/repair-jobs';
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -23,15 +23,15 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
     <div className="p-6">
       <div className="mb-6">
         <Button variant="ghost" asChild>
-          <Link href="/dashboard/repairs">
+          <Link href="/dashboard/jobs">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
+            Back to Jobs
           </Link>
         </Button>
       </div>
       
-      <JobDetailView 
-        job={job}
+      <JobDetailWrapper 
+        initialJob={job}
       />
     </div>
   );

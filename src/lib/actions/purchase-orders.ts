@@ -112,7 +112,9 @@ export async function commitPurchaseOrderToInventory(
           item.quantityReceived,
           item.costPerItem,
           order.supplierName,
-          `Purchase Order #${order.referenceNumber || orderId} - ${order.purchaseDate}`
+          `Purchase Order #${order.referenceNumber || orderId} - ${order.purchaseDate}`,
+          orderId, // Link to the purchase order ID
+          order.referenceNumber // Supplier's reference number
         );
 
         // Add the new batch to existing batches

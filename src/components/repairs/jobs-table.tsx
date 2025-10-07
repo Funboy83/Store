@@ -134,7 +134,13 @@ export function JobsTable({ jobs }: JobsTableProps) {
                         <Eye className="h-4 w-4" />
                       </Link>
                     </Button>
-                    <Button variant="ghost" size="sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      disabled={job.isPaid}
+                      className={job.isPaid ? "opacity-50 cursor-not-allowed" : ""}
+                      title={job.isPaid ? "Cannot edit paid jobs" : "Edit job"}
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button variant="ghost" size="sm">

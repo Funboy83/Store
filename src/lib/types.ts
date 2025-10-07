@@ -223,6 +223,28 @@ export type UsedPart = {
   total: number;
 };
 
+// Service Types for standardized repair services
+export type Service = {
+  id: string;
+  name: string;
+  description: string;
+  category: 'Labor' | 'Diagnostic' | 'Repair' | 'Installation' | 'Other';
+  price: number;
+  estimatedTime?: number; // in minutes
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UsedService = {
+  serviceId: string;
+  serviceName: string;
+  serviceDescription: string;
+  price: number;
+  quantity: number; // For services that can be applied multiple times
+  total: number;
+};
+
 export type RepairJob = {
   id: string;
   jobId: string; // Display ID like #1001
@@ -255,7 +277,8 @@ export type RepairJob = {
   technicianNotes: string[];
   internalNotes: string[];
   usedParts: UsedPart[];
-  laborCost: number;
+  usedServices: UsedService[];
+  laborCost: number; // TODO: Remove this after migrating to service-based system
   
   // Invoice
   invoiceGenerated: boolean;
@@ -362,6 +385,8 @@ export type PartBatch = {
   costPrice: number;
   supplier?: string;
   notes?: string;
+  purchaseOrderId?: string; // Link to originating purchase order
+  referenceNumber?: string; // Supplier's invoice/reference number
 };
 
 // Result type for FIFO batch consumption

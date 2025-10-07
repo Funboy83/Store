@@ -21,7 +21,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { InventoryPicker } from './inventory-picker';
-import { Product, Customer, InvoiceItem, InvoiceDetail, Invoice } from '@/lib/types';
+import { ServicePicker } from './service-picker';
+import { Product, Customer, InvoiceItem, InvoiceDetail, Invoice, Service } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { getLatestInvoiceNumber, sendInvoice, updateInvoice } from '@/lib/actions/invoice';
@@ -164,6 +165,19 @@ export function InvoiceForm({ invoice, inventory, customers }: InvoiceFormProps)
       isCustom: true,
     };
     setItems(prev => [...prev, newItem]);
+  };
+
+  const handleAddService = (service: Service) => {
+    const serviceItem: InvoiceItem = {
+      id: `service-${service.id}-${Date.now()}`,
+      productName: service.name,
+      description: service.description,
+      quantity: 1,
+      unitPrice: service.price,
+      total: service.price,
+      isCustom: true, // Services are treated as custom items for flexibility
+    };
+    setItems(prev => [...prev, serviceItem]);
   };
 
   const handleRemoveItem = (itemId: string) => {
@@ -474,6 +488,7 @@ export function InvoiceForm({ invoice, inventory, customers }: InvoiceFormProps)
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <ServicePicker onServiceAdd={handleAddService} />
                   <Button variant="outline" onClick={handleAddCustomItem}><Plus className="mr-2 h-4 w-4" /> Add custom item</Button>
                   <DropdownMenu>
                       <DropdownMenuTrigger asChild>
