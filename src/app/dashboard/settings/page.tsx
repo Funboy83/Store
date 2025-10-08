@@ -1,9 +1,15 @@
 
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Database } from "lucide-react";
+import { Settings, Database, FolderOpen } from "lucide-react";
 
 const settingsCategories = [
+  {
+    title: "Categories",
+    description: "Manage inventory categories and sub-categories",
+    href: "/dashboard/settings/categories",
+    icon: FolderOpen,
+  },
   {
     title: "Custom Fields",
     description: "Manage pre-defined custom fields for products",

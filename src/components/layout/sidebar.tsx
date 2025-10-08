@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { Boxes, LayoutGrid, BarChart3, Users, Settings, Landmark, ArrowLeftRight, Wrench, Smartphone, ChevronDown, ChevronRight, Package, Truck } from 'lucide-react';
+import { Boxes, LayoutGrid, BarChart3, Users, Settings, Landmark, ArrowLeftRight, Wrench, Smartphone, ChevronDown, ChevronRight, Package, Truck, FolderOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Logo } from '../logo';
 
@@ -73,6 +73,11 @@ const inventorySubItems = [
     label: 'Manage Parts',
   },
   {
+    href: '/dashboard/general-inventory',
+    icon: Boxes,
+    label: 'General Inventory',
+  },
+  {
     href: '/dashboard/services',
     icon: Wrench,
     label: 'Manage Services',
@@ -85,6 +90,11 @@ const inventorySubItems = [
 ];
 
 const settingsSubItems = [
+  {
+    href: '/dashboard/settings/categories',
+    icon: FolderOpen,
+    label: 'Categories',
+  },
   {
     href: '/dashboard/settings/custom-fields',
     icon: Package,
@@ -124,7 +134,7 @@ interface MainSidebarProps {
 export function MainSidebar({ isCollapsed }: MainSidebarProps) {
   const pathname = usePathname();
   const [isInventoryExpanded, setIsInventoryExpanded] = useState(
-    pathname.startsWith('/dashboard/inventory') || pathname.startsWith('/dashboard/parts') || pathname.startsWith('/dashboard/services') || pathname.startsWith('/dashboard/restock')
+    pathname.startsWith('/dashboard/inventory') || pathname.startsWith('/dashboard/parts') || pathname.startsWith('/dashboard/general-inventory') || pathname.startsWith('/dashboard/services') || pathname.startsWith('/dashboard/restock')
   );
   const [isSettingsExpanded, setIsSettingsExpanded] = useState(
     pathname.startsWith('/dashboard/settings')
@@ -152,7 +162,7 @@ export function MainSidebar({ isCollapsed }: MainSidebarProps) {
   };
 
   const renderInventorySection = () => {
-    const isInventoryActive = pathname.startsWith('/dashboard/inventory') || pathname.startsWith('/dashboard/parts') || pathname.startsWith('/dashboard/services') || pathname.startsWith('/dashboard/restock');
+    const isInventoryActive = pathname.startsWith('/dashboard/inventory') || pathname.startsWith('/dashboard/parts') || pathname.startsWith('/dashboard/general-inventory') || pathname.startsWith('/dashboard/services') || pathname.startsWith('/dashboard/restock');
     
     return (
       <div key="inventory">

@@ -427,11 +427,35 @@ export type PurchaseOrder = {
   updatedAt: string;
 };
 
+// Category Management Types
+export type Category = {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SubCategory = {
+  id: string;
+  categoryId: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CategoryWithSubCategories = Category & {
+  subCategories: SubCategory[];
+};
+
 export type Part = {
   id: string;
   name: string;
   partNumber?: string;
   category?: PartCategory;
+  categoryId?: string; // New: Reference to Category
+  subCategoryId?: string; // New: Reference to SubCategory
   brand?: string;
   model?: string;
   compatibility?: string[]; // Array of compatible phone models
@@ -497,3 +521,49 @@ export type FieldTemplate = {
 
 // Custom field value that can be different types
 export type CustomFieldValue = string | number | boolean;
+
+// General Inventory Types - Separate from Parts inventory
+export type GeneralItemCondition = 
+  | 'New'
+  | 'Refurbished'
+  | 'Used - Excellent'
+  | 'Used - Good'
+  | 'Used - Fair'
+  | 'Damaged';
+
+// General inventory item using the same FIFO batch system as parts
+export type GeneralItem = {
+  id: string;
+  name: string;
+  sku?: string; // Stock Keeping Unit
+  categoryId?: string; // Reference to Category from settings
+  subCategoryId?: string; // Reference to SubCategory from settings
+  brand?: string;
+  model?: string;
+  description?: string;
+  condition: GeneralItemCondition;
+  batches: PartBatch[]; // Reuse the same FIFO batch system as parts
+  totalQuantityInStock: number; // Calculated sum for easy display
+  minQuantity: number; // For low stock alerts
+  avgCost: number; // Average cost across all batches for reference
+  price: number; // How much we sell for
+  location?: string; // Where it's stored
+  notes?: string;
+  customFields?: Record<string, string>; // Flexible key-value pairs for unique attributes
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type GeneralItemHistory = {
+  id: string;
+  itemId: string;
+  type: 'purchase' | 'sale' | 'use' | 'return' | 'adjustment';
+  quantity: number;
+  batchId?: string; // Which batch was affected
+  costPrice?: number; // Actual cost from the specific batch
+  sellPrice?: number;
+  jobId?: string; // If used in a repair job
+  customerId?: string;
+  notes?: string;
+  createdAt: string;
+};
