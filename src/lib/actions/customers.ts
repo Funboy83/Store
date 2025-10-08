@@ -149,8 +149,8 @@ export async function getCustomerDetails(id: string): Promise<{ customer: Custom
         const items = itemsSnapshot.docs.map(itemDoc => ({ id: itemDoc.id, ...itemDoc.data() } as InvoiceItem));
 
         return {
-          id: doc.id,
           ...invoiceData,
+          id: doc.id,
           createdAt: invoiceData.createdAt?.toDate ? invoiceData.createdAt.toDate().toISOString() : new Date().toISOString(),
           customer: customer,
           items: items,

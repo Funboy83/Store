@@ -22,15 +22,15 @@ export function withAdminOnly<T extends object>(Component: React.ComponentType<T
     const { isAdmin } = useAdmin();
     
     if (!isAdmin) {
-      return (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-          <p className="text-yellow-800 text-sm">
-            🔒 Admin access required to view this content
-          </p>
-        </div>
+      return React.createElement('div', 
+        { className: "bg-yellow-50 border border-yellow-200 rounded-md p-4" },
+        React.createElement('p', 
+          { className: "text-yellow-800 text-sm" },
+          "🔒 Admin access required to view this content"
+        )
       );
     }
 
-    return <Component {...props} />;
+    return React.createElement(Component, props);
   };
 }

@@ -1,8 +1,6 @@
 import { StatsCards } from '@/components/dashboard/stats-cards';
 import { SalesChart } from '@/components/dashboard/sales-chart';
 import { RecentSales } from '@/components/dashboard/recent-sales';
-import { AdminPanel } from '@/components/admin/admin-panel';
-import { AuthDebugPanel } from '@/components/debug/auth-debug';
 import { getDashboardStats, getRecentSales, getSalesChartData } from '@/lib/actions/dashboard';
 
 export default async function DashboardPage() {
@@ -24,8 +22,6 @@ export default async function DashboardPage() {
                 <RecentSales sales={recentSales} totalSalesCount={stats.totalSales} />
             </div>
         </div>
-        <AdminPanel />
-        <AuthDebugPanel />
     </div>
   );
 }

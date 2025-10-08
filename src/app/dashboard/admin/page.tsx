@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, CheckCircle2, Database } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { InitWalkInCustomer } from '@/components/admin/init-walk-in-customer';
 
 export default function AdminPage() {
   const [isRunning, setIsRunning] = useState(false);
@@ -75,6 +76,8 @@ export default function AdminPage() {
             )}
           </CardContent>
         </Card>
+
+        <InitWalkInCustomer />
 
         <Card>
           <CardHeader>
